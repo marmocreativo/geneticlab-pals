@@ -7,6 +7,8 @@ import ContactosDashboard from '@/pages/pal/ContactosDashboard'
 import Usuarios from '@/pages/admin/Usuarios'
 import CatalogosPage from '@/pages/admin/CatalogosPage'
 import ConfiguracionesPage from '@/pages/admin/ConfiguracionesPage'
+import { MedicosPage } from '@/pages/admin/MedicosPage'
+import { PacientesPage } from '@/pages/admin/PacientesPage'
 
 function App() {
   const { user, role, loading } = useAuth()
@@ -39,6 +41,8 @@ function App() {
             <Route path="/admin" element={<Dashboard />} />
             <Route path="/admin/usuarios" element={<Usuarios />} />
             <Route path="/admin/catalogos" element={<CatalogosPage />} />
+            <Route path="/admin/medicos" element={<MedicosPage />} />
+            <Route path="/admin/pacientes" element={<PacientesPage />} />
             <Route path="/admin/instituciones" element={<div>Instituciones (próximamente)</div>} />
             <Route path="/admin/configuraciones" element={<ConfiguracionesPage />} />
             <Route path="/admin/reportes" element={<div>Reportes (próximamente)</div>} />

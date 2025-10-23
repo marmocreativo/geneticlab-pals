@@ -23,7 +23,9 @@ import {
   User,
   BookOpen,
   MapPin,
-  FileCheck
+  FileCheck,
+  Stethoscope,
+  UserRound
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -51,6 +53,18 @@ const navItems: NavItem[] = [
     title: 'Catálogos',
     href: '/admin/catalogos',
     icon: BookOpen,
+    roles: ['admin']
+  },
+  {
+    title: 'Médicos',
+    href: '/admin/medicos',
+    icon: Stethoscope,
+    roles: ['admin']
+  },
+  {
+    title: 'Pacientes',
+    href: '/admin/pacientes',
+    icon: UserRound,
     roles: ['admin']
   },
   {
