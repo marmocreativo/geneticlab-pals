@@ -1,119 +1,91 @@
-import { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
-import { useGooglePlaces } from '@/hooks/useGooglePlaces';
+import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { useGooglePlaces } from '@/hooks/useGooglePlaces';
+import { MapPin } from 'lucide-react';
 
 interface PlaceSearchInputProps {
-  onPlaceSelect: (place: {
-    name: string;
-    address: string;
-    placeId: string;
-    lat: number;
-    lng: number;
-  }) => void;
+  onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
 }
 
 export function PlaceSearchInput({ onPlaceSelect }: PlaceSearchInputProps) {
-  const [open, setOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
-  const [predictions, setPredictions] = useState<any[]>([]);
-  const { isLoaded, searchPlaces, getPlaceDetails } = useGooglePlaces();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const { isLoaded } = useGooglePlaces();
+  const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
-    if (!searchValue || !isLoaded) {
-      setPredictions([]);
+    if (!isLoaded || !inputRef.current) {
       return;
     }
 
-    const timer = setTimeout(async () => {
-      try {
-        const results = await searchPlaces(searchValue);
-        setPredictions(results);
-      } catch (error) {
-        console.error('Error searching places:', error);
-        setPredictions([]);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchValue, searchPlaces, isLoaded]);
-
-  const handleSelectPlace = async (placeId: string) => {
     try {
-      const details = await getPlaceDetails(placeId);
-      onPlaceSelect({
-        name: details.name,
-        address: details.formatted_address,
-        placeId: details.place_id,
-        lat: details.lat,
-        lng: details.lng,
+      // Limpiar instancia anterior si existe
+      if (autocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+      }
+
+      // Crear nueva instancia de Autocomplete
+      autocompleteRef.current = new google.maps.places.Autocomplete(
+        inputRef.current,
+        {
+          types: ['hospital'],
+          componentRestrictions: { country: 'mx' },
+          fields: ['name', 'formatted_address', 'geometry', 'place_id'],
+        }
+      );
+
+      // Listener para cuando se selecciona un lugar
+      const listener = autocompleteRef.current.addListener('place_changed', () => {
+        const place = autocompleteRef.current?.getPlace();
+        
+        if (place && place.geometry) {
+          onPlaceSelect(place);
+          setInputValue(place.name || '');
+        }
       });
-      setOpen(false);
-      setSearchValue('');
+
+      // Cleanup
+      return () => {
+        if (listener) {
+          google.maps.event.removeListener(listener);
+        }
+      };
     } catch (error) {
-      console.error('Error getting place details:', error);
+      console.error('Error initializing Google Places Autocomplete:', error);
+    }
+  }, [isLoaded, onPlaceSelect]);
+
+  // Manejar Enter para seleccionar automáticamente el primer resultado
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Google Places maneja automáticamente Enter, solo prevenimos el submit del form
     }
   };
 
   if (!isLoaded) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Search className="h-4 w-4" />
-        <span>Cargando Google Maps...</span>
+        <MapPin className="h-4 w-4 animate-pulse" />
+        Cargando Google Maps...
       </div>
     );
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-start"
-        >
-          <Search className="mr-2 h-4 w-4" />
-          Buscar institución en Google Maps
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput
-            placeholder="Buscar institución..."
-            value={searchValue}
-            onValueChange={setSearchValue}
-          />
-          <CommandList>
-            <CommandEmpty>No se encontraron resultados</CommandEmpty>
-            <CommandGroup>
-              {predictions.map((prediction) => (
-                <CommandItem
-                  key={prediction.place_id}
-                  value={prediction.place_id}
-                  onSelect={() => handleSelectPlace(prediction.place_id)}
-                >
-                  {prediction.description}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div className="relative">
+      <Input
+        ref={inputRef}
+        type="text"
+        placeholder="Buscar hospital o clínica..."
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        autoComplete="off"
+      />
+      <p className="text-xs text-muted-foreground mt-1">
+        💡 Escribe y presiona <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> o usa las flechas <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↓</kbd> <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↑</kbd> y <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd>
+      </p>
+    </div>
   );
 }

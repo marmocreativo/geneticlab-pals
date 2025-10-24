@@ -4,6 +4,7 @@ import Login from '@/pages/auth/Login'
 import MainLayout from '@/components/layout/MainLayout'
 import Dashboard from '@/pages/admin/Dashboard'
 import ContactosDashboard from '@/pages/pal/ContactosDashboard'
+import { ContactosPage } from '@/pages/pal/ContactosPage'
 import Usuarios from '@/pages/admin/Usuarios'
 import CatalogosPage from '@/pages/admin/CatalogosPage'
 import ConfiguracionesPage from '@/pages/admin/ConfiguracionesPage'
@@ -50,8 +51,8 @@ function App() {
           </>
         ) : (
           <>
-            <Route path="/pal/contactos" element={<ContactosDashboard />} />
-            <Route path="/pal/contactos/nuevo" element={<div>Nuevo Contacto (próximamente)</div>} />
+            <Route path="/pal/contactos" element={<ContactosPage />} />
+            <Route path="/pal/dashboard" element={<ContactosDashboard />} />
             <Route path="/pal/instituciones" element={<div>Instituciones (próximamente)</div>} />
             <Route path="/pal/fichas" element={<div>Fichas (próximamente)</div>} />
             <Route path="*" element={<Navigate to="/pal/contactos" replace />} />

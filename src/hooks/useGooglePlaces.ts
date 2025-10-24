@@ -1,104 +1,82 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-interface PlaceResult {
-  place_id: string;
-  name: string;
-  formatted_address: string;
-  lat: number;
-  lng: number;
-}
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-interface AutocompletePrediction {
-  place_id: string;
-  description: string;
-}
+// Variable global para rastrear si el script ya está cargado
+let isScriptLoaded = false;
+let isScriptLoading = false;
+let loadCallbacks: (() => void)[] = [];
 
 export function useGooglePlaces() {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [autocompleteService, setAutocompleteService] = useState<any>(null);
-  const [placesService, setPlacesService] = useState<any>(null);
+  const [isLoaded, setIsLoaded] = useState(isScriptLoaded);
 
   useEffect(() => {
+    // Si ya está cargado, retornar inmediatamente
+    if (isScriptLoaded) {
+      setIsLoaded(true);
+      return;
+    }
+
+    // Si ya se está cargando, agregar callback y esperar
+    if (isScriptLoading) {
+      loadCallbacks.push(() => setIsLoaded(true));
+      return;
+    }
+
+    // Verificar si Google Maps ya existe en window
+    if (window.google?.maps?.places) {
+      isScriptLoaded = true;
+      setIsLoaded(true);
+      return;
+    }
+
+    // Verificar si el script ya existe en el DOM
+    const existingScript = document.querySelector(
+      `script[src*="maps.googleapis.com"]`
+    );
+    
+    if (existingScript) {
+      isScriptLoading = true;
+      loadCallbacks.push(() => setIsLoaded(true));
+      
+      existingScript.addEventListener('load', () => {
+        isScriptLoaded = true;
+        isScriptLoading = false;
+        loadCallbacks.forEach(cb => cb());
+        loadCallbacks = [];
+      });
+      return;
+    }
+
+    // Cargar el script por primera vez
+    isScriptLoading = true;
+    loadCallbacks.push(() => setIsLoaded(true));
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
     script.async = true;
     script.defer = true;
-    
+
     script.onload = () => {
-      // @ts-ignore
-      const google = window.google;
-      setAutocompleteService(new google.maps.places.AutocompleteService());
-      const div = document.createElement('div');
-      setPlacesService(new google.maps.places.PlacesService(div));
-      setIsLoaded(true);
+      isScriptLoaded = true;
+      isScriptLoading = false;
+      loadCallbacks.forEach(cb => cb());
+      loadCallbacks = [];
+    };
+
+    script.onerror = () => {
+      isScriptLoading = false;
+      console.error('Error loading Google Maps script');
+      loadCallbacks = [];
     };
 
     document.head.appendChild(script);
 
+    // Cleanup
     return () => {
-      document.head.removeChild(script);
+      // No remover el script al desmontar para evitar recargas
     };
   }, []);
 
-  const searchPlaces = useCallback(
-    (input: string): Promise<AutocompletePrediction[]> => {
-      if (!autocompleteService || !input) {
-        return Promise.resolve([]);
-      }
-
-      return new Promise((resolve, reject) => {
-        autocompleteService.getPlacePredictions(
-          {
-            input,
-            componentRestrictions: { country: 'mx' },
-          },
-          (predictions: any, status: any) => {
-            if (status === 'OK' && predictions) {
-              resolve(predictions);
-            } else {
-              resolve([]);
-            }
-          }
-        );
-      });
-    },
-    [autocompleteService]
-  );
-
-  const getPlaceDetails = useCallback(
-    (placeId: string): Promise<PlaceResult> => {
-      if (!placesService) {
-        return Promise.reject('Places service not loaded');
-      }
-
-      return new Promise((resolve, reject) => {
-        placesService.getDetails(
-          {
-            placeId,
-            fields: ['place_id', 'name', 'formatted_address', 'geometry'],
-          },
-          (place: any, status: any) => {
-            if (status === 'OK' && place) {
-              resolve({
-                place_id: place.place_id,
-                name: place.name,
-                formatted_address: place.formatted_address,
-                lat: place.geometry.location.lat(),
-                lng: place.geometry.location.lng(),
-              });
-            } else {
-              reject(status);
-            }
-          }
-        );
-      });
-    },
-    [placesService]
-  );
-
-  return {
-    isLoaded,
-    searchPlaces,
-    getPlaceDetails,
-  };
+  return { isLoaded };
 }
