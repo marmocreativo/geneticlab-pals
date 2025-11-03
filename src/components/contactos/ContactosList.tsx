@@ -1,3 +1,5 @@
+// Actualizar src/components/contactos/ContactosList.tsx
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,13 +24,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { Contacto } from '@/types/contacto';
-import { Trash2, Search, MapPin, Phone, User, CheckCircle2 } from 'lucide-react';
+import { Trash2, Search, MapPin, Phone, User, CheckCircle2, Pill } from 'lucide-react'; // Agregar Pill
 
 interface ContactosListProps {
   contactos: Contacto[];
   loading: boolean;
   onDelete: (id: string) => Promise<void>;
   onConfirm?: (contacto: Contacto) => void;
+  onViewFichas?: (contacto: Contacto) => void; // NUEVO
   showConfirmButton?: boolean;
 }
 
@@ -37,6 +40,7 @@ export function ContactosList({
   loading,
   onDelete,
   onConfirm,
+  onViewFichas, // NUEVO
   showConfirmButton = false,
 }: ContactosListProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -181,6 +185,18 @@ export function ContactosList({
                       <TableCell>{contacto.numero_pm || '-'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          {/* NUEVO: Botón de fichas */}
+                          {onViewFichas && contacto.estado === 'confirmado' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onViewFichas(contacto)}
+                              title="Ver fichas de tratamiento"
+                            >
+                              <Pill className="h-4 w-4 text-purple-500" />
+                            </Button>
+                          )}
+                          
                           {showConfirmButton && contacto.estado === 'programado' && onConfirm && (
                             <Button
                               variant="outline"

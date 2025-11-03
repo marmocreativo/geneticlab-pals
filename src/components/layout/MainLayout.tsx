@@ -25,7 +25,8 @@ import {
   MapPin,
   FileCheck,
   Stethoscope,
-  UserRound
+  UserRound,
+  Pill
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -104,9 +105,9 @@ const navItems: NavItem[] = [
     roles: ['pal']
   },
   {
-    title: 'Fichas',
-    href: '/pal/fichas',
-    icon: FileText,
+    title: 'Fichas Tratamiento',  // <-- Actualizar este
+    href: '/fichas-tratamiento',  // <-- Usar la ruta correcta
+    icon: Pill,                   // <-- Cambiar el icono
     roles: ['pal']
   }
 ]

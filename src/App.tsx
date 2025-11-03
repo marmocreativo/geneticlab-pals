@@ -10,6 +10,7 @@ import CatalogosPage from '@/pages/admin/CatalogosPage'
 import ConfiguracionesPage from '@/pages/admin/ConfiguracionesPage'
 import { MedicosPage } from '@/pages/admin/MedicosPage'
 import { PacientesPage } from '@/pages/admin/PacientesPage'
+import FichasTratamientoPage from './pages/pal/FichasTratamientoPage';
 
 function App() {
   const { user, role, loading } = useAuth()
@@ -51,6 +52,7 @@ function App() {
           </>
         ) : (
           <>
+            <Route path="/fichas-tratamiento" element={<FichasTratamientoPage />} />
             <Route path="/pal/contactos" element={<ContactosPage />} />
             <Route path="/pal/dashboard" element={<ContactosDashboard />} />
             <Route path="/pal/instituciones" element={<div>Instituciones (próximamente)</div>} />

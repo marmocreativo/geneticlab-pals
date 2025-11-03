@@ -1,9 +1,12 @@
+// Actualizar src/pages/pal/ContactosPage.tsx
+
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useContactos } from '@/hooks/useContactos';
 import { ContactoForm } from '@/components/contactos/ContactoForm';
 import { ContactoConfirmForm } from '@/components/contactos/ContactoConfirmForm';
 import { ContactosList } from '@/components/contactos/ContactosList';
+import { ContactoFichasDialog } from '@/components/fichas/ContactoFichasDialog'; // NUEVO
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +23,7 @@ export function ContactosPage() {
   const { user } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showConfirmForm, setShowConfirmForm] = useState(false);
+  const [showFichasDialog, setShowFichasDialog] = useState(false); // NUEVO
   const [selectedContacto, setSelectedContacto] = useState<Contacto | null>(null);
 
   const {
@@ -48,6 +52,12 @@ export function ContactosPage() {
   const handleConfirmClick = (contacto: Contacto) => {
     setSelectedContacto(contacto);
     setShowConfirmForm(true);
+  };
+
+  // NUEVO: Manejar clic en fichas
+  const handleViewFichas = (contacto: Contacto) => {
+    setSelectedContacto(contacto);
+    setShowFichasDialog(true);
   };
 
   return (
@@ -132,6 +142,7 @@ export function ContactosPage() {
             loading={loading}
             onDelete={deleteContacto}
             onConfirm={handleConfirmClick}
+            onViewFichas={handleViewFichas} // NUEVO
             showConfirmButton={true}
           />
         </TabsContent>
@@ -141,6 +152,7 @@ export function ContactosPage() {
             contactos={contactosConfirmados}
             loading={loading}
             onDelete={deleteContacto}
+            onViewFichas={handleViewFichas} // NUEVO
             showConfirmButton={false}
           />
         </TabsContent>
@@ -151,6 +163,7 @@ export function ContactosPage() {
             loading={loading}
             onDelete={deleteContacto}
             onConfirm={handleConfirmClick}
+            onViewFichas={handleViewFichas} // NUEVO
             showConfirmButton={true}
           />
         </TabsContent>
@@ -187,6 +200,16 @@ export function ContactosPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* NUEVO: Dialog para fichas de tratamiento */}
+      <ContactoFichasDialog
+        contacto={selectedContacto}
+        open={showFichasDialog}
+        onClose={() => {
+          setShowFichasDialog(false);
+          setSelectedContacto(null);
+        }}
+      />
     </div>
   );
 }

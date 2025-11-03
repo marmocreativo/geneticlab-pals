@@ -6,7 +6,16 @@ export const contactosService = {
   async getContactos(palId: string): Promise<Contacto[]> {
     const { data, error } = await supabase
       .from('contactos')
-      .select('*')
+      .select(`
+        *,
+        instituciones (
+          id,
+          nombre,
+          direccion,
+          latitud,
+          longitud
+        )
+      `)
       .eq('pal_id', palId)
       .order('fecha_contacto', { ascending: false });
 
@@ -18,7 +27,16 @@ export const contactosService = {
   async getContactosProgramados(palId: string): Promise<Contacto[]> {
     const { data, error } = await supabase
       .from('contactos')
-      .select('*')
+      .select(`
+        *,
+        instituciones (
+          id,
+          nombre,
+          direccion,
+          latitud,
+          longitud
+        )
+      `)
       .eq('pal_id', palId)
       .eq('estado', 'programado')
       .order('fecha_contacto', { ascending: true });
@@ -31,7 +49,16 @@ export const contactosService = {
   async getContactosConfirmados(palId: string): Promise<Contacto[]> {
     const { data, error } = await supabase
       .from('contactos')
-      .select('*')
+      .select(`
+        *,
+        instituciones (
+          id,
+          nombre,
+          direccion,
+          latitud,
+          longitud
+        )
+      `)
       .eq('pal_id', palId)
       .eq('estado', 'confirmado')
       .order('fecha_contacto', { ascending: false });
@@ -44,7 +71,16 @@ export const contactosService = {
   async getContactoById(id: string): Promise<Contacto | null> {
     const { data, error } = await supabase
       .from('contactos')
-      .select('*')
+      .select(`
+        *,
+        instituciones (
+          id,
+          nombre,
+          direccion,
+          latitud,
+          longitud
+        )
+      `)
       .eq('id', id)
       .single();
 
@@ -65,7 +101,16 @@ export const contactosService = {
         validacion_gps: false,
         ...formData,
       })
-      .select()
+      .select(`
+        *,
+        instituciones (
+          id,
+          nombre,
+          direccion,
+          latitud,
+          longitud
+        )
+      `)
       .single();
 
     if (error) throw error;
@@ -96,11 +141,19 @@ export const contactosService = {
         estado: 'confirmado',
         confirmado_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        // Si hubo cambios, podrías agregar un flag o crear un log
-        ...(datosModificados && { datos_modificados: true }),
+        datos_modificados: datosModificados,
       })
       .eq('id', id)
-      .select()
+      .select(`
+        *,
+        instituciones (
+          id,
+          nombre,
+          direccion,
+          latitud,
+          longitud
+        )
+      `)
       .single();
 
     if (error) throw error;
@@ -126,7 +179,16 @@ export const contactosService = {
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .select()
+      .select(`
+        *,
+        instituciones (
+          id,
+          nombre,
+          direccion,
+          latitud,
+          longitud
+        )
+      `)
       .single();
 
     if (error) throw error;

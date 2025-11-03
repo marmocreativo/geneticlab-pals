@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // ← Agregar useCallback
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,10 +12,13 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { GPSValidation } from './GPSValidation';
 import type { ContactoConfirmData } from '@/types/contacto';
 import type { Contacto } from '@/types/contacto';
 import type { Catalogo } from '@/types/catalogo';
+import type { ResultadoGPS } from '@/lib/geolocation';
 import { useCatalogos } from '@/hooks/useCatalogos';
+import { configuracionesService } from '@/services/configuracionesService';
 import { Upload, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,6 +36,8 @@ export function ContactoConfirmForm({
   const [fotos, setFotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [datosModificados, setDatosModificados] = useState(false);
+  const [distanciaMaxima, setDistanciaMaxima] = useState<number>(100);
+  const [validacionGPS, setValidacionGPS] = useState<ResultadoGPS | null>(null);
 
   const { catalogos } = useCatalogos();
   const {
@@ -52,6 +57,22 @@ export function ContactoConfirmForm({
       numero_pm: contacto.numero_pm,
     },
   });
+
+  const tipoContacto = watch('tipo_contacto');
+  const esPresencial = tipoContacto === 'presencial';
+
+  // Cargar distancia máxima GPS
+  useEffect(() => {
+    const cargarDistancia = async () => {
+      try {
+        const distancia = await configuracionesService.getDistanciaMaximaGPS();
+        setDistanciaMaxima(distancia);
+      } catch (error) {
+        console.error('Error al cargar distancia máxima:', error);
+      }
+    };
+    cargarDistancia();
+  }, []);
 
   // Detectar cambios en los datos originales
   useEffect(() => {
@@ -81,10 +102,38 @@ export function ContactoConfirmForm({
     setFotos((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // ✅ SOLUCIÓN: Envolver con useCallback
+  const handleValidacionGPS = useCallback((resultado: ResultadoGPS) => {
+    setValidacionGPS(resultado);
+  }, []);
+
   const onSubmitForm = async (data: ContactoConfirmData) => {
+    // Validar GPS para contactos presenciales
+    if (esPresencial) {
+      if (!validacionGPS) {
+        toast.error('Por favor espera a que se valide tu ubicación');
+        return;
+      }
+
+      if (!validacionGPS.dentroRango) {
+        toast.error('Debes estar dentro del rango permitido para confirmar la visita');
+        return;
+      }
+    }
+
     try {
       setLoading(true);
-      await onSubmit(data, fotos);
+      
+      // Agregar datos de GPS si es presencial
+      const dataConGPS = esPresencial && validacionGPS ? {
+        ...data,
+        validacion_gps: validacionGPS.dentroRango,
+        latitud_registro: validacionGPS.coordenadas.latitud,
+        longitud_registro: validacionGPS.coordenadas.longitud,
+        distancia_metros: validacionGPS.distanciaMetros,
+      } : data;
+
+      await onSubmit(dataConGPS, fotos);
     } finally {
       setLoading(false);
     }
@@ -179,6 +228,19 @@ export function ContactoConfirmForm({
           </div>
         </CardContent>
       </Card>
+
+      {/* Validación GPS - Solo para contactos presenciales */}
+      {esPresencial && contacto.instituciones && (
+        <GPSValidation
+          institucionCoordenadas={{
+            latitud: contacto.instituciones.latitud,
+            longitud: contacto.instituciones.longitud,
+          }}
+          institucionNombre={contacto.instituciones.nombre}
+          distanciaMaxima={distanciaMaxima}
+          onValidacionCompletada={handleValidacionGPS}
+        />
+      )}
 
       <Card>
         <CardHeader>

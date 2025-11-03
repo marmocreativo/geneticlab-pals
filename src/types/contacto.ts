@@ -2,10 +2,19 @@ export type TipoContactoCon = 'medico' | 'enfermera' | 'cuidador' | 'paciente';
 export type TipoContacto = 'presencial' | 'telefonico';
 export type EstadoContacto = 'programado' | 'confirmado' | 'cancelado';
 
+export interface Institucion {
+  id: string;
+  nombre: string;
+  direccion: string;
+  latitud: number;
+  longitud: number;
+}
+
 export interface Contacto {
   id: string;
   pal_id: string;
   institucion_id: string;
+  instituciones?: Institucion; // Relación con tabla instituciones
   fecha_contacto: string;
   contacto_con?: TipoContactoCon;
   nombre?: string;
@@ -18,11 +27,12 @@ export interface Contacto {
   entrega_kit_rash_id?: string;
   torre_control_id?: string;
   descripcion_actividad_id?: string;
-  tema_impartido_id?: string; // Cambiado a singular
+  tema_impartido_id?: string;
   validacion_gps: boolean;
   latitud_registro?: number;
   longitud_registro?: number;
   distancia_metros?: number;
+  datos_modificados?: boolean;
   estado: EstadoContacto;
   confirmado_at?: string;
   created_at: string;
@@ -54,6 +64,11 @@ export interface ContactoConfirmData {
   torre_control_id?: string;
   descripcion_actividad_id?: string;
   tema_impartido_id?: string;
+  // Campos GPS (solo para contactos presenciales)
+  validacion_gps?: boolean;
+  latitud_registro?: number;
+  longitud_registro?: number;
+  distancia_metros?: number;
   fotos?: File[];
 }
 
