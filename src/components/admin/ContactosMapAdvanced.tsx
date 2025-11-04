@@ -1,7 +1,7 @@
 // src/components/admin/ContactosMapAdvanced.tsx
 
-import { useState, useEffect } from 'react';
-import { GoogleMap, LoadScript, Marker, InfoWindow, Polyline, HeatmapLayer } from '@react-google-maps/api';
+import { useState, useEffect, useMemo } from 'react';
+import { GoogleMap, useLoadScript, Marker, InfoWindow, Polyline, HeatmapLayer } from '@react-google-maps/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,17 @@ const libraries: ("visualization" | "places" | "drawing" | "geometry")[] = ["vis
 
 const TODOS_VALUE = '__todos__';
 
+const coloresPal = [
+  '#FF0000', // Rojo
+  '#0000FF', // Azul
+  '#00FF00', // Verde
+  '#FF00FF', // Magenta
+  '#00FFFF', // Cyan
+  '#FFA500', // Naranja
+  '#800080', // Púrpura
+  '#008000', // Verde oscuro
+];
+
 export const ContactosMapAdvanced = () => {
   const [contactos, setContactos] = useState<ContactoMapa[]>([]);
   const [pals, setPals] = useState<Pal[]>([]);
@@ -54,6 +65,14 @@ export const ContactosMapAdvanced = () => {
   const [palSeleccionado, setPalSeleccionado] = useState(TODOS_VALUE);
   const [center, setCenter] = useState(defaultCenter);
   const [vistaActual, setVistaActual] = useState<'marcadores' | 'heatmap' | 'rutas'>('marcadores');
+
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  // Cargar Google Maps con useLoadScript
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: apiKey || '',
+    libraries,
+  });
 
   useEffect(() => {
     cargarPals();
@@ -143,36 +162,29 @@ export const ContactosMapAdvanced = () => {
     cargarContactos();
   };
 
-  // Preparar datos para heatmap
-  const heatmapData = contactos.map((contacto) => ({
-    location: new google.maps.LatLng(
-      Number(contacto.latitud_registro),
-      Number(contacto.longitud_registro)
-    ),
-    weight: 1,
-  }));
+  // Preparar datos para heatmap - SOLO cuando isLoaded es true
+  const heatmapData = useMemo(() => {
+    if (!isLoaded || typeof google === 'undefined') return [];
+    
+    return contactos.map((contacto) => ({
+      location: new google.maps.LatLng(
+        Number(contacto.latitud_registro),
+        Number(contacto.longitud_registro)
+      ),
+      weight: 1,
+    }));
+  }, [contactos, isLoaded]);
 
   // Preparar rutas por PAL
-  const rutasPorPal = contactos.reduce((acc: Record<string, ContactoMapa[]>, contacto) => {
-    if (!acc[contacto.pal_id]) {
-      acc[contacto.pal_id] = [];
-    }
-    acc[contacto.pal_id].push(contacto);
-    return acc;
-  }, {});
-
-  const coloresPal = [
-    '#FF0000', // Rojo
-    '#0000FF', // Azul
-    '#00FF00', // Verde
-    '#FF00FF', // Magenta
-    '#00FFFF', // Cyan
-    '#FFA500', // Naranja
-    '#800080', // Púrpura
-    '#008000', // Verde oscuro
-  ];
-
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const rutasPorPal = useMemo(() => {
+    return contactos.reduce((acc: Record<string, ContactoMapa[]>, contacto) => {
+      if (!acc[contacto.pal_id]) {
+        acc[contacto.pal_id] = [];
+      }
+      acc[contacto.pal_id].push(contacto);
+      return acc;
+    }, {});
+  }, [contactos]);
 
   if (!apiKey) {
     return (
@@ -184,6 +196,24 @@ export const ContactosMapAdvanced = () => {
           <p className="text-red-600">
             Google Maps API Key no configurada. Por favor configura VITE_GOOGLE_MAPS_API_KEY en tu archivo .env
           </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Map className="h-5 w-5" />
+            Mapa Avanzado de Contactos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[600px] bg-gray-200 rounded animate-pulse flex items-center justify-center">
+            <p className="text-gray-600">Cargando Google Maps...</p>
+          </div>
         </CardContent>
       </Card>
     );
@@ -273,54 +303,52 @@ export const ContactosMapAdvanced = () => {
                 <p className="text-gray-600">Cargando mapa...</p>
               </div>
             ) : (
-              <LoadScript googleMapsApiKey={apiKey} libraries={libraries}>
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={center}
-                  zoom={12}
-                  options={{
-                    streetViewControl: false,
-                    mapTypeControl: true,
-                    fullscreenControl: true,
-                  }}
-                >
-                  {contactos.map((contacto) => (
-                    <Marker
-                      key={contacto.id}
-                      position={{
-                        lat: Number(contacto.latitud_registro),
-                        lng: Number(contacto.longitud_registro),
-                      }}
-                      onClick={() => setSelectedContacto(contacto)}
-                      icon={{
-                        url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-                      }}
-                    />
-                  ))}
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={center}
+                zoom={12}
+                options={{
+                  streetViewControl: false,
+                  mapTypeControl: true,
+                  fullscreenControl: true,
+                }}
+              >
+                {contactos.map((contacto) => (
+                  <Marker
+                    key={contacto.id}
+                    position={{
+                      lat: Number(contacto.latitud_registro),
+                      lng: Number(contacto.longitud_registro),
+                    }}
+                    onClick={() => setSelectedContacto(contacto)}
+                    icon={{
+                      url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                    }}
+                  />
+                ))}
 
-                  {selectedContacto && (
-                    <InfoWindow
-                      position={{
-                        lat: Number(selectedContacto.latitud_registro),
-                        lng: Number(selectedContacto.longitud_registro),
-                      }}
-                      onCloseClick={() => setSelectedContacto(null)}
-                    >
-                      <div className="p-2">
-                        <h3 className="font-semibold text-sm">
-                          {selectedContacto.instituciones?.nombre || 'Sin institución'}
-                        </h3>
-                        <p className="text-xs text-gray-600">
-                          PAL: {selectedContacto.users?.nombre_completo || 'N/A'}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Fecha: {new Date(selectedContacto.fecha_contacto).toLocaleDateString('es-MX')}
-                        </p>
-                      </div>
-                    </InfoWindow>
-                  )}
-                </GoogleMap>
-              </LoadScript>
+                {selectedContacto && (
+                  <InfoWindow
+                    position={{
+                      lat: Number(selectedContacto.latitud_registro),
+                      lng: Number(selectedContacto.longitud_registro),
+                    }}
+                    onCloseClick={() => setSelectedContacto(null)}
+                  >
+                    <div className="p-2">
+                      <h3 className="font-semibold text-sm">
+                        {selectedContacto.instituciones?.nombre || 'Sin institución'}
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        PAL: {selectedContacto.users?.nombre_completo || 'N/A'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Fecha: {new Date(selectedContacto.fecha_contacto).toLocaleDateString('es-MX')}
+                      </p>
+                    </div>
+                  </InfoWindow>
+                )}
+              </GoogleMap>
             )}
           </TabsContent>
 
@@ -334,26 +362,24 @@ export const ContactosMapAdvanced = () => {
                 <p className="text-gray-600">No hay datos para mostrar</p>
               </div>
             ) : (
-              <LoadScript googleMapsApiKey={apiKey} libraries={libraries}>
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={center}
-                  zoom={12}
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={center}
+                zoom={12}
+                options={{
+                  streetViewControl: false,
+                  mapTypeControl: true,
+                  fullscreenControl: true,
+                }}
+              >
+                <HeatmapLayer
+                  data={heatmapData}
                   options={{
-                    streetViewControl: false,
-                    mapTypeControl: true,
-                    fullscreenControl: true,
+                    radius: 30,
+                    opacity: 0.6,
                   }}
-                >
-                  <HeatmapLayer
-                    data={heatmapData}
-                    options={{
-                      radius: 30,
-                      opacity: 0.6,
-                    }}
-                  />
-                </GoogleMap>
-              </LoadScript>
+                />
+              </GoogleMap>
             )}
             <p className="text-sm text-gray-600 mt-2">
               El heatmap muestra zonas con mayor concentración de contactos. Las áreas rojas indican mayor actividad.
@@ -370,78 +396,75 @@ export const ContactosMapAdvanced = () => {
                 <p className="text-gray-600">No hay datos para mostrar</p>
               </div>
             ) : (
-              <LoadScript googleMapsApiKey={apiKey} libraries={libraries}>
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={center}
-                  zoom={12}
-                  options={{
-                    streetViewControl: false,
-                    mapTypeControl: true,
-                    fullscreenControl: true,
-                  }}
-                >
-                  {/* Marcadores */}
-                  {contactos.map((contacto) => (
-                    <Marker
-                      key={contacto.id}
-                      position={{
-                        lat: Number(contacto.latitud_registro),
-                        lng: Number(contacto.longitud_registro),
-                      }}
-                      onClick={() => setSelectedContacto(contacto)}
-                      icon={{
-                        url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-                        scaledSize: new google.maps.Size(32, 32),
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={center}
+                zoom={12}
+                options={{
+                  streetViewControl: false,
+                  mapTypeControl: true,
+                  fullscreenControl: true,
+                }}
+              >
+                {/* Marcadores */}
+                {contactos.map((contacto) => (
+                  <Marker
+                    key={contacto.id}
+                    position={{
+                      lat: Number(contacto.latitud_registro),
+                      lng: Number(contacto.longitud_registro),
+                    }}
+                    onClick={() => setSelectedContacto(contacto)}
+                    icon={{
+                      url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                    }}
+                  />
+                ))}
+
+                {/* Rutas por PAL */}
+                {Object.entries(rutasPorPal).map(([palId, contactosPal], index) => {
+                  if (contactosPal.length < 2) return null;
+
+                  const path = contactosPal.map((c) => ({
+                    lat: Number(c.latitud_registro),
+                    lng: Number(c.longitud_registro),
+                  }));
+
+                  return (
+                    <Polyline
+                      key={palId}
+                      path={path}
+                      options={{
+                        strokeColor: coloresPal[index % coloresPal.length],
+                        strokeOpacity: 0.7,
+                        strokeWeight: 3,
                       }}
                     />
-                  ))}
+                  );
+                })}
 
-                  {/* Rutas por PAL */}
-                  {Object.entries(rutasPorPal).map(([palId, contactosPal], index) => {
-                    if (contactosPal.length < 2) return null;
-
-                    const path = contactosPal.map((c) => ({
-                      lat: Number(c.latitud_registro),
-                      lng: Number(c.longitud_registro),
-                    }));
-
-                    return (
-                      <Polyline
-                        key={palId}
-                        path={path}
-                        options={{
-                          strokeColor: coloresPal[index % coloresPal.length],
-                          strokeOpacity: 0.7,
-                          strokeWeight: 3,
-                        }}
-                      />
-                    );
-                  })}
-
-                  {selectedContacto && (
-                    <InfoWindow
-                      position={{
-                        lat: Number(selectedContacto.latitud_registro),
-                        lng: Number(selectedContacto.longitud_registro),
-                      }}
-                      onCloseClick={() => setSelectedContacto(null)}
-                    >
-                      <div className="p-2">
-                        <h3 className="font-semibold text-sm">
-                          {selectedContacto.instituciones?.nombre || 'Sin institución'}
-                        </h3>
-                        <p className="text-xs text-gray-600">
-                          PAL: {selectedContacto.users?.nombre_completo || 'N/A'}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Fecha: {new Date(selectedContacto.fecha_contacto).toLocaleDateString('es-MX')}
-                        </p>
-                      </div>
-                    </InfoWindow>
-                  )}
-                </GoogleMap>
-              </LoadScript>
+                {selectedContacto && (
+                  <InfoWindow
+                    position={{
+                      lat: Number(selectedContacto.latitud_registro),
+                      lng: Number(selectedContacto.longitud_registro),
+                    }}
+                    onCloseClick={() => setSelectedContacto(null)}
+                  >
+                    <div className="p-2">
+                      <h3 className="font-semibold text-sm">
+                        {selectedContacto.instituciones?.nombre || 'Sin institución'}
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        PAL: {selectedContacto.users?.nombre_completo || 'N/A'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Fecha: {new Date(selectedContacto.fecha_contacto).toLocaleDateString('es-MX')}
+                      </p>
+                    </div>
+                  </InfoWindow>
+                )}
+              </GoogleMap>
             )}
             <div className="mt-2 space-y-1">
               <p className="text-sm text-gray-600">
