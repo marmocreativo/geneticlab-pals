@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserRole = async (userId: string) => {
     try {
-      console.log('🔍 Buscando rol para userId:', userId)
+      
       
       // Usar service_role para bypass RLS temporalmente
       const { data, error } = await supabase
@@ -59,9 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select('role, nombre_completo, activo')
         .eq('id', userId)
         .single()
-
-      console.log('📊 Datos recibidos:', data)
-      console.log('❌ Error:', error)
 
       if (error) {
         console.error('Error al obtener rol:', error)
@@ -71,7 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (data) {
-        console.log('✅ Rol asignado:', data.role)
         setRole(data.role)
       }
     } catch (error) {

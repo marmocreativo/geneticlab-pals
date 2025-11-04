@@ -15,12 +15,15 @@ export function useContactos(palId: string) {
       setLoading(true);
       setError(null);
       const data = await contactosService.getContactos(palId);
+      console.log('📊 Total contactos cargados:', data.length, data); // AGREGAR ESTO
       setContactos(data);
 
       const programados = await contactosService.getContactosProgramados(palId);
+      console.log('📊 Contactos programados:', programados.length, programados); // AGREGAR ESTO
       setContactosProgramados(programados);
 
       const confirmados = await contactosService.getContactosConfirmados(palId);
+      console.log('📊 Contactos confirmados:', confirmados.length, confirmados); // AGREGAR ESTO
       setContactosConfirmados(confirmados);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al cargar contactos';

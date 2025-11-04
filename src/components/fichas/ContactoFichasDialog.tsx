@@ -1,25 +1,20 @@
-// Crear archivo: src/components/fichas/ContactoFichasDialog.tsx
+// src/components/fichas/ContactoFichasDialog.tsx
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { FichaTratamientoForm } from './FichaTratamientoForm';
 import { CalendarioTratamiento } from './CalendarioTratamiento';
 import { useFichasTratamiento } from '@/hooks/useFichasTratamiento';
 import type { Contacto } from '@/types/contacto';
-import type { 
-  FichaTratamientoFormData, 
-  FichaTratamientoConRelaciones 
-} from '@/types/fichaTratamiento';
-import { Plus, FileText, Calendar, Pill } from 'lucide-react';
+import type { FichaTratamientoFormData } from '@/types/fichaTratamiento';
+import { Pill, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -34,29 +29,33 @@ export function ContactoFichasDialog({
   open,
   onClose,
 }: ContactoFichasDialogProps) {
-  const [showForm, setShowForm] = useState(false);
-  const [selectedFicha, setSelectedFicha] = useState<FichaTratamientoConRelaciones | null>(null);
-  
   const {
     fichas,
     createFicha,
     marcarAsistencia,
+    fetchFichas,
     loading,
   } = useFichasTratamiento();
 
-  // Filtrar fichas de este contacto
-  const fichasContacto = fichas.filter(f => f.contacto_id === contacto?.id);
+  // Reiniciar y cargar fichas cuando se abre el dialog
+  useEffect(() => {
+    if (open && contacto) {
+      fetchFichas();
+    }
+  }, [open, contacto]);
+
+  if (!contacto) return null;
+
+  // Obtener la ficha de este contacto (solo una)
+  const fichaContacto = fichas.find(f => f.contacto_id === contacto.id);
 
   const handleCreateFicha = async (data: FichaTratamientoFormData) => {
     await createFicha(data);
-    setShowForm(false);
   };
 
   const handleMarcarAsistencia = async (fechaId: string, asistencia: boolean, notas?: string) => {
     await marcarAsistencia(fechaId, asistencia, notas);
   };
-
-  if (!contacto) return null;
 
   // Pre-llenar datos desde el contacto
   const initialData: Partial<FichaTratamientoFormData> = {
@@ -70,173 +69,138 @@ export function ContactoFichasDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pill className="h-5 w-5" />
-            Fichas de Tratamiento
+            Ficha de Tratamiento
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Contacto: {contacto.nombre} {contacto.apellido_paterno}
+            Paciente: {contacto.nombre} {contacto.apellido_paterno}
           </p>
         </DialogHeader>
 
-        {showForm ? (
-          <FichaTratamientoForm
-            onSubmit={handleCreateFicha}
-            onCancel={() => setShowForm(false)}
-            initialData={initialData}
-            contactoId={contacto.id}
-            institucionId={contacto.institucion_id}
-          />
-        ) : selectedFicha ? (
-          // Vista de detalle de ficha
-          <div className="space-y-4">
-            <Button
-              variant="outline"
-              onClick={() => setSelectedFicha(null)}
-            >
-              Volver a la lista
-            </Button>
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Cargando ficha...</p>
+          </div>
+        ) : fichaContacto ? (
+          // Mostrar detalle de la ficha existente - TODO EN UNA VISTA
+          <div className="space-y-6">
+            {/* Información de la Ficha */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="h-5 w-5" />
+                  Información del Tratamiento
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Paciente</h3>
+                    <p>{fichaContacto.nombre_paciente}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Médico</h3>
+                    <p>{fichaContacto.nombre_medico}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Institución</h3>
+                    <p>{fichaContacto.institucion?.nombre || '-'}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Sector</h3>
+                    <p>{fichaContacto.sector?.nombre || '-'}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Diagnóstico</h3>
+                    <p>{fichaContacto.diagnostico?.nombre || '-'}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Terapia</h3>
+                    <p>{fichaContacto.terapia?.nombre || '-'}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Dosis</h3>
+                    <p>{fichaContacto.dosis || '-'}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Periodicidad</h3>
+                    <Badge variant="outline" className="capitalize">
+                      {fichaContacto.periodicidad}
+                    </Badge>
+                  </div>
+                </div>
 
-            <Tabs defaultValue="info">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="info">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Información
-                </TabsTrigger>
-                <TabsTrigger value="calendario">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Calendario
-                </TabsTrigger>
-              </TabsList>
+                {/* Fechas en fila separada */}
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                  <div>
+                    <h3 className="font-semibold mb-2">Fecha Inicio</h3>
+                    <p>{format(new Date(fichaContacto.fecha_inicio), "d 'de' MMMM, yyyy", { locale: es })}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Fecha Fin</h3>
+                    <p>{format(new Date(fichaContacto.fecha_fin), "d 'de' MMMM, yyyy", { locale: es })}</p>
+                  </div>
+                </div>
 
-              <TabsContent value="info" className="space-y-4">
-                <Card>
-                  <CardContent className="pt-6 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h3 className="font-semibold mb-2">Paciente</h3>
-                        <p>{selectedFicha.nombre_paciente}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-2">Médico</h3>
-                        <p>{selectedFicha.nombre_medico}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-2">Diagnóstico</h3>
-                        <p>{selectedFicha.diagnostico?.nombre || '-'}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-2">Terapia</h3>
-                        <p>{selectedFicha.terapia?.nombre || '-'}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-2">Dosis</h3>
-                        <p>{selectedFicha.dosis || '-'}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-2">Periodicidad</h3>
-                        <p className="capitalize">{selectedFicha.periodicidad}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-2">Periodo</h3>
-                        <p>
-                          {format(new Date(selectedFicha.fecha_inicio), 'dd/MMM/yy', { locale: es })} - {' '}
-                          {format(new Date(selectedFicha.fecha_fin), 'dd/MMM/yy', { locale: es })}
-                        </p>
-                      </div>
+                {/* Estadísticas */}
+                <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">
+                      {fichaContacto.fechas_tratamiento?.length || 0}
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                    <div className="text-xs text-muted-foreground">Total Citas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {fichaContacto.fechas_tratamiento?.filter(f => f.asistencia).length || 0}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Asistencias</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">
+                      {fichaContacto.fechas_tratamiento?.length
+                        ? Math.round(
+                            (fichaContacto.fechas_tratamiento.filter(f => f.asistencia).length /
+                              fichaContacto.fechas_tratamiento.length) *
+                              100
+                          )
+                        : 0}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">Cumplimiento</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              <TabsContent value="calendario">
-                <CalendarioTratamiento
-                  fechas={selectedFicha.fechas_tratamiento || []}
-                  onMarcarAsistencia={handleMarcarAsistencia}
-                />
-              </TabsContent>
-            </Tabs>
+            {/* Calendario */}
+            <CalendarioTratamiento
+              fechas={fichaContacto.fechas_tratamiento || []}
+              onMarcarAsistencia={handleMarcarAsistencia}
+            />
           </div>
         ) : (
-          // Lista de fichas
+          // Formulario para crear la primera ficha
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
-                {fichasContacto.length} {fichasContacto.length === 1 ? 'ficha' : 'fichas'} registradas
+            <div className="text-center py-6 border rounded-lg bg-muted/30">
+              <Pill className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground mb-2">
+                Este paciente no tiene ficha de tratamiento
               </p>
-              <Button onClick={() => setShowForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nueva Ficha
-              </Button>
+              <p className="text-sm text-muted-foreground">
+                Completa el formulario para crear su ficha
+              </p>
             </div>
 
-            {loading ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Cargando fichas...</p>
-              </div>
-            ) : fichasContacto.length === 0 ? (
-              <div className="text-center py-12 border rounded-lg">
-                <Pill className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">
-                  No hay fichas de tratamiento para este contacto
-                </p>
-                <Button onClick={() => setShowForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear Primera Ficha
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {fichasContacto.map((ficha) => {
-                  const totalCitas = ficha.fechas_tratamiento?.length || 0;
-                  const asistencias = ficha.fechas_tratamiento?.filter(f => f.asistencia).length || 0;
-                  const porcentaje = totalCitas > 0 ? Math.round((asistencias / totalCitas) * 100) : 0;
-
-                  return (
-                    <Card
-                      key={ficha.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => setSelectedFicha(ficha)}
-                    >
-                      <CardContent className="pt-6">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">{ficha.nombre_paciente}</h3>
-                              <Badge variant="outline" className="capitalize">
-                                {ficha.periodicidad}
-                              </Badge>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              <p>Médico: {ficha.nombre_medico}</p>
-                              <p>Diagnóstico: {ficha.diagnostico?.nombre || '-'}</p>
-                              <p>Terapia: {ficha.terapia?.nombre || '-'}</p>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm">
-                              <span>
-                                {format(new Date(ficha.fecha_inicio), 'dd/MMM/yy', { locale: es })} -{' '}
-                                {format(new Date(ficha.fecha_fin), 'dd/MMM/yy', { locale: es })}
-                              </span>
-                              <Badge variant="secondary">
-                                {totalCitas} citas
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold">{porcentaje}%</div>
-                            <div className="text-xs text-muted-foreground">
-                              {asistencias}/{totalCitas} asistencias
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+            <FichaTratamientoForm
+              onSubmit={handleCreateFicha}
+              onCancel={onClose}
+              initialData={initialData}
+              contactoId={contacto.id}
+              institucionId={contacto.institucion_id}
+            />
           </div>
         )}
       </DialogContent>

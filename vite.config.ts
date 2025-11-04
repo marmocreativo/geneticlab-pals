@@ -52,23 +52,33 @@ export default defineConfig({
         sourcemap: true,
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: "NetworkFirst",
+            // Solo cachear assets estáticos, NO las llamadas a la API
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
+            handler: "CacheFirst",
             options: {
-              cacheName: "supabase-cache",
+              cacheName: "supabase-storage-cache",
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 horas
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 días
               },
               cacheableResponse: {
                 statuses: [0, 200]
               }
             }
+          },
+          // NO cachear las llamadas a la API REST
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
+            handler: "NetworkOnly", // Siempre usar la red, nunca cache
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+            handler: "NetworkOnly", // Siempre usar la red para auth
           }
         ]
       },
       devOptions: {
-        enabled: true,
+        enabled: false, // DESACTIVADO EN DESARROLLO
         type: "module"
       }
     })

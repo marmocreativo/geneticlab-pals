@@ -19,6 +19,9 @@ export const contactosService = {
       .eq('pal_id', palId)
       .order('fecha_contacto', { ascending: false });
 
+    console.log('🔍 getContactos - Data recibida:', data); // AGREGAR
+    console.log('🔍 getContactos - Total:', data?.length); // AGREGAR
+
     if (error) throw error;
     return data || [];
   },
@@ -197,9 +200,86 @@ export const contactosService = {
 
   // Eliminar contacto
   async deleteContacto(id: string): Promise<void> {
-    const { error } = await supabase.from('contactos').delete().eq('id', id);
+    try {
+      console.log('🗑️ Iniciando eliminación del contacto:', id);
 
-    if (error) throw error;
+      // 1. Obtener las fotos antes de borrar el contacto
+      console.log('📸 Buscando fotos del contacto...');
+      const { data: fotos, error: fotosError } = await supabase
+        .from('fotos_evidencia')
+        .select('url_storage')
+        .eq('contacto_id', id);
+
+      if (fotosError) {
+        console.error('❌ Error al obtener fotos:', fotosError);
+        throw fotosError;
+      }
+
+      console.log('📸 Fotos encontradas:', fotos?.length || 0);
+
+      // 2. Borrar archivos del storage si existen
+      if (fotos && fotos.length > 0) {
+        console.log('🔍 Obteniendo usuario actual...');
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        
+        console.log('👤 Usuario:', user?.id);
+
+        if (user) {
+          const filePaths = fotos
+            .map((foto) => {
+              const url = foto.url_storage;
+              const match = url.match(/evidencias\/(.+)$/);
+              const path = match ? match[1] : null;
+              console.log('📁 Ruta extraída:', path, 'de URL:', url);
+              return path;
+            })
+            .filter((path): path is string => path !== null);
+
+          console.log('📁 Rutas a borrar del storage:', filePaths);
+
+          if (filePaths.length > 0) {
+            console.log('🗑️ Borrando archivos del storage...');
+            const { error: storageError } = await supabase.storage
+              .from('evidencias')
+              .remove(filePaths);
+
+            if (storageError) {
+              console.error('⚠️ Error al borrar fotos del storage:', storageError);
+            } else {
+              console.log('✅ Archivos del storage borrados correctamente');
+            }
+          }
+        }
+      } else {
+        console.log('ℹ️ No hay fotos para borrar');
+      }
+
+      // 3. Borrar el contacto (CASCADE borrará fotos_evidencia y fichas_tratamiento automáticamente)
+      console.log('🗑️ Borrando contacto de la base de datos...');
+      const { error, count } = await supabase
+        .from('contactos')
+        .delete({ count: 'exact' }) // AGREGAR count para debug
+        .eq('id', id); // CAMBIAR de match a eq
+
+      console.log('🔍 Filas afectadas:', count); // AGREGAR
+
+      if (error) {
+        console.error('❌ Error al borrar contacto:', error);
+        throw error;
+      }
+
+      if (count === 0) {
+        console.warn('⚠️ No se borró ningún contacto - puede ser problema de RLS');
+        throw new Error('No se pudo borrar el contacto. Verifica los permisos.');
+      }
+
+      console.log('✅ Contacto eliminado exitosamente');
+    } catch (error) {
+      console.error('💥 Error general en deleteContacto:', error);
+      throw error;
+    }
   },
 
   // Subir foto de evidencia

@@ -228,63 +228,65 @@ export function FichaTratamientoForm({
           </div>
 
           {/* Programación */}
-          <div className="space-y-4">
+        <div className="space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Programación de Citas
+                <Calendar className="h-4 w-4" />
+                Programación de Citas
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+            {/* Primera fila - Solo periodicidad */}
+            <div>
                 <Label htmlFor="periodicidad">Periodicidad *</Label>
                 <Select
-                  value={watch('periodicidad')}
-                  onValueChange={(value: 'semanal' | 'bisemanal') => setValue('periodicidad', value)}
+                value={watch('periodicidad')}
+                onValueChange={(value: 'semanal' | 'bisemanal') => setValue('periodicidad', value)}
                 >
-                  <SelectTrigger>
+                <SelectTrigger>
                     <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
+                </SelectTrigger>
+                <SelectContent>
                     <SelectItem value="semanal">Semanal (cada 7 días)</SelectItem>
                     <SelectItem value="bisemanal">Bisemanal (cada 14 días)</SelectItem>
-                  </SelectContent>
+                </SelectContent>
                 </Select>
-              </div>
+            </div>
 
-              <div>
+            {/* Segunda fila - Fechas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                 <Label htmlFor="fecha_inicio">Fecha Inicio *</Label>
                 <Input
-                  id="fecha_inicio"
-                  type="date"
-                  {...register('fecha_inicio', { required: 'Fecha requerida' })}
+                    id="fecha_inicio"
+                    type="date"
+                    {...register('fecha_inicio', { required: 'Fecha requerida' })}
                 />
                 {errors.fecha_inicio && (
-                  <span className="text-sm text-red-500">{errors.fecha_inicio.message}</span>
+                    <span className="text-sm text-red-500">{errors.fecha_inicio.message}</span>
                 )}
-              </div>
+                </div>
 
-              <div>
+                <div>
                 <Label htmlFor="fecha_fin">Fecha Fin *</Label>
                 <Input
-                  id="fecha_fin"
-                  type="date"
-                  {...register('fecha_fin', { required: 'Fecha requerida' })}
+                    id="fecha_fin"
+                    type="date"
+                    {...register('fecha_fin', { required: 'Fecha requerida' })}
                 />
                 {errors.fecha_fin && (
-                  <span className="text-sm text-red-500">{errors.fecha_fin.message}</span>
+                    <span className="text-sm text-red-500">{errors.fecha_fin.message}</span>
                 )}
-              </div>
+                </div>
             </div>
 
             {fechaInicio && fechaFin && (
-              <div className="bg-blue-50 p-3 rounded-md text-sm">
+                <div className="bg-blue-50 p-3 rounded-md text-sm">
                 <p className="text-blue-700">
-                  Se generarán aproximadamente <strong>{calcularCitas()}</strong> citas{' '}
-                  ({periodicidad === 'semanal' ? 'semanales' : 'bisemanales'})
+                    Se generarán aproximadamente <strong>{calcularCitas()}</strong> citas{' '}
+                    ({periodicidad === 'semanal' ? 'semanales' : 'bisemanales'})
                 </p>
-              </div>
+                </div>
             )}
-          </div>
+            </div>
 
           {/* Botones */}
           <div className="flex gap-2 justify-end pt-4">
