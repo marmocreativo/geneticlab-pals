@@ -2,7 +2,6 @@ import { Building2, MapPin, Edit, Trash2 } from 'lucide-react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';

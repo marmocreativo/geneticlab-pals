@@ -1,91 +1,121 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, Building2, FileText, Activity } from 'lucide-react'
+// src/pages/admin/Dashboard.tsx
+
+import { useState } from 'react';
+import { useEstadisticas } from '@/hooks/useEstadisticas';
+import { StatCards } from '@/components/admin/StatCards';
+import { ContactosPorPalChart } from '@/components/admin/ContactosPorPalChart';
+import { ContactosPorInstitucionChart } from '@/components/admin/ContactosPorInstitucionChart';
+import { TiposContactoChart } from '@/components/admin/TiposContactoChart';
+import { ContactosMapAdvanced } from '@/components/admin/ContactosMapAdvanced';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Calendar, RotateCcw } from 'lucide-react';
 
 export default function Dashboard() {
+  const [fechaInicio, setFechaInicio] = useState<string>('');
+  const [fechaFin, setFechaFin] = useState<string>('');
+  const [filtrosAplicados, setFiltrosAplicados] = useState<{
+    fechaInicio?: string;
+    fechaFin?: string;
+  }>({});
+
+  const {
+    estadisticasGenerales,
+    contactosPorPal,
+    contactosPorInstitucion,
+    contactosPorTipo,
+    loading,
+    error,
+  } = useEstadisticas(filtrosAplicados);
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados({
+      fechaInicio: fechaInicio || undefined,
+      fechaFin: fechaFin || undefined,
+    });
+  };
+
+  const limpiarFiltros = () => {
+    setFechaInicio('');
+    setFechaFin('');
+    setFiltrosAplicados({});
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Resumen general del sistema
-        </p>
+        <p className="text-gray-600">Estadísticas y reportes del sistema</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total PALs
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Usuarios activos
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Instituciones
-            </CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Registradas
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Contactos
-            </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Este mes
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Actividad
-            </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">100%</div>
-            <p className="text-xs text-muted-foreground">
-              Sistema operando
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* Filtros de Fecha */}
       <Card>
         <CardHeader>
-          <CardTitle>Bienvenido al Sistema</CardTitle>
-          <CardDescription>
-            Panel de administración de Control PALs
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Filtros
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Desde aquí podrás gestionar usuarios, catálogos, instituciones y ver reportes del sistema.
-          </p>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="fechaInicio">Fecha Inicio</Label>
+              <Input
+                id="fechaInicio"
+                type="date"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fechaFin">Fecha Fin</Label>
+              <Input
+                id="fechaFin"
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button onClick={aplicarFiltros} className="flex-1">
+                Aplicar
+              </Button>
+              <Button 
+                onClick={limpiarFiltros} 
+                variant="outline"
+                size="icon"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Mensaje de Error */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-600">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tarjetas de Estadísticas */}
+      <StatCards estadisticas={estadisticasGenerales} loading={loading} />
+
+      {/* Gráficas */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <ContactosPorPalChart data={contactosPorPal} loading={loading} />
+        <TiposContactoChart data={contactosPorTipo} loading={loading} />
+      </div>
+
+      <ContactosPorInstitucionChart data={contactosPorInstitucion} loading={loading} />
+
+      {/* Mapa Avanzado de Contactos */}
+      <ContactosMapAdvanced />
     </div>
-  )
+  );
 }

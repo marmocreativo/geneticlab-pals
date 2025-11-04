@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Building2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -74,18 +73,14 @@ export function InstitucionForm({
     }
   };
 
-  const handlePlaceSelect = (place: {
-    name: string;
-    address: string;
-    placeId: string;
-    lat: number;
-    lng: number;
-  }) => {
-    form.setValue('nombre', place.name);
-    form.setValue('direccion', place.address);
-    form.setValue('latitud', place.lat);
-    form.setValue('longitud', place.lng);
-    form.setValue('google_place_id', place.placeId);
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+    if (place.geometry?.location && place.name && place.formatted_address) {
+      form.setValue('nombre', place.name);
+      form.setValue('direccion', place.formatted_address);
+      form.setValue('latitud', place.geometry.location.lat());
+      form.setValue('longitud', place.geometry.location.lng());
+      form.setValue('google_place_id', place.place_id || '');
+    }
   };
 
   return (

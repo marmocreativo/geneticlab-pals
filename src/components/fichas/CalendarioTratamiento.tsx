@@ -127,6 +127,8 @@ export function CalendarioTratamiento({
                 const IconoEstado = estado.icon;
                 const fechaDate = new Date(fecha.fecha_programada);
                 const esPasada = isPast(fechaDate) && !isToday(fechaDate);
+                // log para evitar el error
+                console.log(esPasada)
 
                 return (
                   <div

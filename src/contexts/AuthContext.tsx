@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const ensureUserExists = async (userId: string) => {
+  const ensureUserExists = async (_userId: string) => {
     try {
       // Obtener info del auth.users
       const { data: { user: authUser } } = await supabase.auth.getUser()

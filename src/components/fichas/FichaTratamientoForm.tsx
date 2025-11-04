@@ -1,6 +1,6 @@
 // src/components/fichas/FichaTratamientoForm.tsx
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { FichaTratamientoFormData } from '@/types/fichaTratamiento';
 import { useCatalogos } from '@/hooks/useCatalogos';
-import { Calendar, Pill, User, Building2, X } from 'lucide-react';
+import { Calendar, Pill, User, X } from 'lucide-react';
 
 interface FichaTratamientoFormProps {
   onSubmit: (data: FichaTratamientoFormData) => Promise<void>;

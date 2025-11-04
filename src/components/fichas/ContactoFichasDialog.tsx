@@ -1,6 +1,6 @@
 // src/components/fichas/ContactoFichasDialog.tsx
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   Dialog,
   DialogContent,

@@ -11,6 +11,8 @@ import ConfiguracionesPage from '@/pages/admin/ConfiguracionesPage'
 import { MedicosPage } from '@/pages/admin/MedicosPage'
 import { PacientesPage } from '@/pages/admin/PacientesPage'
 import FichasTratamientoPage from './pages/pal/FichasTratamientoPage';
+import ReportesPage from '@/pages/admin/ReportesPage';
+import OfflineFallback from "@/pages/OfflineFallback";
 
 function App() {
   const { user, role, loading } = useAuth()
@@ -30,38 +32,44 @@ function App() {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/offline" element={<OfflineFallback />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
   }
 
   return (
-    <MainLayout>
-      <Routes>
-        {role === 'admin' ? (
-          <>
-            <Route path="/admin" element={<Dashboard />} />
-            <Route path="/admin/usuarios" element={<Usuarios />} />
-            <Route path="/admin/catalogos" element={<CatalogosPage />} />
-            <Route path="/admin/medicos" element={<MedicosPage />} />
-            <Route path="/admin/pacientes" element={<PacientesPage />} />
-            <Route path="/admin/instituciones" element={<div>Instituciones (próximamente)</div>} />
-            <Route path="/admin/configuraciones" element={<ConfiguracionesPage />} />
-            <Route path="/admin/reportes" element={<div>Reportes (próximamente)</div>} />
-            <Route path="*" element={<Navigate to="/admin" replace />} />
-          </>
-        ) : (
-          <>
-            <Route path="/fichas-tratamiento" element={<FichasTratamientoPage />} />
-            <Route path="/pal/contactos" element={<ContactosPage />} />
-            <Route path="/pal/dashboard" element={<ContactosDashboard />} />
-            <Route path="/pal/instituciones" element={<div>Instituciones (próximamente)</div>} />
-            <Route path="/pal/fichas" element={<div>Fichas (próximamente)</div>} />
-            <Route path="*" element={<Navigate to="/pal/contactos" replace />} />
-          </>
-        )}
-      </Routes>
-    </MainLayout>
+    <Routes>
+      <Route path="/offline" element={<OfflineFallback />} />
+      <Route path="*" element={
+        <MainLayout>
+          <Routes>
+            {role === 'admin' ? (
+              <>
+                <Route path="/admin" element={<Dashboard />} />
+                <Route path="/admin/usuarios" element={<Usuarios />} />
+                <Route path="/admin/catalogos" element={<CatalogosPage />} />
+                <Route path="/admin/medicos" element={<MedicosPage />} />
+                <Route path="/admin/pacientes" element={<PacientesPage />} />
+                <Route path="/admin/instituciones" element={<div>Instituciones (próximamente)</div>} />
+                <Route path="/admin/configuraciones" element={<ConfiguracionesPage />} />
+                <Route path="/admin/reportes" element={<ReportesPage />} />
+                <Route path="*" element={<Navigate to="/admin" replace />} />
+              </>
+            ) : (
+              <>
+                <Route path="/fichas-tratamiento" element={<FichasTratamientoPage />} />
+                <Route path="/pal/contactos" element={<ContactosPage />} />
+                <Route path="/pal/dashboard" element={<ContactosDashboard />} />
+                <Route path="/pal/instituciones" element={<div>Instituciones (próximamente)</div>} />
+                <Route path="/pal/fichas" element={<div>Fichas (próximamente)</div>} />
+                <Route path="*" element={<Navigate to="/pal/contactos" replace />} />
+              </>
+            )}
+          </Routes>
+        </MainLayout>
+      } />
+    </Routes>
   )
 }
 
