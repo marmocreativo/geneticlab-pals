@@ -3,16 +3,18 @@ import { useAuth } from '@/contexts/AuthContext'
 import Login from '@/pages/auth/Login'
 import MainLayout from '@/components/layout/MainLayout'
 import Dashboard from '@/pages/admin/Dashboard'
-import ContactosDashboard from '@/pages/pal/ContactosDashboard'
-import { ContactosPage } from '@/pages/pal/ContactosPage'
+import VisitasDashboard from '@/pages/pal/VisitasDashboard'
+import VisitaDetailsPage from '@/pages/pal/VisitaDetailsPage'
+import ContactosPage from '@/pages/pal/ContactosPage'
+import InstitucionesPagePal from '@/pages/pal/InstitucionesPage'
+import FichasPage from '@/pages/pal/FichasPage'
 import Usuarios from '@/pages/admin/Usuarios'
 import CatalogosPage from '@/pages/admin/CatalogosPage'
 import ConfiguracionesPage from '@/pages/admin/ConfiguracionesPage'
-import { MedicosPage } from '@/pages/admin/MedicosPage'
-import { PacientesPage } from '@/pages/admin/PacientesPage'
-import FichasTratamientoPage from './pages/pal/FichasTratamientoPage';
-import ReportesPage from '@/pages/admin/ReportesPage';
-import OfflineFallback from "@/pages/OfflineFallback";
+import InstitucionesPage from '@/pages/admin/InstitucionesPage'
+import ReportesPage from '@/pages/admin/ReportesPage'
+import OfflineFallback from "@/pages/OfflineFallback"
+import { Toaster } from 'sonner'
 
 function App() {
   const { user, role, loading } = useAuth()
@@ -39,37 +41,46 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/offline" element={<OfflineFallback />} />
-      <Route path="*" element={
-        <MainLayout>
-          <Routes>
-            {role === 'admin' ? (
-              <>
-                <Route path="/admin" element={<Dashboard />} />
-                <Route path="/admin/usuarios" element={<Usuarios />} />
-                <Route path="/admin/catalogos" element={<CatalogosPage />} />
-                <Route path="/admin/medicos" element={<MedicosPage />} />
-                <Route path="/admin/pacientes" element={<PacientesPage />} />
-                <Route path="/admin/instituciones" element={<div>Instituciones (próximamente)</div>} />
-                <Route path="/admin/configuraciones" element={<ConfiguracionesPage />} />
-                <Route path="/admin/reportes" element={<ReportesPage />} />
-                <Route path="*" element={<Navigate to="/admin" replace />} />
-              </>
-            ) : (
-              <>
-                <Route path="/fichas-tratamiento" element={<FichasTratamientoPage />} />
-                <Route path="/pal/contactos" element={<ContactosPage />} />
-                <Route path="/pal/dashboard" element={<ContactosDashboard />} />
-                <Route path="/pal/instituciones" element={<div>Instituciones (próximamente)</div>} />
-                <Route path="/pal/fichas" element={<div>Fichas (próximamente)</div>} />
-                <Route path="*" element={<Navigate to="/pal/contactos" replace />} />
-              </>
-            )}
-          </Routes>
-        </MainLayout>
-      } />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/offline" element={<OfflineFallback />} />
+        <Route path="*" element={
+          <MainLayout>
+            <Routes>
+              {role === 'admin' ? (
+                <>
+                  <Route path="/admin" element={<Dashboard />} />
+                  <Route path="/admin/usuarios" element={<Usuarios />} />
+                  <Route path="/admin/catalogos" element={<CatalogosPage />} />
+                  <Route path="/admin/instituciones" element={<InstitucionesPage />} />
+                  <Route path="/admin/configuraciones" element={<ConfiguracionesPage />} />
+                  <Route path="/admin/reportes" element={<ReportesPage />} />
+                  <Route path="*" element={<Navigate to="/admin" replace />} />
+                </>
+              ) : (
+                <>
+                  {/* Dashboard principal: calendario de visitas */}
+                  <Route path="/pal" element={<VisitasDashboard />} />
+                  <Route path="/pal/calendario" element={<VisitasDashboard />} />
+                  
+                  {/* Detalles de visita */}
+                  <Route path="/pal/visitas/:visitaId" element={<VisitaDetailsPage />} />
+                  
+                  {/* Otras páginas PAL */}
+                  <Route path="/pal/instituciones" element={<InstitucionesPagePal />} />
+                  <Route path="/pal/contactos" element={<ContactosPage />} />
+                  <Route path="/pal/fichas" element={<FichasPage />} />
+                  
+                  {/* Redirect por defecto al calendario */}
+                  <Route path="*" element={<Navigate to="/pal" replace />} />
+                </>
+              )}
+            </Routes>
+          </MainLayout>
+        } />
+      </Routes>
+      <Toaster />
+    </>
   )
 }
 

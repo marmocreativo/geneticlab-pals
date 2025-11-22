@@ -1,334 +1,178 @@
-import { supabase } from '@/lib/supabase';
-import type { Contacto, ContactoFormData, ContactoConfirmData } from '@/types/contacto';
+import { supabase } from '@/lib/supabase'
+import type { Contacto, ContactoInsert, ContactoUpdate } from '@/types/contacto'
 
 export const contactosService = {
-  // Obtener todos los contactos del PAL actual
-  async getContactos(palId: string): Promise<Contacto[]> {
+  async getContactos() {
     const { data, error } = await supabase
       .from('contactos')
       .select(`
         *,
-        instituciones (
+        institucion:instituciones (
           id,
-          nombre,
-          direccion,
-          latitud,
-          longitud
+          nombre
         )
       `)
-      .eq('pal_id', palId)
-      .order('fecha_contacto', { ascending: false });
+      .order('nombre', { ascending: true })
 
-    console.log('🔍 getContactos - Data recibida:', data); // AGREGAR
-    console.log('🔍 getContactos - Total:', data?.length); // AGREGAR
-
-    if (error) throw error;
-    return data || [];
+    if (error) throw error
+    return data as Contacto[]
   },
 
-  // Obtener contactos programados (pendientes de confirmar)
-  async getContactosProgramados(palId: string): Promise<Contacto[]> {
+  async getContactosByTipo(tipo: string) {
     const { data, error } = await supabase
       .from('contactos')
       .select(`
         *,
-        instituciones (
+        institucion:instituciones (
           id,
-          nombre,
-          direccion,
-          latitud,
-          longitud
+          nombre
         )
       `)
-      .eq('pal_id', palId)
-      .eq('estado', 'programado')
-      .order('fecha_contacto', { ascending: true });
+      .eq('tipo_contacto', tipo)
+      .order('nombre', { ascending: true })
 
-    if (error) throw error;
-    return data || [];
+    if (error) throw error
+    return data as Contacto[]
   },
 
-  // Obtener contactos confirmados
-  async getContactosConfirmados(palId: string): Promise<Contacto[]> {
+  // NUEVO: Obtener contactos por institución
+  async getContactosByInstitucion(institucionId: string) {
     const { data, error } = await supabase
       .from('contactos')
       .select(`
         *,
-        instituciones (
+        institucion:instituciones (
           id,
-          nombre,
-          direccion,
-          latitud,
-          longitud
+          nombre
         )
       `)
-      .eq('pal_id', palId)
-      .eq('estado', 'confirmado')
-      .order('fecha_contacto', { ascending: false });
+      .eq('institucion_id', institucionId)
+      .order('nombre', { ascending: true })
 
-    if (error) throw error;
-    return data || [];
+    if (error) throw error
+    return data as Contacto[]
   },
 
-  // Obtener un contacto por ID
-  async getContactoById(id: string): Promise<Contacto | null> {
+  async getContactoById(id: string) {
     const { data, error } = await supabase
       .from('contactos')
       .select(`
         *,
-        instituciones (
+        institucion:instituciones (
           id,
-          nombre,
-          direccion,
-          latitud,
-          longitud
+          nombre
         )
       `)
       .eq('id', id)
-      .single();
+      .single()
 
-    if (error) throw error;
-    return data;
+    if (error) throw error
+    return data as Contacto
   },
 
-  // Crear nuevo contacto (programado)
-  async createContacto(
-    palId: string,
-    formData: ContactoFormData
-  ): Promise<Contacto> {
+  async createContacto(contacto: ContactoInsert) {
     const { data, error } = await supabase
       .from('contactos')
-      .insert({
-        pal_id: palId,
-        estado: 'programado',
-        validacion_gps: false,
-        ...formData,
-      })
+      .insert(contacto)
       .select(`
         *,
-        instituciones (
+        institucion:instituciones (
           id,
-          nombre,
-          direccion,
-          latitud,
-          longitud
+          nombre
         )
       `)
-      .single();
+      .single()
 
-    if (error) throw error;
-    return data;
+    if (error) throw error
+    return data as Contacto
   },
 
-  // Confirmar contacto (después de la visita)
-  async confirmContacto(
-    id: string,
-    formData: ContactoConfirmData
-  ): Promise<Contacto> {
-    // Verificar si hubo cambios en los datos originales
-    const contactoOriginal = await this.getContactoById(id);
-    
-    const datosModificados =
-      contactoOriginal?.nombre !== formData.nombre ||
-      contactoOriginal?.apellido_paterno !== formData.apellido_paterno ||
-      contactoOriginal?.apellido_materno !== formData.apellido_materno ||
-      contactoOriginal?.telefono !== formData.telefono ||
-      contactoOriginal?.numero_pm !== formData.numero_pm ||
-      contactoOriginal?.contacto_con !== formData.contacto_con ||
-      contactoOriginal?.tipo_contacto !== formData.tipo_contacto;
-
+  async updateContacto(id: string, updates: ContactoUpdate) {
     const { data, error } = await supabase
       .from('contactos')
-      .update({
-        ...formData,
-        estado: 'confirmado',
-        confirmado_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        datos_modificados: datosModificados,
-      })
+      .update(updates)
       .eq('id', id)
       .select(`
         *,
-        instituciones (
+        institucion:instituciones (
           id,
-          nombre,
-          direccion,
-          latitud,
-          longitud
+          nombre
         )
       `)
-      .single();
+      .single()
 
-    if (error) throw error;
-
-    // TODO: Aquí podrías enviar notificación a admins si datosModificados === true
-    if (datosModificados) {
-      console.log('Datos modificados, notificar a administradores');
-      // await this.notifyAdmins(id, contactoOriginal, data);
-    }
-
-    return data;
+    if (error) throw error
+    return data as Contacto
   },
 
-  // Actualizar contacto
-  async updateContacto(
-    id: string,
-    formData: Partial<ContactoFormData>
-  ): Promise<Contacto> {
-    const { data, error } = await supabase
-      .from('contactos')
-      .update({
-        ...formData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select(`
-        *,
-        instituciones (
-          id,
-          nombre,
-          direccion,
-          latitud,
-          longitud
-        )
-      `)
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  // Eliminar contacto
-  async deleteContacto(id: string): Promise<void> {
-    try {
-      console.log('🗑️ Iniciando eliminación del contacto:', id);
-
-      // 1. Obtener las fotos antes de borrar el contacto
-      console.log('📸 Buscando fotos del contacto...');
-      const { data: fotos, error: fotosError } = await supabase
-        .from('fotos_evidencia')
-        .select('url_storage')
-        .eq('contacto_id', id);
-
-      if (fotosError) {
-        console.error('❌ Error al obtener fotos:', fotosError);
-        throw fotosError;
-      }
-
-      console.log('📸 Fotos encontradas:', fotos?.length || 0);
-
-      // 2. Borrar archivos del storage si existen
-      if (fotos && fotos.length > 0) {
-        console.log('🔍 Obteniendo usuario actual...');
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        
-        console.log('👤 Usuario:', user?.id);
-
-        if (user) {
-          const filePaths = fotos
-            .map((foto) => {
-              const url = foto.url_storage;
-              const match = url.match(/evidencias\/(.+)$/);
-              const path = match ? match[1] : null;
-              console.log('📁 Ruta extraída:', path, 'de URL:', url);
-              return path;
-            })
-            .filter((path): path is string => path !== null);
-
-          console.log('📁 Rutas a borrar del storage:', filePaths);
-
-          if (filePaths.length > 0) {
-            console.log('🗑️ Borrando archivos del storage...');
-            const { error: storageError } = await supabase.storage
-              .from('evidencias')
-              .remove(filePaths);
-
-            if (storageError) {
-              console.error('⚠️ Error al borrar fotos del storage:', storageError);
-            } else {
-              console.log('✅ Archivos del storage borrados correctamente');
-            }
-          }
-        }
-      } else {
-        console.log('ℹ️ No hay fotos para borrar');
-      }
-
-      // 3. Borrar el contacto (CASCADE borrará fotos_evidencia y fichas_tratamiento automáticamente)
-      console.log('🗑️ Borrando contacto de la base de datos...');
-      const { error, count } = await supabase
-        .from('contactos')
-        .delete({ count: 'exact' }) // AGREGAR count para debug
-        .eq('id', id); // CAMBIAR de match a eq
-
-      console.log('🔍 Filas afectadas:', count); // AGREGAR
-
-      if (error) {
-        console.error('❌ Error al borrar contacto:', error);
-        throw error;
-      }
-
-      if (count === 0) {
-        console.warn('⚠️ No se borró ningún contacto - puede ser problema de RLS');
-        throw new Error('No se pudo borrar el contacto. Verifica los permisos.');
-      }
-
-      console.log('✅ Contacto eliminado exitosamente');
-    } catch (error) {
-      console.error('💥 Error general en deleteContacto:', error);
-      throw error;
-    }
-  },
-
-  // Subir foto de evidencia
-  async uploadFoto(contactoId: string, file: File): Promise<string> {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${contactoId}-${Date.now()}.${fileExt}`;
-
-    // Obtener el ID del usuario actual
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Usuario no autenticado');
-
-    // Organizar por usuario: userId/contactoId-timestamp.ext
-    const filePath = `${user.id}/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('evidencias')
-      .upload(filePath, file);
-
-    if (uploadError) throw uploadError;
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('evidencias').getPublicUrl(filePath);
-
-    return publicUrl;
-  },
-
-  // Guardar referencia de foto en BD
-  async saveFotoEvidencia(
-    contactoId: string,
-    urlStorage: string
-  ): Promise<void> {
+  async deleteContacto(id: string) {
     const { error } = await supabase
-      .from('fotos_evidencia')
-      .insert({ contacto_id: contactoId, url_storage: urlStorage });
+      .from('contactos')
+      .delete()
+      .eq('id', id)
 
-    if (error) throw error;
+    if (error) throw error
   },
 
-  // Obtener fotos de un contacto
-  async getFotosContacto(contactoId: string): Promise<string[]> {
+  // Método para calcular edad a partir de fecha de nacimiento
+  calcularEdad(fechaNacimiento: string): number {
+    const hoy = new Date()
+    const nacimiento = new Date(fechaNacimiento)
+    let edad = hoy.getFullYear() - nacimiento.getFullYear()
+    const mes = hoy.getMonth() - nacimiento.getMonth()
+    
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+      edad--
+    }
+    
+    return edad
+  },
+
+  // Método para formatear nombre completo
+  formatearNombreCompleto(contacto: Contacto): string {
+    const partes = [
+      contacto.nombre,
+      contacto.apellido_pat,
+      contacto.apellido_mat
+    ].filter(Boolean)
+    
+    return partes.join(' ')
+  },
+
+  // Buscar contactos por texto
+  async buscarContactos(texto: string) {
     const { data, error } = await supabase
-      .from('fotos_evidencia')
-      .select('url_storage')
-      .eq('contacto_id', contactoId);
+      .from('contactos')
+      .select(`
+        *,
+        institucion:instituciones (
+          id,
+          nombre
+        )
+      `)
+      .or(`nombre.ilike.%${texto}%,apellido_pat.ilike.%${texto}%,apellido_mat.ilike.%${texto}%`)
+      .order('nombre', { ascending: true })
 
-    if (error) throw error;
-    return data?.map((f) => f.url_storage) || [];
+    if (error) throw error
+    return data as Contacto[]
   },
-};
+
+  // NUEVO: Buscar contactos por texto dentro de una institución específica
+  async buscarContactosEnInstitucion(texto: string, institucionId: string) {
+    const { data, error } = await supabase
+      .from('contactos')
+      .select(`
+        *,
+        institucion:instituciones (
+          id,
+          nombre
+        )
+      `)
+      .eq('institucion_id', institucionId)
+      .or(`nombre.ilike.%${texto}%,apellido_pat.ilike.%${texto}%,apellido_mat.ilike.%${texto}%`)
+      .order('nombre', { ascending: true })
+
+    if (error) throw error
+    return data as Contacto[]
+  }
+}

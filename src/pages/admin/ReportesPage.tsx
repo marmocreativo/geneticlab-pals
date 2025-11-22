@@ -1,32 +1,29 @@
-// src/pages/admin/ReportesPage.tsx
-
-import { useState } from 'react';
-import { ReportFilters, type FiltrosReporte } from '@/components/admin/ReportFilters';
-import { ReportTable } from '@/components/admin/ReportTable';
-import { FileBarChart } from 'lucide-react';
+import { FileText, BarChart3 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function ReportesPage() {
-  const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosReporte>({});
-
-  const handleAplicarFiltros = (filtros: FiltrosReporte) => {
-    setFiltrosAplicados(filtros);
-  };
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <FileBarChart className="h-8 w-8" />
-          Reportes
-        </h1>
-        <p className="text-gray-600">
-          Genera reportes personalizados de contactos
+        <h1 className="text-3xl font-bold tracking-tight">Reportes</h1>
+        <p className="text-muted-foreground">
+          Análisis y estadísticas del sistema
         </p>
       </div>
 
-      <ReportFilters onAplicarFiltros={handleAplicarFiltros} />
-
-      <ReportTable filtros={filtrosAplicados} />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Próximamente
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            Esta funcionalidad está en desarrollo. Pronto podrás ver reportes detallados de visitas, contactos y estadísticas.
+          </p>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }

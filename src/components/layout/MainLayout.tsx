@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { Badge } from '@/components/ui/badge'
 import {
   LayoutDashboard,
   Users,
@@ -22,11 +22,8 @@ import {
   LogOut,
   User,
   BookOpen,
-  MapPin,
-  FileCheck,
-  Stethoscope,
-  UserRound,
-  Pill
+  Calendar,
+  UserCheck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -57,18 +54,6 @@ const navItems: NavItem[] = [
     roles: ['admin']
   },
   {
-    title: 'Médicos',
-    href: '/admin/medicos',
-    icon: Stethoscope,
-    roles: ['admin']
-  },
-  {
-    title: 'Pacientes',
-    href: '/admin/pacientes',
-    icon: UserRound,
-    roles: ['admin']
-  },
-  {
     title: 'Instituciones',
     href: '/admin/instituciones',
     icon: Building2,
@@ -87,27 +72,27 @@ const navItems: NavItem[] = [
     roles: ['admin']
   },
   {
-    title: 'Mis Contactos',
-    href: '/pal/contactos',
-    icon: Users,
-    roles: ['pal']
-  },
-  {
-    title: 'Nuevo Contacto',
-    href: '/pal/contactos/nuevo',
-    icon: FileCheck,
+    title: 'Calendario',
+    href: '/pal',
+    icon: Calendar,
     roles: ['pal']
   },
   {
     title: 'Instituciones',
     href: '/pal/instituciones',
-    icon: MapPin,
+    icon: Building2,
     roles: ['pal']
   },
   {
-    title: 'Fichas Tratamiento',  // <-- Actualizar este
-    href: '/fichas-tratamiento',  // <-- Usar la ruta correcta
-    icon: Pill,                   // <-- Cambiar el icono
+    title: 'Contactos',
+    href: '/pal/contactos',
+    icon: UserCheck,
+    roles: ['pal']
+  },
+  {
+    title: 'Fichas',
+    href: '/pal/fichas',
+    icon: FileText,
     roles: ['pal']
   }
 ]
@@ -154,9 +139,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   )
 
   return (
-    <div className="flex min-h-screen">
+    <div className="h-screen flex">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex w-64 flex-col border-r bg-card">
+      <aside className="hidden lg:flex w-64 flex-col border-r bg-card">
         <div className="p-6">
           <h1 className="text-2xl font-bold">Control PALs</h1>
           <div className="flex items-center gap-2 mt-1">
@@ -164,31 +149,32 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               {role === 'admin' ? 'Panel Administrativo' : 'Panel PAL'}
             </p>
             <Badge variant={role === 'admin' ? 'default' : 'secondary'} className="text-xs">
-              {role || 'Sin rol'}
+              {role?.toUpperCase()}
             </Badge>
           </div>
         </div>
-        <div className="flex-1 px-3 py-4">
+
+        <div className="flex-1 px-4 overflow-auto">
           <NavLinks />
         </div>
+
         <div className="p-4 border-t">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start">
-                <User className="mr-2 h-4 w-4" />
-                <span className="truncate">{user?.email}</span>
+              <Button variant="ghost" className="w-full justify-start gap-3">
+                <User className="h-5 w-5" />
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-medium truncate">{user?.user_metadata?.nombre_completo}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled className="text-xs">
-                Rol: <Badge variant="outline" className="ml-2">{role || 'N/A'}</Badge>
-              </DropdownMenuItem>
+              <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Cerrar sesión
+                <LogOut className="h-4 w-4 mr-2" />
+                Cerrar Sesión
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -196,21 +182,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header Mobile */}
-        <header className="md:hidden border-b bg-card p-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Control PALs</h1>
-            <Badge variant={role === 'admin' ? 'default' : 'secondary'} className="text-xs mt-1">
-              {role || 'Sin rol'}
-            </Badge>
-          </div>
+      <main className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Header */}
+        <div className="lg:hidden sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b bg-background px-4 shadow-sm">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
+              <Button variant="outline" size="icon">
+                <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
+            
             <SheetContent side="left" className="w-64 p-0">
               <div className="p-6">
                 <h1 className="text-2xl font-bold">Control PALs</h1>
@@ -219,32 +200,66 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     {role === 'admin' ? 'Panel Administrativo' : 'Panel PAL'}
                   </p>
                   <Badge variant={role === 'admin' ? 'default' : 'secondary'} className="text-xs">
-                    {role || 'Sin rol'}
+                    {role?.toUpperCase()}
                   </Badge>
                 </div>
               </div>
-              <div className="px-3 py-4">
+              
+              <div className="flex-1 px-4 overflow-auto">
                 <NavLinks />
               </div>
-              <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start"
+              
+              <div className="p-4 border-t">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{user?.user_metadata?.nombre_completo}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 mt-2"
                   onClick={handleSignOut}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Cerrar sesión
+                  <LogOut className="h-4 w-4" />
+                  Cerrar Sesión
                 </Button>
               </div>
             </SheetContent>
           </Sheet>
-        </header>
+          
+          <div className="flex-1">
+            <h1 className="text-lg font-semibold">Control PALs</h1>
+          </div>
 
-        {/* Main */}
-        <main className="flex-1 p-6 overflow-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <User className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>
+                <div>
+                  <p className="text-sm font-medium">{user?.user_metadata?.nombre_completo}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Cerrar Sesión
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Page Content */}
+        <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

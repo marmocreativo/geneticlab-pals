@@ -8,11 +8,11 @@ export type Json =
 
 export type UserRole = 'admin' | 'pal'
 
-export type ContactType = 'medico' | 'enfermera' | 'cuidador' | 'paciente'
+export type TipoContacto = 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero'
 
-export type ContactMethod = 'presencial' | 'telefonico'
+export type TipoVisita = 'presencial' | 'telefono'
 
-export type Periodicidad = 'semanal' | 'bisemanal'
+export type EstadoVisita = 'programada' | 'asistio' | 'falto'
 
 export type CatalogoTipo = 
   | 'diagnostico'
@@ -89,7 +89,7 @@ export interface Database {
           direccion: string
           latitud: number
           longitud: number
-          sector_id: string
+          sector_id: string | null
           google_place_id: string | null
           created_at: string
         }
@@ -99,7 +99,7 @@ export interface Database {
           direccion: string
           latitud: number
           longitud: number
-          sector_id: string
+          sector_id?: string | null
           google_place_id?: string | null
           created_at?: string
         }
@@ -109,57 +109,220 @@ export interface Database {
           direccion?: string
           latitud?: number
           longitud?: number
-          sector_id?: string
+          sector_id?: string | null
           google_place_id?: string | null
           created_at?: string
         }
       }
-      medicos: {
+      contactos: {
         Row: {
           id: string
-          nombre_completo: string
+          tipo_contacto: TipoContacto
+          relacion_con_paciente: string | null
+          nombre: string
+          apellido_pat: string | null
+          apellido_mat: string | null
           telefono: string | null
-          numero_pm: string | null
-          especialidad: string | null
+          fecha_nacimiento: string | null
           created_at: string
         }
         Insert: {
           id?: string
-          nombre_completo: string
+          tipo_contacto: TipoContacto
+          relacion_con_paciente?: string | null
+          nombre: string
+          apellido_pat?: string | null
+          apellido_mat?: string | null
           telefono?: string | null
-          numero_pm?: string | null
-          especialidad?: string | null
+          fecha_nacimiento?: string | null
           created_at?: string
         }
         Update: {
           id?: string
-          nombre_completo?: string
+          tipo_contacto?: TipoContacto
+          relacion_con_paciente?: string | null
+          nombre?: string
+          apellido_pat?: string | null
+          apellido_mat?: string | null
           telefono?: string | null
-          numero_pm?: string | null
-          especialidad?: string | null
+          fecha_nacimiento?: string | null
           created_at?: string
         }
       }
-      pacientes: {
+      visitas: {
         Row: {
           id: string
-          nombre_completo: string
-          telefono: string | null
-          numero_pm: string | null
+          pal_id: string
+          institucion_id: string
+          fecha_visita: string
+          validacion_gps: boolean
+          latitud_registro: number | null
+          longitud_registro: number | null
+          distancia_metros: number | null
+          estado: EstadoVisita
+          tipo_visita: TipoVisita
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          pal_id: string
+          institucion_id: string
+          fecha_visita: string
+          validacion_gps?: boolean
+          latitud_registro?: number | null
+          longitud_registro?: number | null
+          distancia_metros?: number | null
+          estado?: EstadoVisita
+          tipo_visita: TipoVisita
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          pal_id?: string
+          institucion_id?: string
+          fecha_visita?: string
+          validacion_gps?: boolean
+          latitud_registro?: number | null
+          longitud_registro?: number | null
+          distancia_metros?: number | null
+          estado?: EstadoVisita
+          tipo_visita?: TipoVisita
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      ficha_paciente: {
+        Row: {
+          id: string
+          folio: string
+          institucion_id: string
+          paciente_id: string
+          diagnostico: string | null
+          terapia: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          folio?: string
+          institucion_id: string
+          paciente_id: string
+          diagnostico?: string | null
+          terapia?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          folio?: string
+          institucion_id?: string
+          paciente_id?: string
+          diagnostico?: string | null
+          terapia?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      ficha_contactos: {
+        Row: {
+          id: string
+          ficha_id: string
+          contacto_id: string
           created_at: string
         }
         Insert: {
           id?: string
-          nombre_completo: string
-          telefono?: string | null
-          numero_pm?: string | null
+          ficha_id: string
+          contacto_id: string
           created_at?: string
         }
         Update: {
           id?: string
-          nombre_completo?: string
-          telefono?: string | null
-          numero_pm?: string | null
+          ficha_id?: string
+          contacto_id?: string
+          created_at?: string
+        }
+      }
+      fechas_tratamiento: {
+        Row: {
+          id: string
+          ficha_id: string
+          fecha_programada: string
+          asistencia: boolean
+          notas: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ficha_id: string
+          fecha_programada: string
+          asistencia?: boolean
+          notas?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          ficha_id?: string
+          fecha_programada?: string
+          asistencia?: boolean
+          notas?: string | null
+          created_at?: string
+        }
+      }
+      actividades: {
+        Row: {
+          id: string
+          visita_id: string
+          contacto_id: string
+          descripcion_actividad: string | null
+          temas_impartidos: string | null
+          entrega_sobres_id: string | null
+          entrega_kit_rash_id: string | null
+          notas: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          visita_id: string
+          contacto_id: string
+          descripcion_actividad?: string | null
+          temas_impartidos?: string | null
+          entrega_sobres_id?: string | null
+          entrega_kit_rash_id?: string | null
+          notas?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          visita_id?: string
+          contacto_id?: string
+          descripcion_actividad?: string | null
+          temas_impartidos?: string | null
+          entrega_sobres_id?: string | null
+          entrega_kit_rash_id?: string | null
+          notas?: string | null
+          created_at?: string
+        }
+      }
+      fotos_evidencia: {
+        Row: {
+          id: string
+          visita_id: string
+          url_storage: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          visita_id: string
+          url_storage: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          visita_id?: string
+          url_storage?: string
           created_at?: string
         }
       }

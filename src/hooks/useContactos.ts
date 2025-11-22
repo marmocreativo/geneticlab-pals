@@ -1,133 +1,130 @@
-import { useState, useEffect } from 'react';
-import { contactosService } from '@/services/contactosService';
-import type { Contacto, ContactoFormData, ContactoConfirmData } from '@/types/contacto';
-import { toast } from 'sonner';
+import { useState, useEffect } from 'react'
+import { contactosService } from '@/services/contactosService'
+import type { Contacto, ContactoInsert, ContactoUpdate } from '@/types/contacto'
+import { toast } from 'sonner'
 
-export function useContactos(palId: string) {
-  const [contactos, setContactos] = useState<Contacto[]>([]);
-  const [contactosProgramados, setContactosProgramados] = useState<Contacto[]>([]);
-  const [contactosConfirmados, setContactosConfirmados] = useState<Contacto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function useContactos() {
+  const [contactos, setContactos] = useState<Contacto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchContactos = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const data = await contactosService.getContactos(palId);
-      console.log('📊 Total contactos cargados:', data.length, data); // AGREGAR ESTO
-      setContactos(data);
-
-      const programados = await contactosService.getContactosProgramados(palId);
-      console.log('📊 Contactos programados:', programados.length, programados); // AGREGAR ESTO
-      setContactosProgramados(programados);
-
-      const confirmados = await contactosService.getContactosConfirmados(palId);
-      console.log('📊 Contactos confirmados:', confirmados.length, confirmados); // AGREGAR ESTO
-      setContactosConfirmados(confirmados);
+      setLoading(true)
+      setError(null)
+      const data = await contactosService.getContactos()
+      setContactos(data)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al cargar contactos';
-      setError(message);
-      toast.error(message);
+      console.error('Error fetching contactos:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      toast.error('Error al cargar los contactos')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  useEffect(() => {
-    if (palId) {
-      fetchContactos();
-    }
-  }, [palId]);
-
-  const createContacto = async (formData: ContactoFormData) => {
+  const fetchContactosByTipo = async (tipo: string) => {
     try {
-      setLoading(true);
-      const contacto = await contactosService.createContacto(palId, formData);
-      await fetchContactos();
-      toast.success('Visita programada exitosamente');
-      return contacto;
+      setLoading(true)
+      setError(null)
+      const data = await contactosService.getContactosByTipo(tipo)
+      setContactos(data)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al crear contacto';
-      toast.error(message);
-      throw err;
+      console.error('Error fetching contactos by tipo:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      toast.error('Error al cargar los contactos')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const confirmContacto = async (
-    id: string,
-    formData: ContactoConfirmData,
-    fotos?: File[]
-  ) => {
+  const createContacto = async (contactoData: ContactoInsert) => {
     try {
-      setLoading(true);
-      const contacto = await contactosService.confirmContacto(id, formData);
-
-      // Subir fotos si existen
-      if (fotos && fotos.length > 0) {
-        for (const foto of fotos) {
-          const url = await contactosService.uploadFoto(contacto.id, foto);
-          await contactosService.saveFotoEvidencia(contacto.id, url);
-        }
-      }
-
-      await fetchContactos();
-      toast.success('Visita confirmada exitosamente');
-      return contacto;
+      const newContacto = await contactosService.createContacto(contactoData)
+      setContactos(prev => [...prev, newContacto])
+      toast.success('Contacto creado exitosamente')
+      return newContacto
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al confirmar contacto';
-      toast.error(message);
-      throw err;
-    } finally {
-      setLoading(false);
+      console.error('Error creating contacto:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      toast.error(`Error al crear el contacto: ${errorMessage}`)
+      throw err
     }
-  };
+  }
 
-  const updateContacto = async (
-    id: string,
-    formData: Partial<ContactoFormData>
-  ) => {
+  const updateContacto = async (id: string, updates: ContactoUpdate) => {
     try {
-      setLoading(true);
-      await contactosService.updateContacto(id, formData);
-      await fetchContactos();
-      toast.success('Contacto actualizado exitosamente');
+      const updatedContacto = await contactosService.updateContacto(id, updates)
+      setContactos(prev => prev.map(contacto => 
+        contacto.id === id ? updatedContacto : contacto
+      ))
+      toast.success('Contacto actualizado exitosamente')
+      return updatedContacto
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al actualizar contacto';
-      toast.error(message);
-      throw err;
-    } finally {
-      setLoading(false);
+      console.error('Error updating contacto:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      toast.error(`Error al actualizar el contacto: ${errorMessage}`)
+      throw err
     }
-  };
+  }
 
   const deleteContacto = async (id: string) => {
     try {
-      setLoading(true);
-      await contactosService.deleteContacto(id);
-      await fetchContactos();
-      toast.success('Contacto eliminado exitosamente');
+      await contactosService.deleteContacto(id)
+      setContactos(prev => prev.filter(contacto => contacto.id !== id))
+      toast.success('Contacto eliminado exitosamente')
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al eliminar contacto';
-      toast.error(message);
-      throw err;
-    } finally {
-      setLoading(false);
+      console.error('Error deleting contacto:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      toast.error(`Error al eliminar el contacto: ${errorMessage}`)
+      throw err
     }
-  };
+  }
+
+  const buscarContactos = async (texto: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await contactosService.buscarContactos(texto)
+      setContactos(data)
+    } catch (err) {
+      console.error('Error searching contactos:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      toast.error('Error al buscar contactos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getContactoById = async (id: string) => {
+    try {
+      const contacto = await contactosService.getContactoById(id)
+      return contacto
+    } catch (err) {
+      console.error('Error fetching contacto by id:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      toast.error(`Error al obtener el contacto: ${errorMessage}`)
+      throw err
+    }
+  }
+
+  useEffect(() => {
+    fetchContactos()
+  }, [])
 
   return {
     contactos,
-    contactosProgramados,
-    contactosConfirmados,
     loading,
     error,
+    fetchContactos,
+    fetchContactosByTipo,
     createContacto,
-    confirmContacto,
     updateContacto,
     deleteContacto,
-    refetch: fetchContactos,
-  };
+    buscarContactos,
+    getContactoById,
+    // Métodos de utilidad
+    calcularEdad: contactosService.calcularEdad,
+    formatearNombreCompleto: contactosService.formatearNombreCompleto
+  }
 }
