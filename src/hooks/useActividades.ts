@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+// hooks/useActividades.ts
+import { useState, useCallback } from 'react'
 import { actividadesService } from '@/services/actividadesService'
 import type { Actividad, ActividadInsert, ActividadUpdate } from '@/types/actividad'
 import { toast } from 'sonner'
@@ -8,22 +9,52 @@ export function useActividades() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchActividadesByVisita = async (visitaId: string) => {
+  const fetchActividadesByInstitucion = useCallback(async (institucionId: string) => {
     try {
       setLoading(true)
       setError(null)
-      const data = await actividadesService.getActividadesByVisita(visitaId)
+      const data = await actividadesService.getActividadesByInstitucion(institucionId)
       setActividades(data)
     } catch (err) {
-      console.error('Error fetching actividades:', err)
+      console.error('Error fetching actividades por institucion:', err)
       setError(err instanceof Error ? err.message : 'Error desconocido')
       toast.error('Error al cargar las actividades')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const createActividad = async (actividadData: ActividadInsert) => {
+  const fetchActividadesByFecha = useCallback(async (fecha: string, palId?: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await actividadesService.getActividadesByFecha(fecha, palId)
+      setActividades(data)
+    } catch (err) {
+      console.error('Error fetching actividades por fecha:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      toast.error('Error al cargar las actividades')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchActividadesByPal = useCallback(async (palId: string, fechaInicio?: string, fechaFin?: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await actividadesService.getActividadesByPal(palId, fechaInicio, fechaFin)
+      setActividades(data)
+    } catch (err) {
+      console.error('Error fetching actividades por PAL:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      toast.error('Error al cargar las actividades del PAL')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const createActividad = useCallback(async (actividadData: ActividadInsert) => {
     try {
       const newActividad = await actividadesService.createActividad(actividadData)
       setActividades(prev => [newActividad, ...prev])
@@ -35,9 +66,9 @@ export function useActividades() {
       toast.error(`Error al registrar la actividad: ${errorMessage}`)
       throw err
     }
-  }
+  }, [])
 
-  const updateActividad = async (id: string, updates: ActividadUpdate) => {
+  const updateActividad = useCallback(async (id: string, updates: ActividadUpdate) => {
     try {
       const updatedActividad = await actividadesService.updateActividad(id, updates)
       setActividades(prev => prev.map(actividad => 
@@ -51,9 +82,9 @@ export function useActividades() {
       toast.error(`Error al actualizar la actividad: ${errorMessage}`)
       throw err
     }
-  }
+  }, [])
 
-  const deleteActividad = async (id: string) => {
+  const deleteActividad = useCallback(async (id: string) => {
     try {
       await actividadesService.deleteActividad(id)
       setActividades(prev => prev.filter(actividad => actividad.id !== id))
@@ -64,9 +95,9 @@ export function useActividades() {
       toast.error(`Error al eliminar la actividad: ${errorMessage}`)
       throw err
     }
-  }
+  }, [])
 
-  const getActividadById = async (id: string) => {
+  const getActividadById = useCallback(async (id: string) => {
     try {
       const actividad = await actividadesService.getActividadById(id)
       return actividad
@@ -76,29 +107,31 @@ export function useActividades() {
       toast.error(`Error al obtener la actividad: ${errorMessage}`)
       throw err
     }
-  }
+  }, [])
 
-  const getEstadisticasActividades = async (visitaId: string) => {
+  const getEstadisticasActividades = useCallback(async (institucionId: string, fechaInicio?: string, fechaFin?: string) => {
     try {
-      const stats = await actividadesService.getEstadisticasActividades(visitaId)
+      const stats = await actividadesService.getEstadisticasActividades(institucionId, fechaInicio, fechaFin)
       return stats
     } catch (err) {
       console.error('Error getting actividades stats:', err)
       throw err
     }
-  }
+  }, [])
 
-  // Función de utilidad para resetear el estado
-  const resetActividades = () => {
+  const resetActividades = useCallback(() => {
     setActividades([])
     setError(null)
-  }
+  }, [])
 
   return {
     actividades,
     loading,
     error,
-    fetchActividadesByVisita,
+    // Funciones principales
+    fetchActividadesByInstitucion,
+    fetchActividadesByFecha,
+    fetchActividadesByPal,
     createActividad,
     updateActividad,
     deleteActividad,
@@ -107,6 +140,7 @@ export function useActividades() {
     resetActividades,
     // Funciones de utilidad del servicio
     formatearNombreContacto: actividadesService.formatearNombreContacto,
-    getTipoContactoLabel: actividadesService.getTipoContactoLabel
+    getTipoContactoLabel: actividadesService.getTipoContactoLabel,
+    formatearFechaHora: actividadesService.formatearFechaHora
   }
 }

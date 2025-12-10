@@ -1,3 +1,4 @@
+// pages/pal/VisitaDetailsPage.tsx
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -5,44 +6,50 @@ import {
   ArrowLeft, 
   MapPin, 
   Phone, 
-  Calendar, 
-  Clock, 
   Navigation,
   CheckCircle,
   AlertCircle,
   XCircle,
-  Activity,
-  Plus, 
-  User, 
-  Package, 
-  Clipboard,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CalendarX,
+  Camera,
+  Image as ImageIcon,
+  Trash2,
+  Upload
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import ActividadForm from '@/components/actividades/ActividadForm'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import CameraCapture from '@/components/common/CameraCapture'
 import { useVisitas } from '@/hooks/useVisitas'
 import { useConfiguraciones } from '@/hooks/useConfiguraciones'
-import { useActividades } from '@/hooks/useActividades'
+import { useFotosEvidencia } from '@/hooks/useFotosEvidencia'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { Visita } from '@/types/visita'
-import type { ActividadInsert } from '@/types/actividad'
 
 const VisitaDetailsPage: React.FC = () => {
   const { visitaId } = useParams<{ visitaId: string }>()
   const navigate = useNavigate()
   const location = useLocation()
-  const { getVisitaById, validarGPS, confirmarAsistencia, marcarFalta } = useVisitas()
+  const { getVisitaById, validarGPS, confirmarAsistencia, marcarFalta, updateVisita } = useVisitas()
   const { getConfiguracionNumber } = useConfiguraciones()
+  const { fotos, loading: fotosLoading, uploading, bucketReady, fetchFotosByVisita, subirFoto, eliminarFoto } = useFotosEvidencia()
+  
   const [visita, setVisita] = useState<Visita | null>(null)
   const [loading, setLoading] = useState(true)
   const [validandoGPS, setValidandoGPS] = useState(false)
-  const { actividades, fetchActividadesByVisita, createActividad } = useActividades()
-  const [showActividadForm, setShowActividadForm] = useState(false)
   const [showDireccion, setShowDireccion] = useState(false)
+  const [showReagendarDialog, setShowReagendarDialog] = useState(false)
+  const [nuevaFecha, setNuevaFecha] = useState('')
+  const [nuevaHora, setNuevaHora] = useState('')
+  const [showEvidenciaDialog, setShowEvidenciaDialog] = useState(false)
+  const [fotoSeleccionada, setFotoSeleccionada] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   // Obtener fecha del estado de navegación
   const selectedDate = location.state?.selectedDate
@@ -53,11 +60,12 @@ const VisitaDetailsPage: React.FC = () => {
     }
   }, [visitaId])
 
+  // Cargar fotos cuando la visita esté confirmada
   useEffect(() => {
-    if (visita && visita.estado === 'asistio') {
-      fetchActividadesByVisita(visita.id)
+    if (visita && visita.estado === 'asistio' && bucketReady) {
+      fetchFotosByVisita(visita.id)
     }
-  }, [visita])
+  }, [visita, bucketReady])
 
   const fetchVisitaDetails = async () => {
     if (!visitaId) return
@@ -73,18 +81,30 @@ const VisitaDetailsPage: React.FC = () => {
     }
   }
 
-  const handleCreateActividad = async (actividadData: ActividadInsert) => {
-    await createActividad(actividadData)
-    if (visita) {
-      fetchActividadesByVisita(visita.id)
+  const handleVolver = () => {
+    if (selectedDate) {
+      const fechaString = format(selectedDate, 'yyyy-MM-dd')
+      navigate(`/pal/visitas-dia/${fechaString}`)
+    } else {
+      navigate('/pal/calendario')
     }
   }
 
-  const handleVolver = () => {
-    if (selectedDate) {
-      navigate('/pal', { state: { selectedDate } })
-    } else {
-      navigate('/pal')
+  const handleReagendar = async () => {
+    if (!visita || !nuevaFecha || !nuevaHora) return
+
+    try {
+      const nuevaFechaVisita = new Date(`${nuevaFecha}T${nuevaHora}`)
+      
+      await updateVisita(visita.id, {
+        fecha_visita: nuevaFechaVisita.toISOString()
+      })
+
+      toast.success('Visita reagendada. Los administradores han sido notificados.')
+      setShowReagendarDialog(false)
+      await fetchVisitaDetails()
+    } catch (error) {
+      toast.error('Error al reagendar la visita')
     }
   }
 
@@ -158,9 +178,18 @@ const VisitaDetailsPage: React.FC = () => {
 
   const handleConfirmarAsistencia = async () => {
     if (!visita) return
+    
+    // Para visitas presenciales, requerir evidencia fotográfica
+    if (visita.tipo_visita === 'presencial' && bucketReady) {
+      setShowEvidenciaDialog(true)
+      return
+    }
+    
+    // Para visitas telefónicas, confirmar directamente
     try {
       const visitaActualizada = await confirmarAsistencia(visita.id)
       setVisita(visitaActualizada)
+      toast.success('Asistencia confirmada exitosamente')
     } catch (error) {
       console.error('Error confirming attendance:', error)
     }
@@ -171,8 +200,67 @@ const VisitaDetailsPage: React.FC = () => {
     try {
       const visitaActualizada = await marcarFalta(visita.id)
       setVisita(visitaActualizada)
+      toast.success('Falta registrada')
     } catch (error) {
       console.error('Error marking absence:', error)
+    }
+  }
+
+   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      // Validar que sea una imagen
+      if (!file.type.startsWith('image/')) {
+        toast.error('Solo se permiten archivos de imagen')
+        return
+      }
+
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La imagen debe ser menor a 5MB')
+        return
+      }
+
+      setFotoSeleccionada(file)
+      
+      // Crear preview
+      const reader = new FileReader()
+      reader.onload = () => {
+        setPreviewUrl(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+
+      // Limpiar el input
+      e.target.value = ''
+    }
+
+  const handleSubirEvidencia = async () => {
+    if (!visita || !fotoSeleccionada) return
+
+    try {
+      const result = await subirFoto(visita.id, fotoSeleccionada)
+      
+      if (result) {
+        // Confirmar la visita después de subir la evidencia
+        const visitaActualizada = await confirmarAsistencia(visita.id)
+        setVisita(visitaActualizada)
+        
+        // Limpiar estado
+        setShowEvidenciaDialog(false)
+        setFotoSeleccionada(null)
+        setPreviewUrl(null)
+        
+        toast.success('Visita confirmada con evidencia fotográfica')
+      }
+    } catch (error) {
+      console.error('Error subiendo evidencia:', error)
+    }
+  }
+
+  const handleEliminarFoto = async (fotoId: string, url: string) => {
+    if (window.confirm('¿Estás seguro de eliminar esta foto?')) {
+      await eliminarFoto(fotoId, url)
     }
   }
 
@@ -215,251 +303,334 @@ const VisitaDetailsPage: React.FC = () => {
     )
   }
 
-  const puedeValidarGPS = visita.tipo_visita === 'presencial' && !visita.validacion_gps && visita.estado === 'programada'
-  const puedeConfirmarAsistencia = visita.estado === 'programada' && (visita.tipo_visita === 'telefono' || visita.validacion_gps)
-
   return (
-    <div className="max-w-lg mx-auto p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={handleVolver}>
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Volver
-        </Button>
-        {getEstadoBadge(visita.estado)}
+    <div className="max-w-lg mx-auto min-h-screen flex flex-col">
+      {/* Header fijo */}
+      <div className="sticky top-0 bg-background border-b p-4 z-10">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={handleVolver}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Volver
+          </Button>
+          {getEstadoBadge(visita.estado)}
+        </div>
       </div>
 
-      {/* Información básica */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3 mb-3">
-            {visita.tipo_visita === 'presencial' ? (
-              <MapPin className="h-5 w-5 text-blue-600" />
-            ) : (
-              <Phone className="h-5 w-5 text-green-600" />
-            )}
-            <div className="flex-1">
-              <h2 className="font-medium text-sm">{visita.institucion?.nombre}</h2>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                <span>{format(new Date(visita.fecha_visita), 'dd MMM', { locale: es })}</span>
-                <span>{format(new Date(visita.fecha_visita), 'HH:mm')}</span>
-                <Badge variant="outline" className="text-xs">
-                  {visita.tipo_visita === 'presencial' ? 'Presencial' : 'Telefónica'}
-                </Badge>
+      {/* Contenido scrolleable */}
+      <div className="flex-1 p-4 space-y-4">
+        {/* Información básica con acciones integradas */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              {visita.tipo_visita === 'presencial' ? (
+                <MapPin className="h-5 w-5 text-blue-600" />
+              ) : (
+                <Phone className="h-5 w-5 text-green-600" />
+              )}
+              <div className="flex-1">
+                <h2 className="font-medium text-lg">{visita.institucion?.nombre}</h2>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                  <span>{format(new Date(visita.fecha_visita), 'dd MMM', { locale: es })}</span>
+                  <span>{format(new Date(visita.fecha_visita), 'HH:mm')}</span>
+                  <Badge variant="outline" className="text-xs">
+                    {visita.tipo_visita === 'presencial' ? 'Presencial' : 'Telefónica'}
+                  </Badge>
+                </div>
+              </div>
+              
+              {/* Botones de acción como iconos */}
+              <div className="flex gap-1">
+                {/* Reagendar - solo si está programada */}
+                {visita.estado === 'programada' && (
+                  <Button 
+                    onClick={() => setShowReagendarDialog(true)}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    title="Reagendar visita"
+                  >
+                    <CalendarX className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Dirección colapsable */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDireccion(!showDireccion)}
-            className="w-full justify-between h-8 text-xs p-2"
-          >
-            Ver dirección
-            {showDireccion ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </Button>
+            {/* Estado GPS si está validado */}
+            {visita.tipo_visita === 'presencial' && visita.validacion_gps && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded text-sm mb-3">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-green-700">Ubicación validada ({visita.distancia_metros}m)</span>
+              </div>
+            )}
 
-          {showDireccion && (
-            <div className="mt-2 p-2 bg-muted/50 rounded text-xs text-muted-foreground">
-              {visita.institucion?.direccion}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {/* Dirección colapsable */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDireccion(!showDireccion)}
+              className="w-full justify-between h-8 text-xs p-2"
+            >
+              Ver dirección
+              {showDireccion ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </Button>
 
-      {/* Acciones y Actividades */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Acciones y Actividades
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0 space-y-4">
-          
-          {/* Validación GPS para visitas presenciales */}
-          {visita.tipo_visita === 'presencial' && visita.estado === 'programada' && (
-            <div className="space-y-2">
-              {visita.validacion_gps ? (
-                <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
-                  <CheckCircle className="h-3 w-3 text-green-600" />
-                  <span className="text-green-700">Ubicación validada ({visita.distancia_metros}m)</span>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                    <AlertCircle className="h-3 w-3 text-yellow-600" />
-                    <span className="text-yellow-700">Valida tu ubicación GPS</span>
+            {showDireccion && (
+              <div className="mt-2 p-2 bg-muted/50 rounded text-xs text-muted-foreground">
+                {visita.institucion?.direccion}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Acciones principales */}
+        {visita.estado === 'programada' && (
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              {/* Validar GPS para visitas presenciales */}
+              {visita.tipo_visita === 'presencial' && !visita.validacion_gps && (
+                <div>
+                  <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm mb-3">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <span className="text-yellow-700">Primero valida tu ubicación</span>
                   </div>
+                  
                   <Button 
                     onClick={handleValidarGPS}
                     disabled={validandoGPS}
-                    size="sm"
-                    className="w-full h-8"
+                    className="w-full"
                   >
                     {validandoGPS ? (
-                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      <>
+                        <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin mr-2" />
+                        Validando ubicación...
+                      </>
                     ) : (
-                      <Navigation className="h-3 w-3 mr-2" />
+                      <>
+                        <Navigation className="h-4 w-4 mr-2" />
+                        Validar GPS
+                      </>
                     )}
-                    {validandoGPS ? 'Validando...' : 'Validar GPS'}
                   </Button>
-                </>
+                </div>
               )}
-            </div>
-          )}
 
-          {/* Confirmación de asistencia */}
-          {visita.estado === 'programada' && (
-            <div className="space-y-2">
-              {visita.tipo_visita === 'telefono' || visita.validacion_gps ? (
-                <div className="flex gap-2">
+              {/* Confirmar asistencia - disponible cuando GPS está validado o es telefónica */}
+              {(visita.tipo_visita === 'telefono' || visita.validacion_gps) && (
+                <div className="grid grid-cols-2 gap-3">
                   <Button 
                     onClick={handleConfirmarAsistencia}
-                    size="sm"
-                    className="flex-1 h-8"
+                    className="bg-green-600 hover:bg-green-700"
                   >
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Confirmar
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {visita.tipo_visita === 'presencial' && bucketReady ? 'Confirmar + Foto' : 'Confirmar'}
                   </Button>
                   <Button 
                     onClick={handleMarcarFalta}
                     variant="outline"
-                    size="sm"
-                    className="flex-1 h-8 text-red-600 border-red-200"
+                    className="border-red-200 text-red-600 hover:bg-red-50"
                   >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Marcar Falta
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Marcar falta
                   </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 p-2 bg-gray-50 border rounded text-xs">
-                  <AlertCircle className="h-3 w-3 text-gray-600" />
-                  <span className="text-gray-700">Valida GPS primero</span>
                 </div>
               )}
-            </div>
-          )}
+            </CardContent>
+          </Card>
+        )}
 
-          {/* Actividades */}
-          {visita.estado === 'asistio' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-medium text-muted-foreground">ACTIVIDADES</h4>
-                <Button 
-                  onClick={() => setShowActividadForm(true)}
-                  size="sm"
-                  variant="outline"
-                  className="h-6 text-xs"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Nueva
-                </Button>
+        {/* Fotos de evidencia para visitas confirmadas */}
+        {visita.estado === 'asistio' && bucketReady && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Evidencia Fotográfica
+                </h3>
+                <span className="text-xs text-muted-foreground">{fotos.length} foto(s)</span>
               </div>
 
-              {actividades.length === 0 ? (
-                <div className="text-center py-6">
-                  <Clipboard className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground mb-3">No hay actividades registradas</p>
-                  <Button 
-                    onClick={() => setShowActividadForm(true)}
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Primera Actividad
-                  </Button>
+              {fotosLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {actividades.map((actividad) => (
-                    <div
-                      key={actividad.id}
-                      className="border rounded p-3 space-y-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-3 w-3 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-medium">
-                            {actividad.contacto ? 
-                              `${actividad.contacto.nombre} ${actividad.contacto.apellido_pat || ''}` : 
-                              'Sin contacto'
-                            }
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(actividad.created_at), 'HH:mm')}
-                          </p>
-                        </div>
-                      </div>
-
-                      {actividad.descripcion_actividad && (
-                        <p className="text-xs bg-muted/50 rounded p-2">{actividad.descripcion_actividad}</p>
-                      )}
-
-                      {actividad.temas_impartidos && (
-                        <p className="text-xs"><strong>Temas:</strong> {actividad.temas_impartidos}</p>
-                      )}
-
-                      {(actividad.entrega_sobres_id || actividad.entrega_kit_rash_id) && (
-                        <div className="flex gap-1">
-                          {actividad.entrega_sobres_id && (
-                            <Badge variant="outline" className="text-xs bg-blue-50">
-                              <Package className="h-2 w-2 mr-1" />
-                              Sobres
-                            </Badge>
-                          )}
-                          {actividad.entrega_kit_rash_id && (
-                            <Badge variant="outline" className="text-xs bg-green-50">
-                              <Package className="h-2 w-2 mr-1" />
-                              Kit Rash
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-
-                      {actividad.notas && (
-                        <p className="text-xs text-muted-foreground italic">{actividad.notas}</p>
-                      )}
+              ) : fotos.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {fotos.map((foto) => (
+                    <div key={foto.id} className="relative group">
+                      <img 
+                        src={foto.url_storage} 
+                        alt="Evidencia"
+                        className="w-full aspect-square object-cover rounded border"
+                      />
+                      <Button
+                        onClick={() => handleEliminarFoto(foto.id, foto.url_storage)}
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   ))}
                 </div>
+              ) : (
+                <div className="text-center py-4 text-xs text-muted-foreground">
+                  No hay fotos de evidencia
+                </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Mensajes informativos para estados finales */}
+        {visita.estado === 'asistio' && (
+          <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded text-sm">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-green-700">Visita confirmada exitosamente</span>
+          </div>
+        )}
+
+        {visita.estado === 'falto' && (
+          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded text-sm">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span className="text-red-700">Falta registrada</span>
+          </div>
+        )}
+      </div>
+
+      {/* Dialog de Reagendar */}
+      <Dialog open={showReagendarDialog} onOpenChange={setShowReagendarDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reagendar Visita</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs">
+              <AlertCircle className="h-4 w-4 inline mr-2 text-yellow-600" />
+              Los administradores serán notificados de este cambio
             </div>
-          )}
-
-          {/* Mensaje si no se puede agregar actividades */}
-          {visita.estado === 'programada' && (
-            <div className="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-              <AlertCircle className="h-3 w-3 text-yellow-600" />
-              <span className="text-yellow-700">Confirma asistencia para registrar actividades</span>
+            
+            <div>
+              <Label htmlFor="nueva-fecha">Nueva Fecha</Label>
+              <Input
+                id="nueva-fecha"
+                type="date"
+                value={nuevaFecha}
+                onChange={(e) => setNuevaFecha(e.target.value)}
+              />
             </div>
-          )}
-
-          {visita.estado === 'falto' && (
-            <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
-              <XCircle className="h-3 w-3 text-red-600" />
-              <span className="text-red-700">No se pueden registrar actividades</span>
+            
+            <div>
+              <Label htmlFor="nueva-hora">Nueva Hora</Label>
+              <Input
+                id="nueva-hora"
+                type="time"
+                value={nuevaHora}
+                onChange={(e) => setNuevaHora(e.target.value)}
+              />
             </div>
-          )}
+            
+            <div className="flex gap-2 pt-4">
+              <Button variant="outline" onClick={() => setShowReagendarDialog(false)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleReagendar}
+                disabled={!nuevaFecha || !nuevaHora}
+                className="flex-1"
+              >
+                Reagendar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        </CardContent>
-      </Card>
+      {/* Dialog de Evidencia Fotográfica */}
+      <Dialog open={showEvidenciaDialog} onOpenChange={setShowEvidenciaDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-5 w-5" />
+              Evidencia Fotográfica
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs">
+              <AlertCircle className="h-4 w-4 inline mr-2 text-blue-600" />
+              Sube una foto como evidencia de tu visita presencial
+            </div>
 
-      {/* Modal de formulario de actividades */}
-      {visita && (
-        <ActividadForm
-          open={showActividadForm}
-          onOpenChange={setShowActividadForm}
-          onSubmit={handleCreateActividad}
-          visitaId={visita.id}
-          institucionId={visita.institucion_id} // AGREGAR ESTA LÍNEA
-        />
-      )}
+            {/* Preview de la imagen */}
+            {previewUrl && (
+              <div className="text-center space-y-3">
+                <img 
+                  src={previewUrl} 
+                  alt="Preview"
+                  className="w-full max-w-xs mx-auto rounded border"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFotoSeleccionada(null)
+                    setPreviewUrl(null)
+                  }}
+                >
+                  Cambiar foto
+                </Button>
+              </div>
+            )}
+
+            {/* Componente de captura */}
+            {!fotoSeleccionada && (
+              <CameraCapture
+                onPhotoCapture={(file) => {
+                  setFotoSeleccionada(file)
+                  const reader = new FileReader()
+                  reader.onload = () => {
+                    setPreviewUrl(reader.result as string)
+                  }
+                  reader.readAsDataURL(file)
+                }}
+                onCancel={() => setShowEvidenciaDialog(false)}
+              />
+            )}
+            
+            <div className="flex gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowEvidenciaDialog(false)
+                  setFotoSeleccionada(null)
+                  setPreviewUrl(null)
+                }} 
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleSubirEvidencia}
+                disabled={!fotoSeleccionada || uploading}
+                className="flex-1"
+              >
+                {uploading ? (
+                  <>
+                    <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin mr-2" />
+                    Subiendo...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Confirmar Visita
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

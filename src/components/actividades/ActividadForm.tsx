@@ -1,43 +1,27 @@
-import { useState } from 'react'
+// components/actividades/ActividadForm.tsx
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, User, X } from 'lucide-react'
-
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-
+import { useAuth } from '@/contexts/AuthContext'
+import { useInstituciones } from '@/hooks/useInstituciones'
 import { useContactos } from '@/hooks/useContactos'
 import { useCatalogos } from '@/hooks/useCatalogos'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Calendar, Clock, Building2, User, Package, FileText, StickyNote } from 'lucide-react'
+import { format } from 'date-fns'
 import type { ActividadInsert } from '@/types/actividad'
 
 const actividadSchema = z.object({
-  contacto_id: z.string().min(1, 'Selecciona un contacto'),
+  institucion_id: z.string().min(1, 'Selecciona una institución'),
+  contacto_id: z.string().optional(),
+  fecha_actividad: z.string().min(1, 'Selecciona una fecha'),
+  hora_actividad: z.string().optional(),
   descripcion_actividad: z.string().optional(),
   temas_impartidos: z.string().optional(),
   entrega_sobres_id: z.string().optional(),
@@ -51,394 +35,379 @@ interface ActividadFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: ActividadInsert) => Promise<void>
-  visitaId: string
-  institucionId: string // NUEVO PROP
+  loading?: boolean
 }
 
-export default function ActividadForm({ 
-  open, 
-  onOpenChange, 
-  onSubmit, 
-  visitaId, 
-  institucionId // NUEVO PROP
-}: ActividadFormProps) {
-  const [loading, setLoading] = useState(false)
-  const [showNewContactForm, setShowNewContactForm] = useState(false)
-  const [newContactData, setNewContactData] = useState({
-    nombre: '',
-    apellido_pat: '',
-    tipo_contacto: 'medico' as const
-  })
+export function ActividadForm({ open, onOpenChange, onSubmit, loading = false }: ActividadFormProps) {
+  const { user } = useAuth()
+  const { instituciones, fetchInstituciones } = useInstituciones()
+  const { contactos, fetchContactos } = useContactos()
+  const { catalogos, refetch: refetchCatalogos } = useCatalogos() // Cambié fetchCatalogos por refetch
 
-  const { contactos, createContacto, formatearNombreCompleto } = useContactos()
-  const { catalogos } = useCatalogos()
-
-  // Filtrar catálogos por tipo
-  const sobres = catalogos.filter(c => c.tipo === 'entrega_sobres' && c.activo)
-  const kitsRash = catalogos.filter(c => c.tipo === 'kit_rash' && c.activo)
-
-  // FILTRAR CONTACTOS POR INSTITUCIÓN
-  const contactosInstitucion = contactos.filter(c => c.institucion_id === institucionId)
-
-  // LOGS PARA DEBUGGING
-  console.log('🔍 [DEBUG] FormularioActividades:', {
-    institucionId,
-    totalContactos: contactos.length,
-    contactosConInstitucion: contactos.filter(c => c.institucion_id).length,
-    contactosFiltrados: contactosInstitucion.length,
-    contactosDetalles: contactos.map(c => ({
-      id: c.id,
-      nombre: c.nombre,
-      institucion_id: c.institucion_id,
-      coincide: c.institucion_id === institucionId
-    }))
-  })
+  const [selectedInstitucion, setSelectedInstitucion] = useState<string>('')
 
   const form = useForm<ActividadFormData>({
     resolver: zodResolver(actividadSchema),
     defaultValues: {
+      institucion_id: '',
+      contacto_id: '',
+      fecha_actividad: format(new Date(), 'yyyy-MM-dd'),
+      hora_actividad: '',
       descripcion_actividad: '',
       temas_impartidos: '',
+      entrega_sobres_id: '',
+      entrega_kit_rash_id: '',
       notas: ''
     }
   })
 
-  const selectedContacto = contactosInstitucion.find(c => c.id === form.watch('contacto_id'))
+  // Cargar datos
+  useEffect(() => {
+    if (open) {
+      fetchInstituciones()
+      fetchContactos()
+      refetchCatalogos() // Cambié por refetch
+    }
+  }, [open, fetchInstituciones, fetchContactos, refetchCatalogos])
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      form.reset()
+      setSelectedInstitucion('')
+    }
+  }, [open, form])
 
   const handleSubmit = async (data: ActividadFormData) => {
-    setLoading(true)
-    try {
-      const actividadData: ActividadInsert = {
-        visita_id: visitaId,
-        contacto_id: data.contacto_id,
-        descripcion_actividad: data.descripcion_actividad || undefined,
-        temas_impartidos: data.temas_impartidos || undefined,
-        entrega_sobres_id: data.entrega_sobres_id || undefined,
-        entrega_kit_rash_id: data.entrega_kit_rash_id || undefined,
-        notas: data.notas || undefined
-      }
+    if (!user?.id) return
 
+    const actividadData: ActividadInsert = {
+      pal_id: user.id,
+      institucion_id: data.institucion_id,
+      contacto_id: data.contacto_id === 'none' ? undefined : data.contacto_id || undefined,
+      fecha_actividad: data.fecha_actividad,
+      hora_actividad: data.hora_actividad || undefined,
+      descripcion_actividad: data.descripcion_actividad === 'none' ? undefined : data.descripcion_actividad || undefined,
+      temas_impartidos: data.temas_impartidos === 'none' ? undefined : data.temas_impartidos || undefined,
+      entrega_sobres_id: data.entrega_sobres_id === 'none' ? undefined : data.entrega_sobres_id || undefined,
+      entrega_kit_rash_id: data.entrega_kit_rash_id === 'none' ? undefined : data.entrega_kit_rash_id || undefined,
+      notas: data.notas || undefined
+    }
+
+    try {
       await onSubmit(actividadData)
-      form.reset()
-      setShowNewContactForm(false)
       onOpenChange(false)
     } catch (error) {
-      console.error('Error submitting actividad:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error submitting form:', error)
     }
   }
 
-  const handleCreateNewContact = async () => {
-    if (!newContactData.nombre.trim()) return
-
-    try {
-      setLoading(true)
-      const newContacto = await createContacto({
-        nombre: newContactData.nombre.trim(),
-        apellido_pat: newContactData.apellido_pat.trim() || undefined,
-        tipo_contacto: newContactData.tipo_contacto,
-        institucion_id: institucionId // AGREGAR INSTITUCIÓN AL CREAR CONTACTO
-      })
-
-      console.log('✅ [DEBUG] Nuevo contacto creado:', newContacto)
-
-      // Seleccionar el nuevo contacto automáticamente
-      form.setValue('contacto_id', newContacto.id)
-      
-      // Resetear formulario de nuevo contacto
-      setNewContactData({
-        nombre: '',
-        apellido_pat: '',
-        tipo_contacto: 'medico'
-      })
-      setShowNewContactForm(false)
-    } catch (error) {
-      console.error('Error creating contact:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getTipoContactoBadge = (tipo: string) => {
-    const colors = {
-      'medico': 'bg-blue-50 text-blue-700 border-blue-200',
-      'paciente': 'bg-green-50 text-green-700 border-green-200',
-      'familiar': 'bg-purple-50 text-purple-700 border-purple-200',
-      'cuidador': 'bg-orange-50 text-orange-700 border-orange-200',
-      'enfermera': 'bg-pink-50 text-pink-700 border-pink-200',
-      'enfermero': 'bg-indigo-50 text-indigo-700 border-indigo-200'
-    }
-    
-    return (
-      <Badge variant="outline" className={colors[tipo as keyof typeof colors] || 'bg-gray-50 text-gray-700 border-gray-200'}>
-        {tipo}
-      </Badge>
-    )
-  }
+  // Filtrar catálogos
+  const descripcionesActividad = catalogos.filter(c => c.tipo === 'descripcion_actividad' && c.activo)
+  const temasImpartidos = catalogos.filter(c => c.tipo === 'temas_impartidos' && c.activo)
+  const entregaSobres = catalogos.filter(c => c.tipo === 'entrega_sobres' && c.activo)
+  const kitRash = catalogos.filter(c => c.tipo === 'kit_rash' && c.activo)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg">Nueva Actividad</DialogTitle>
-          <DialogDescription className="text-sm">
-            Registra una actividad realizada durante la visita
-          </DialogDescription>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Nueva Actividad
+          </DialogTitle>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            {/* Selección de contacto */}
-            <FormField
-              control={form.control}
-              name="contacto_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm">Contacto</FormLabel>
-                  <div className="space-y-3">
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Selecciona un contacto" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {contactosInstitucion.length === 0 ? (
-                          <div className="p-2 text-sm text-muted-foreground text-center">
-                            No hay contactos registrados para esta institución
-                          </div>
-                        ) : (
-                          contactosInstitucion.map((contacto) => (
+         <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            
+            {/* Información básica */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                Información Básica
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Institución */}
+                <FormField
+                  control={form.control}
+                  name="institucion_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1">
+                        <Building2 className="h-4 w-4" />
+                        Institución
+                      </FormLabel>
+                      <Select 
+                        value={field.value} 
+                        onValueChange={(value) => {
+                          field.onChange(value)
+                          setSelectedInstitucion(value)
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar institución" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {instituciones.map(institucion => (
+                            <SelectItem key={institucion.id} value={institucion.id}>
+                              {institucion.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Contacto */}
+                <FormField
+                  control={form.control}
+                  name="contacto_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1">
+                        <User className="h-4 w-4" />
+                        Contacto (Opcional)
+                      </FormLabel>
+                      <Select value={field.value || 'none'} onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sin contacto asignado" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Sin contacto</SelectItem>
+                          {contactos.map(contacto => (
                             <SelectItem key={contacto.id} value={contacto.id}>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">{formatearNombreCompleto(contacto)}</span>
-                                {getTipoContactoBadge(contacto.tipo_contacto)}
+                              <div>
+                                <div className="font-medium">
+                                  {[contacto.nombre, contacto.apellido_pat, contacto.apellido_mat]
+                                    .filter(Boolean).join(' ')}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {contacto.tipo_contacto}
+                                </div>
                               </div>
                             </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    {/* Información de debug */}
-                    <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded">
-                      📊 Debug: {contactosInstitucion.length} contactos de esta institución
-                    </div>
+                {/* Fecha */}
+                <FormField
+                  control={form.control}
+                  name="fecha_actividad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        Fecha
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    {/* Contacto seleccionado */}
-                    {selectedContacto && (
-                      <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-sm">
-                        <User className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-medium">{formatearNombreCompleto(selectedContacto)}</span>
-                        {getTipoContactoBadge(selectedContacto.tipo_contacto)}
-                      </div>
-                    )}
+                {/* Hora */}
+                <FormField
+                  control={form.control}
+                  name="hora_actividad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        Hora (Opcional)
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-                    {/* Opción para crear nuevo contacto */}
-                    {!showNewContactForm ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowNewContactForm(true)}
-                        className="w-full h-8 text-xs"
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Crear Nuevo Contacto
-                      </Button>
-                    ) : (
-                      <div className="border rounded p-3 space-y-2 bg-muted/30">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-medium">Nuevo Contacto</h4>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowNewContactForm(false)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        
-                        <div className="grid gap-2 grid-cols-2">
-                          <Input
-                            placeholder="Nombre *"
-                            value={newContactData.nombre}
-                            onChange={(e) => setNewContactData(prev => ({ ...prev, nombre: e.target.value }))}
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            placeholder="Apellido"
-                            value={newContactData.apellido_pat}
-                            onChange={(e) => setNewContactData(prev => ({ ...prev, apellido_pat: e.target.value }))}
-                            className="h-8 text-xs"
-                          />
-                        </div>
+            {/* Actividad - cambiar valores vacíos por "none" */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                Detalles de la Actividad
+              </h3>
 
-                        <Select
-                          value={newContactData.tipo_contacto}
-                          onValueChange={(value: any) => setNewContactData(prev => ({ ...prev, tipo_contacto: value }))}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Descripción Actividad */}
+                <FormField
+                  control={form.control}
+                  name="descripcion_actividad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descripción de Actividad</FormLabel>
+                      <Select value={field.value || 'none'} onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar actividad" />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="medico">Médico</SelectItem>
-                            <SelectItem value="paciente">Paciente</SelectItem>
-                            <SelectItem value="familiar">Familiar</SelectItem>
-                            <SelectItem value="cuidador">Cuidador</SelectItem>
-                            <SelectItem value="enfermera">Enfermera</SelectItem>
-                            <SelectItem value="enfermero">Enfermero</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Sin especificar</SelectItem>
+                          {descripcionesActividad.map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                        <Button
-                          type="button"
-                          onClick={handleCreateNewContact}
-                          disabled={!newContactData.nombre.trim() || loading}
-                          size="sm"
-                          className="w-full h-7 text-xs"
-                        >
-                          Crear y Seleccionar
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                {/* Temas Impartidos */}
+                <FormField
+                  control={form.control}
+                  name="temas_impartidos"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Temas Impartidos</FormLabel>
+                      <Select value={field.value || 'none'} onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar tema" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Sin especificar</SelectItem>
+                          {temasImpartidos.map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-            {/* Resto del formulario igual que antes... */}
-            
-            {/* Descripción de actividad */}
-            <FormField
-              control={form.control}
-              name="descripcion_actividad"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm">Descripción de la Actividad</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Describe las actividades realizadas..."
-                      className="resize-none h-20 text-xs"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Entregas - cambiar valores vacíos por "none" */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <Package className="h-4 w-4" />
+                Material Entregado
+              </h3>
 
-            {/* Temas impartidos */}
-            <FormField
-              control={form.control}
-              name="temas_impartidos"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm">Temas Impartidos</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Temas de educación o información compartidos..."
-                      className="resize-none h-20 text-xs"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Entrega Sobres */}
+                <FormField
+                  control={form.control}
+                  name="entrega_sobres_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Entrega de Sobres</FormLabel>
+                      <Select value={field.value || 'none'} onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="¿Se entregaron sobres?" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Sin entrega</SelectItem>
+                          {entregaSobres.map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* Entregas */}
-            <div className="grid gap-3 grid-cols-2">
+                {/* Kit Rash */}
+                <FormField
+                  control={form.control}
+                  name="entrega_kit_rash_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kit Rash</FormLabel>
+                      <Select value={field.value || 'none'} onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="¿Se entregó kit?" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Sin entrega</SelectItem>
+                          {kitRash.map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+
+            {/* Notas */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <StickyNote className="h-4 w-4" />
+                Notas Adicionales
+              </h3>
+
               <FormField
                 control={form.control}
-                name="entrega_sobres_id"
+                name="notas"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm">Sobres</FormLabel>
-                    <Select 
-                      onValueChange={(value) => field.onChange(value === "sin-entrega" ? undefined : value)} 
-                      value={field.value || "sin-entrega"}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Sin entrega" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="sin-entrega">Sin entrega</SelectItem>
-                        {sobres.map((sobre) => (
-                          <SelectItem key={sobre.id} value={sobre.id}>
-                            {sobre.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="entrega_kit_rash_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm">Kit Rash</FormLabel>
-                    <Select 
-                      onValueChange={(value) => field.onChange(value === "sin-entrega" ? undefined : value)} 
-                      value={field.value || "sin-entrega"}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Sin entrega" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="sin-entrega">Sin entrega</SelectItem>
-                        {kitsRash.map((kit) => (
-                          <SelectItem key={kit.id} value={kit.id}>
-                            {kit.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Notas</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Observaciones adicionales sobre la actividad..."
+                        className="resize-none"
+                        rows={3}
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            {/* Notas */}
-            <FormField
-              control={form.control}
-              name="notas"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm">Notas Adicionales</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Observaciones adicionales..."
-                      className="resize-none h-16 text-xs"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} size="sm" className="h-8">
+            {/* Acciones */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading} size="sm" className="h-8">
-                {loading ? 'Registrando...' : 'Registrar'}
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Guardando...' : 'Guardar Actividad'}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </Form>
       </DialogContent>

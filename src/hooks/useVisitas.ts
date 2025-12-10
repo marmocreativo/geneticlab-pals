@@ -3,6 +3,7 @@ import { visitasService } from '@/services/visitasService'
 import type { Visita, VisitaInsert, VisitaUpdate } from '@/types/visita'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
+import { format } from 'date-fns'
 
 export function useVisitas() {
   const [visitas, setVisitas] = useState<Visita[]>([])
@@ -52,6 +53,34 @@ export function useVisitas() {
       setLoading(false)
     }
   }
+  
+const fetchVisitasByMes = async (year: number, month: number) => {
+  try {
+    setLoading(true)
+    setError(null)
+    
+    // Crear fechas de inicio y fin del mes
+    const startDate = `${year}-${month.toString().padStart(2, '0')}-01`
+    const lastDay = new Date(year, month, 0).getDate()
+    const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`
+    
+    console.log(`🗓️ Cargando visitas del mes: ${startDate} a ${endDate}`)
+    
+    const palId = role === 'pal' ? user?.id : undefined
+    
+    // Usar el nuevo método del service
+    const data = await visitasService.getVisitasByRangoFechas(startDate, endDate, palId)
+    
+    setVisitas(data)
+    console.log(`✅ Cargadas ${data.length} visitas del mes`)
+  } catch (err) {
+    console.error('Error fetching visitas by mes:', err)
+    setError(err instanceof Error ? err.message : 'Error desconocido')
+    toast.error('Error al cargar las visitas del mes')
+  } finally {
+    setLoading(false)
+  }
+}
 
   const createVisita = async (visitaData: VisitaInsert) => {
     try {
@@ -96,14 +125,9 @@ export function useVisitas() {
     }
   }
 
-
   const validarGPS = async (visitaId: string, latitud: number, longitud: number, distanciaPermitida: number) => {
-
-    
     try {
-
       const resultado = await visitasService.validarGPS(visitaId, latitud, longitud, distanciaPermitida)
-
       
       // Actualizar la visita en el estado local
       setVisitas(prev => prev.map(visita => 
@@ -118,19 +142,14 @@ export function useVisitas() {
 
       // Mostrar mensaje según el resultado
       if (resultado.validacionExitosa) {
-
         toast.success(`✅ Ubicación validada correctamente (${resultado.distanciaCalculada}m de la institución)`)
       } else {
-
         toast.warning(`📍 Estás muy lejos de la institución. Distancia actual: ${resultado.distanciaCalculada}m, máximo permitido: ${resultado.distanciaPermitida}m`)
       }
 
-
       return resultado
     } catch (err) {
-
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-
       toast.error(`❌ Error al validar ubicación: ${errorMessage}`)
       throw err
     }
@@ -188,18 +207,13 @@ export function useVisitas() {
     }
   }
 
-  useEffect(() => {
-    if (user) {
-      fetchVisitas()
-    }
-  }, [user, role])
-
   return {
     visitas,
     loading,
     error,
     fetchVisitas,
     fetchVisitasByFecha,
+    fetchVisitasByMes,
     createVisita,
     updateVisita,
     deleteVisita,

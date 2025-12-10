@@ -3,10 +3,14 @@ import { useAuth } from '@/contexts/AuthContext'
 import Login from '@/pages/auth/Login'
 import MainLayout from '@/components/layout/MainLayout'
 import Dashboard from '@/pages/admin/Dashboard'
-import VisitasDashboard from '@/pages/pal/VisitasDashboard'
+import PalDashboard from '@/pages/pal/PalDashboard'
+import VisitasAgenda from '@/pages/pal/VisitasAgenda'
+import VisitasDia from '@/pages/pal/VisitasDia'
 import VisitaDetailsPage from '@/pages/pal/VisitaDetailsPage'
 import ContactosPage from '@/pages/pal/ContactosPage'
 import InstitucionesPagePal from '@/pages/pal/InstitucionesPage'
+import ActividadesPage from '@/pages/pal/ActividadesPage'
+import PacientesPage from '@/pages/pal/PacientesPage'
 import FichasPage from '@/pages/pal/FichasPage'
 import Usuarios from '@/pages/admin/Usuarios'
 import CatalogosPage from '@/pages/admin/CatalogosPage'
@@ -59,19 +63,28 @@ function App() {
                 </>
               ) : (
                 <>
-                  {/* Dashboard principal: calendario de visitas */}
-                  <Route path="/pal" element={<VisitasDashboard />} />
-                  <Route path="/pal/calendario" element={<VisitasDashboard />} />
+                  {/* Dashboard principal: vista de bienvenida */}
+                  <Route path="/pal" element={<PalDashboard />} />
                   
-                  {/* Detalles de visita */}
+                  {/* Agenda: calendario de visitas */}
+                  <Route path="/pal/calendario" element={<VisitasAgenda />} />
+                  
+                  {/* Vista de día específico */}
+                  <Route path="/pal/visitas-dia/:fecha" element={<VisitasDia />} />
+                  
+                  {/* Detalles de visita simplificado */}
                   <Route path="/pal/visitas/:visitaId" element={<VisitaDetailsPage />} />
                   
-                  {/* Otras páginas PAL */}
+                  {/* Nuevas páginas del dashboard */}
+                  <Route path="/pal/actividades" element={<ActividadesPage />} />
+                  <Route path="/pal/pacientes" element={<PacientesPage />} />
+                  
+                  {/* Otras páginas PAL existentes */}
                   <Route path="/pal/instituciones" element={<InstitucionesPagePal />} />
                   <Route path="/pal/contactos" element={<ContactosPage />} />
                   <Route path="/pal/fichas" element={<FichasPage />} />
                   
-                  {/* Redirect por defecto al calendario */}
+                  {/* Redirect por defecto al dashboard principal */}
                   <Route path="*" element={<Navigate to="/pal" replace />} />
                 </>
               )}

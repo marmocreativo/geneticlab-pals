@@ -38,7 +38,28 @@ export const visitasService = {
         institucion:instituciones(id, nombre, direccion, latitud, longitud)
       `)
       .gte('fecha_visita', `${fecha}T00:00:00`)
-      .lte('fecha_visita', `${fecha}T23:59:59`)  // ← Cambiar de 'lt' a 'lte'
+      .lte('fecha_visita', `${fecha}T23:59:59`)
+
+    if (palId) {
+      query = query.eq('pal_id', palId)
+    }
+
+    const { data, error } = await query.order('fecha_visita', { ascending: true })
+
+    if (error) throw error
+    return data as Visita[]
+  },
+
+  // NUEVO MÉTODO: Obtener visitas por rango de fechas
+  async getVisitasByRangoFechas(fechaInicio: string, fechaFin: string, palId?: string) {
+    let query = supabase
+      .from('visitas')
+      .select(`
+        *,
+        institucion:instituciones(id, nombre, direccion, latitud, longitud)
+      `)
+      .gte('fecha_visita', `${fechaInicio}T00:00:00`)
+      .lte('fecha_visita', `${fechaFin}T23:59:59`)
 
     if (palId) {
       query = query.eq('pal_id', palId)
