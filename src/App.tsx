@@ -11,6 +11,7 @@ import ContactosPage from '@/pages/pal/ContactosPage'
 import InstitucionesPagePal from '@/pages/pal/InstitucionesPage'
 import ActividadesPage from '@/pages/pal/ActividadesPage'
 import PacientesPage from '@/pages/pal/PacientesPage'
+import FechasTratamientoPage  from '@/pages/pal/FechasTratamientoPage'
 import FichasPage from '@/pages/pal/FichasPage'
 import Usuarios from '@/pages/admin/Usuarios'
 import CatalogosPage from '@/pages/admin/CatalogosPage'
@@ -78,6 +79,7 @@ function App() {
                   {/* Nuevas páginas del dashboard */}
                   <Route path="/pal/actividades" element={<ActividadesPage />} />
                   <Route path="/pal/pacientes" element={<PacientesPage />} />
+                  <Route path="/pal/pacientes/:fichaId/fechas" element={<FechasTratamientoPage />} />
                   
                   {/* Otras páginas PAL existentes */}
                   <Route path="/pal/instituciones" element={<InstitucionesPagePal />} />

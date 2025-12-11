@@ -10,6 +10,7 @@ export interface Contacto {
   institucion_id?: string
   created_at: string
   // Relaciones
+  pal_id: string
   institucion?: {
     id: string
     nombre: string
@@ -25,6 +26,7 @@ export interface ContactoInsert {
   telefono?: string
   fecha_nacimiento?: string
   institucion_id?: string
+  pal_id: string
 }
 
 export interface ContactoUpdate {

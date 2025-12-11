@@ -18,6 +18,65 @@ export const contactosService = {
     return data as Contacto[]
   },
 
+  // Obtener solo pacientes de un PAL específico
+async getPacientesByUser(userId: string) {
+  const { data, error } = await supabase
+    .from('contactos')
+    .select(`
+      *,
+      institucion:instituciones (
+        id,
+        nombre
+      )
+    `)
+    .eq('pal_id', userId)
+    .eq('tipo_contacto', 'paciente')
+    .order('nombre', { ascending: true })
+
+  if (error) throw error
+  return data as Contacto[]
+},
+
+// Obtener pacientes de una institución específica para un PAL
+async getPacientesByUserAndInstitucion(userId: string, institucionId: string) {
+  const { data, error } = await supabase
+    .from('contactos')
+    .select(`
+      *,
+      institucion:instituciones (
+        id,
+        nombre
+      )
+    `)
+    .eq('pal_id', userId)
+    .eq('tipo_contacto', 'paciente')
+    .eq('institucion_id', institucionId)
+    .order('nombre', { ascending: true })
+
+  if (error) throw error
+  return data as Contacto[]
+},
+
+// Buscar pacientes de un PAL con filtro de texto
+async buscarPacientesByUser(userId: string, texto: string) {
+  const { data, error } = await supabase
+    .from('contactos')
+    .select(`
+      *,
+      institucion:instituciones (
+        id,
+        nombre
+      )
+    `)
+    .eq('pal_id', userId)
+    .eq('tipo_contacto', 'paciente')
+    .or(`nombre.ilike.%${texto}%,apellido_pat.ilike.%${texto}%,apellido_mat.ilike.%${texto}%`)
+    .order('nombre', { ascending: true })
+
+  if (error) throw error
+  return data as Contacto[]
+},
+
   async getContactosByTipo(tipo: string) {
     const { data, error } = await supabase
       .from('contactos')

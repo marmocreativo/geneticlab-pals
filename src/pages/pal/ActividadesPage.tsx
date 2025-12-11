@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useActividades } from '@/hooks/useActividades'
 import { useInstituciones } from '@/hooks/useInstituciones'
-import { ActividadForm } from '@/components/actividades/ActividadForm'
+import { ActividadWizard } from '@/components/actividades/ActividadWizard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,10 +37,10 @@ export default function ActividadesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
-  const [showForm, setShowForm] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
 
-  // Inicializar fechas (último mes) - solo una vez
+  // Inicializar fechas (último mes)
   useEffect(() => {
     const now = new Date()
     const inicio = startOfMonth(subMonths(now, 1))
@@ -50,19 +50,19 @@ export default function ActividadesPage() {
     setFechaFin(format(fin, 'yyyy-MM-dd'))
   }, [])
 
-  // Cargar instituciones para el filtro
+  // Cargar instituciones
   useEffect(() => {
     fetchInstituciones()
   }, [])
 
-  // Cargar actividades del PAL cuando cambien user, fechaInicio o fechaFin
+  // Cargar actividades del PAL
   useEffect(() => {
     if (user?.id && fechaInicio && fechaFin) {
       fetchActividadesByPal(user.id, fechaInicio, fechaFin)
     }
   }, [user?.id, fechaInicio, fechaFin])
 
-  // Función para manejar nueva actividad
+  // Función para manejar nueva actividad desde el wizard
   const handleNuevaActividad = async (actividadData: ActividadInsert) => {
     try {
       setFormLoading(true)
@@ -137,16 +137,16 @@ export default function ActividadesPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Mis Actividades</h1>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={() => setShowWizard(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Nueva Actividad
         </Button>
       </div>
 
-      {/* Componente de formulario */}
-      <ActividadForm
-        open={showForm}
-        onOpenChange={setShowForm}
+      {/* Wizard de nueva actividad */}
+      <ActividadWizard
+        open={showWizard}
+        onOpenChange={setShowWizard}
         onSubmit={handleNuevaActividad}
         loading={formLoading}
       />
@@ -256,7 +256,6 @@ export default function ActividadesPage() {
                     <TableHead>Actividad</TableHead>
                     <TableHead>Temas</TableHead>
                     <TableHead>Entregas</TableHead>
-                    <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -290,24 +289,32 @@ export default function ActividadesPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm max-w-xs truncate">
-                          {actividad.descripcion_actividad || '-'}
+                        <div className="text-sm max-w-xs">
+                          {actividad.descripcion_actividad ? (
+                            <span className="line-clamp-3">{actividad.descripcion_actividad}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm max-w-xs truncate">
-                          {actividad.temas_impartidos || '-'}
+                        <div className="text-sm max-w-xs">
+                          {actividad.temas_impartidos ? (
+                            <span className="line-clamp-3">{actividad.temas_impartidos}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {actividad.entrega_sobres_id && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs w-fit">
                               Sobres
                             </Badge>
                           )}
                           {actividad.entrega_kit_rash_id && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs w-fit">
                               Kit Rash
                             </Badge>
                           )}
@@ -315,11 +322,6 @@ export default function ActividadesPage() {
                             <span className="text-muted-foreground text-xs">-</span>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm">
-                          Ver
-                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -444,10 +446,6 @@ export default function ActividadesPage() {
                             </p>
                           </div>
                         )}
-                        
-                        <Button variant="outline" size="sm" className="w-full">
-                          Ver Detalles
-                        </Button>
                       </div>
                     </CardContent>
                   </CollapsibleContent>
@@ -503,4 +501,4 @@ export default function ActividadesPage() {
       )}
     </div>
   )
-} 
+}

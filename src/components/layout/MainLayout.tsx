@@ -23,7 +23,9 @@ import {
   User,
   BookOpen,
   Calendar,
-  UserCheck
+  UserCheck,
+  Stethoscope,
+  PenTool
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -72,27 +74,27 @@ const navItems: NavItem[] = [
     roles: ['admin']
   },
   {
-    title: 'Calendario',
+    title: 'Dashboard',
     href: '/pal',
+    icon: LayoutDashboard,
+    roles: ['pal']
+  },
+  {
+    title: 'Agenda',
+    href: '/pal/calendario',
     icon: Calendar,
     roles: ['pal']
   },
   {
-    title: 'Instituciones',
-    href: '/pal/instituciones',
-    icon: Building2,
+    title: 'Actividades',
+    href: '/pal/actividades',
+    icon: PenTool,
     roles: ['pal']
   },
   {
-    title: 'Contactos',
-    href: '/pal/contactos',
-    icon: UserCheck,
-    roles: ['pal']
-  },
-  {
-    title: 'Fichas',
-    href: '/pal/fichas',
-    icon: FileText,
+    title: 'Pacientes',
+    href: '/pal/pacientes',
+    icon: Stethoscope,
     roles: ['pal']
   }
 ]
