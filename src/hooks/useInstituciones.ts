@@ -22,11 +22,25 @@ export function useInstituciones() {
       setLoading(true)
       const { data, error } = await supabase
         .from('instituciones')
-        .select('*')
+        .select(`
+          *,
+          catalogos!sector_id(nombre),
+          contactos_count:contactos(count),
+          visitas_count:visitas(count)
+        `)
         .order('nombre')
 
       if (error) throw error
-      setInstituciones(data || [])
+      
+      // Procesar los datos para extraer los conteos
+      const institucionesWithCounts = data?.map(institucion => ({
+        ...institucion,
+        contactos_count: institucion.contactos_count?.[0]?.count || 0,
+        visitas_count: institucion.visitas_count?.[0]?.count || 0,
+        sector_nombre: institucion.catalogos?.nombre || 'Sin sector'
+      })) || []
+      
+      setInstituciones(institucionesWithCounts)
     } catch (err) {
       console.error('Error fetching instituciones:', err)
       toast.error('Error al cargar instituciones')

@@ -22,6 +22,15 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Edit, Power, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { catalogosService } from '@/services/catalogosService';
+import { RefreshCw } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface CatalogoManagerProps {
   tipo: TipoCatalogo;
@@ -33,6 +42,10 @@ export function CatalogoManager({ tipo, titulo }: CatalogoManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nombre, setNombre] = useState('');
+  const [isReplaceDialogOpen, setIsReplaceDialogOpen] = useState(false);
+  const [catalogoToReplace, setCatalogoToReplace] = useState<any>(null);
+  const [replacementId, setReplacementId] = useState('');
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,22 +100,56 @@ export function CatalogoManager({ tipo, titulo }: CatalogoManagerProps) {
   };
 
   const handleDelete = async (id: string, nombre: string) => {
-    if (!confirm(`¿Estás seguro de eliminar "${nombre}"?`)) {
+    setIsDeleting(id);
+    
+    try {
+      // Verificar uso del catálogo
+      const usoInfo = await catalogosService.verificarUso(id, tipo);
+      
+      if (usoInfo.usos > 0) {
+        // Si tiene usos, mostrar modal de reemplazo
+        setCatalogoToReplace({ id, nombre, usos: usoInfo.usos });
+        setIsReplaceDialogOpen(true);
+      } else {
+        // Si no tiene usos, eliminar directamente
+        if (!confirm(`¿Estás seguro de eliminar "${nombre}"?`)) {
+          return;
+        }
+        
+        await catalogosService.softDelete(id);
+        toast.success('Catálogo eliminado correctamente');
+        await refetch();
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al verificar catálogo');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleReplace = async () => {
+    if (!replacementId || !catalogoToReplace) {
+      toast.error('Debe seleccionar un catálogo de reemplazo');
       return;
     }
-
+    
     try {
-      const { error } = await supabase
-        .from('catalogos')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success('Catálogo eliminado correctamente');
+      const resultado = await catalogosService.reemplazar(
+        catalogoToReplace.id,
+        replacementId,
+        tipo
+      );
+      
+      toast.success(
+        `Catálogo reemplazado. ${resultado.registros_actualizados} registros actualizados.`
+      );
+      
+      setIsReplaceDialogOpen(false);
+      setCatalogoToReplace(null);
+      setReplacementId('');
       await refetch();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al eliminar');
+      toast.error(err instanceof Error ? err.message : 'Error al reemplazar catálogo');
     }
   };
 
@@ -115,7 +162,8 @@ export function CatalogoManager({ tipo, titulo }: CatalogoManagerProps) {
   }
 
   return (
-    <Card className="p-6">
+    <>
+      <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">{titulo}</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -190,8 +238,13 @@ export function CatalogoManager({ tipo, titulo }: CatalogoManagerProps) {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(catalogo.id, catalogo.nombre)}
+                      disabled={isDeleting === catalogo.id}
                     >
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                      {isDeleting === catalogo.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      )}
                     </Button>
                   </div>
                 </TableCell>
@@ -201,5 +254,58 @@ export function CatalogoManager({ tipo, titulo }: CatalogoManagerProps) {
         </TableBody>
       </Table>
     </Card>
+    {/* Modal de reemplazo */}
+    <Dialog open={isReplaceDialogOpen} onOpenChange={setIsReplaceDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reemplazar Catálogo</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            El catálogo "<strong>{catalogoToReplace?.nombre}</strong>" está siendo usado en{' '}
+            <strong>{catalogoToReplace?.usos}</strong> registro(s). 
+            Debe ser reemplazado por otro catálogo antes de eliminarlo.
+          </p>
+          
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Seleccionar catálogo de reemplazo
+            </label>
+            <Select value={replacementId} onValueChange={setReplacementId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar catálogo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {catalogos
+                  .filter(c => c.id !== catalogoToReplace?.id)
+                  .map(catalogo => (
+                    <SelectItem key={catalogo.id} value={catalogo.id}>
+                      {catalogo.nombre}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsReplaceDialogOpen(false);
+                setCatalogoToReplace(null);
+                setReplacementId('');
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleReplace}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reemplazar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

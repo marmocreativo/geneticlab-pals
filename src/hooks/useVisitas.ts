@@ -207,6 +207,31 @@ const fetchVisitasByMes = async (year: number, month: number) => {
     }
   }
 
+  const fetchVisitasByDateRange = async (fechaInicio: string, fechaFin: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log(`🗓️ Cargando visitas del período: ${fechaInicio} a ${fechaFin}`)
+      
+      
+      const data = await visitasService.getVisitasByRangoFechas(
+        format(new Date(fechaInicio), 'yyyy-MM-dd'),
+        format(new Date(fechaFin), 'yyyy-MM-dd'),
+        undefined
+      )
+      
+      setVisitas(data)
+      console.log(`✅ Cargadas ${data.length} visitas del período`)
+    } catch (err) {
+      console.error('Error fetching visitas by date range:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      toast.error('Error al cargar las visitas del período')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     visitas,
     loading,
@@ -214,6 +239,7 @@ const fetchVisitasByMes = async (year: number, month: number) => {
     fetchVisitas,
     fetchVisitasByFecha,
     fetchVisitasByMes,
+    fetchVisitasByDateRange,
     createVisita,
     updateVisita,
     deleteVisita,
@@ -222,4 +248,7 @@ const fetchVisitasByMes = async (year: number, month: number) => {
     confirmarAsistencia,
     marcarFalta
   }
+
+  
 }
+

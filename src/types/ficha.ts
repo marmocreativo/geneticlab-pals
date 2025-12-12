@@ -1,4 +1,5 @@
 export interface FichaPaciente {
+  fechas_tratamiento: any
   id: string
   folio: string
   institucion_id: string

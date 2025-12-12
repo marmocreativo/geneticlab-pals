@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { FichaPaciente, FichaPacienteInsert, FichaPacienteUpdate } from '@/types/ficha'
+import type { FichaPaciente, FichaPacienteInsert, FichaPacienteUpdate, FechasTratamiento  } from '@/types/ficha'
 
 export const fichasService = {
   async getFichas() {
@@ -159,5 +159,54 @@ export const fichasService = {
 
     if (error) throw error
     return data as FichaPaciente[]
+  },
+
+  async getFichasConFechas() {
+    // Obtener el usuario actual y su rol
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('No autenticado')
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    let query = supabase
+      .from('ficha_paciente')
+      .select(`
+        *,
+        institucion:instituciones (
+          id,
+          nombre
+        ),
+        paciente:contactos!paciente_id (
+          id,
+          nombre,
+          apellido_pat,
+          apellido_mat,
+          telefono,
+          fecha_nacimiento
+        ),
+        fechas_tratamiento (
+          id,
+          fecha_programada,
+          asistencia,
+          notas
+        )
+      `)
+
+    // Si es PAL, filtrar por contactos que pertenecen al PAL
+    if (userData?.role === 'pal') {
+      // Filtrar por contactos que el PAL creó
+      query = query.eq('paciente.pal_id', user.id)
+    }
+    
+    // Si es admin, mostrar todas las fichas (no agregar filtro)
+
+    const { data, error } = await query.order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data as (FichaPaciente & { fechas_tratamiento: FechasTratamiento[] })[]
   }
 }

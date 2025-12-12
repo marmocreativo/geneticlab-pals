@@ -18,6 +18,10 @@ import CatalogosPage from '@/pages/admin/CatalogosPage'
 import ConfiguracionesPage from '@/pages/admin/ConfiguracionesPage'
 import InstitucionesPage from '@/pages/admin/InstitucionesPage'
 import ReportesPage from '@/pages/admin/ReportesPage'
+import AdminAgendaPage from '@/pages/admin/AdminAgendaPage'
+import AdminVisitasPage from '@/pages/admin/AdminVisitasPage'
+import AdminActividadesPage from '@/pages/admin/AdminActividadesPage'
+import AdminPacientesPage from '@/pages/admin/AdminPacientesPage'
 import OfflineFallback from "@/pages/OfflineFallback"
 import { Toaster } from 'sonner'
 
@@ -55,6 +59,10 @@ function App() {
               {role === 'admin' ? (
                 <>
                   <Route path="/admin" element={<Dashboard />} />
+                  <Route path="/admin/agenda" element={<AdminAgendaPage />} />
+                  <Route path="/admin/visitas" element={<AdminVisitasPage />} />
+                  <Route path="/admin/actividades" element={<AdminActividadesPage />} />
+                  <Route path="/admin/pacientes" element={<AdminPacientesPage />} />
                   <Route path="/admin/usuarios" element={<Usuarios />} />
                   <Route path="/admin/catalogos" element={<CatalogosPage />} />
                   <Route path="/admin/instituciones" element={<InstitucionesPage />} />

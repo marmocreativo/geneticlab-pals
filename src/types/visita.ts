@@ -24,6 +24,7 @@ export interface Visita {
     nombre_completo: string
     email: string
   }
+  fotos_evidencia?: { id: string; url_storage: string }[]
 }
 
 export interface VisitaInsert {

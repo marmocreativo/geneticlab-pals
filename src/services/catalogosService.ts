@@ -62,9 +62,40 @@ export const catalogosService = {
   async delete(id: string) {
     const { error } = await supabase
       .from('catalogos')
-      .delete()
+      .update({ activo: false })
       .eq('id', id);
 
     if (error) throw error;
   },
+
+  async softDelete(id: string) {
+    const { error } = await supabase
+      .from('catalogos')
+      .update({ activo: false })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  async reemplazar(idOriginal: string, idReemplazo: string, tipo: string) {
+    const { data, error } = await supabase.rpc('reemplazar_catalogo', {
+      id_original: idOriginal,
+      id_reemplazo: idReemplazo,
+      tipo_catalogo: tipo
+    });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async verificarUso(id: string, tipo: string) {
+    const { data, error } = await supabase.rpc('verificar_uso_catalogo', {
+      catalogo_id: id,
+      tipo_catalogo: tipo
+    });
+    
+    if (error) throw error;
+    return data;
+  },
+  
 };

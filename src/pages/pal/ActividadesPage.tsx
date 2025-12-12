@@ -79,7 +79,7 @@ export default function ActividadesPage() {
   // Filtrar actividades localmente
   const actividadesFiltradas = actividades.filter(actividad => {
     // Filtro por institución
-    if (institucionSeleccionada !== 'todas' && actividad.institucion_id !== institucionSeleccionada) {
+    if (institucionSeleccionada !== 'todas' && actividad.institucion?.id !== institucionSeleccionada) {
       return false
     }
 
@@ -263,7 +263,7 @@ export default function ActividadesPage() {
                     <TableRow key={actividad.id}>
                       <TableCell>
                         <div className="text-sm">
-                          {formatearFechaHora(actividad.fecha_actividad, actividad.hora_actividad)}
+                          {formatearFechaHora(actividad)}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -308,17 +308,17 @@ export default function ActividadesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          {actividad.entrega_sobres_id && (
+                          {actividad.entrega_sobres && (
                             <Badge variant="secondary" className="text-xs w-fit">
-                              Sobres
+                              {actividad.entrega_sobres.nombre}
                             </Badge>
                           )}
-                          {actividad.entrega_kit_rash_id && (
+                          {actividad.entrega_kit_rash && (
                             <Badge variant="secondary" className="text-xs w-fit">
-                              Kit Rash
+                              {actividad.entrega_kit_rash.nombre}
                             </Badge>
                           )}
-                          {!actividad.entrega_sobres_id && !actividad.entrega_kit_rash_id && (
+                          {!actividad.entrega_sobres && !actividad.entrega_kit_rash && (
                             <span className="text-muted-foreground text-xs">-</span>
                           )}
                         </div>
@@ -364,7 +364,7 @@ export default function ActividadesPage() {
                             {actividad.institucion?.nombre || 'Sin institución'}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {formatearFechaHora(actividad.fecha_actividad, actividad.hora_actividad)}
+                            {formatearFechaHora(actividad)}
                           </div>
                           <div className="text-xs mt-1">
                             {actividad.contacto ? (
@@ -420,18 +420,18 @@ export default function ActividadesPage() {
                           </div>
                         )}
                         
-                        {(actividad.entrega_sobres_id || actividad.entrega_kit_rash_id) && (
+                        {(actividad.entrega_sobres || actividad.entrega_kit_rash) && (
                           <div>
                             <span className="text-xs font-medium">Entregas:</span>
                             <div className="flex gap-2 mt-1">
-                              {actividad.entrega_sobres_id && (
+                              {actividad.entrega_sobres && (
                                 <Badge variant="secondary" className="text-xs">
-                                  Sobres
+                                  {actividad.entrega_sobres.nombre}
                                 </Badge>
                               )}
-                              {actividad.entrega_kit_rash_id && (
+                              {actividad.entrega_kit_rash && (
                                 <Badge variant="secondary" className="text-xs">
-                                  Kit Rash
+                                  {actividad.entrega_kit_rash.nombre}
                                 </Badge>
                               )}
                             </div>

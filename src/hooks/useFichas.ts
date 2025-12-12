@@ -12,7 +12,9 @@ export function useFichas() {
     try {
       setLoading(true)
       setError(null)
-      const data = await fichasService.getFichas()
+      
+      // Usar el método que incluye fechas de tratamiento
+      const data = await fichasService.getFichasConFechas()
       setFichas(data)
     } catch (err) {
       console.error('Error fetching fichas:', err)

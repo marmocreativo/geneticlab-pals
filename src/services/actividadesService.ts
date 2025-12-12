@@ -3,7 +3,45 @@ import { supabase } from '@/lib/supabase'
 import type { Actividad, ActividadInsert, ActividadUpdate } from '@/types/actividad'
 
 export const actividadesService = {
-  // Obtener actividades por PAL - esta será la función principal
+  // Obtener todas las actividades para admin
+  async getAllActividades() {
+    const { data, error } = await supabase
+      .from('actividades')
+      .select(`
+        *,
+        contacto:contactos(
+          id, 
+          nombre, 
+          apellido_pat, 
+          apellido_mat, 
+          tipo_contacto
+        ),
+        institucion:instituciones(
+          id,
+          nombre,
+          direccion
+        ),
+        pal:users(
+          id,
+          nombre_completo,
+          email
+        ),
+        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+          id,
+          nombre
+        ),
+        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+          id,
+          nombre
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data as Actividad[]
+  },
+
+  // Obtener actividades por PAL
   async getActividadesByPal(palId: string, fechaInicio?: string, fechaFin?: string) {
     let query = supabase
       .from('actividades')
@@ -21,10 +59,18 @@ export const actividadesService = {
           nombre,
           direccion
         ),
-        pal:users!actividades_pal_id_fkey(
+        pal:users(
           id,
           nombre_completo,
           email
+        ),
+        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+          id,
+          nombre
+        ),
+        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+          id,
+          nombre
         )
       `)
       .eq('pal_id', palId)
@@ -36,14 +82,13 @@ export const actividadesService = {
       query = query.lte('fecha_actividad', fechaFin)
     }
 
-    const { data, error } = await query
-      .order('fecha_actividad', { ascending: false })
-      .order('hora_actividad', { ascending: false, nullsFirst: false })
+    const { data, error } = await query.order('fecha_actividad', { ascending: false })
 
     if (error) throw error
     return data as Actividad[]
   },
 
+  // Obtener actividades por institución
   async getActividadesByInstitucion(institucionId: string, palId?: string) {
     let query = supabase
       .from('actividades')
@@ -61,27 +106,33 @@ export const actividadesService = {
           nombre,
           direccion
         ),
-        pal:users!actividades_pal_id_fkey(
+        pal:users(
           id,
           nombre_completo,
           email
+        ),
+        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+          id,
+          nombre
+        ),
+        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+          id,
+          nombre
         )
       `)
       .eq('institucion_id', institucionId)
 
-    // Si se especifica PAL, filtrar por él
     if (palId) {
       query = query.eq('pal_id', palId)
     }
 
-    const { data, error } = await query
-      .order('fecha_actividad', { ascending: false })
-      .order('created_at', { ascending: false })
+    const { data, error } = await query.order('fecha_actividad', { ascending: false })
 
     if (error) throw error
     return data as Actividad[]
   },
 
+  // Obtener actividades por fecha
   async getActividadesByFecha(fecha: string, palId?: string) {
     let query = supabase
       .from('actividades')
@@ -99,10 +150,18 @@ export const actividadesService = {
           nombre,
           direccion
         ),
-        pal:users!actividades_pal_id_fkey(
+        pal:users(
           id,
           nombre_completo,
           email
+        ),
+        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+          id,
+          nombre
+        ),
+        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+          id,
+          nombre
         )
       `)
       .eq('fecha_actividad', fecha)
@@ -134,10 +193,18 @@ export const actividadesService = {
           nombre,
           direccion
         ),
-        pal:users!actividades_pal_id_fkey(
+        pal:users(
           id,
           nombre_completo,
           email
+        ),
+        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+          id,
+          nombre
+        ),
+        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+          id,
+          nombre
         )
       `)
       .eq('id', id)
@@ -165,10 +232,18 @@ export const actividadesService = {
           nombre,
           direccion
         ),
-        pal:users!actividades_pal_id_fkey(
+        pal:users(
           id,
           nombre_completo,
           email
+        ),
+        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+          id,
+          nombre
+        ),
+        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+          id,
+          nombre
         )
       `)
       .single()
@@ -196,10 +271,18 @@ export const actividadesService = {
           nombre,
           direccion
         ),
-        pal:users!actividades_pal_id_fkey(
+        pal:users(
           id,
           nombre_completo,
           email
+        ),
+        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+          id,
+          nombre
+        ),
+        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+          id,
+          nombre
         )
       `)
       .single()
@@ -217,7 +300,6 @@ export const actividadesService = {
     if (error) throw error
   },
 
-  // Función de utilidad para formatear el nombre completo del contacto
   formatearNombreContacto(contacto: Actividad['contacto']): string {
     if (!contacto) return 'Sin contacto asignado'
     
@@ -230,7 +312,6 @@ export const actividadesService = {
     return partes.join(' ')
   },
 
-  // Función para obtener el label según el tipo de contacto
   getTipoContactoLabel(tipoContacto: string): string {
     const labels: Record<string, string> = {
       'medico': 'Médico',
@@ -244,9 +325,10 @@ export const actividadesService = {
     return labels[tipoContacto] || tipoContacto
   },
 
-  // Estadísticas de actividades por PAL
-  async getEstadisticasActividades(palId: string, fechaInicio?: string, fechaFin?: string) {
-    const actividades = await this.getActividadesByPal(palId, fechaInicio, fechaFin)
+  async getEstadisticasActividades(palId?: string, fechaInicio?: string, fechaFin?: string) {
+    const actividades = palId 
+      ? await this.getActividadesByPal(palId, fechaInicio, fechaFin)
+      : await this.getAllActividades()
     
     const stats = {
       total: actividades.length,
@@ -254,7 +336,6 @@ export const actividadesService = {
       porInstitucion: {} as Record<string, number>,
       conContacto: actividades.filter(a => a.contacto_id).length,
       sinContacto: actividades.filter(a => !a.contacto_id).length,
-      conHora: actividades.filter(a => a.hora_actividad).length,
       conDescripcionActividad: actividades.filter(a => a.descripcion_actividad).length,
       conTemasImpartidos: actividades.filter(a => a.temas_impartidos).length,
       conEntregaSobres: actividades.filter(a => a.entrega_sobres_id).length,
@@ -262,14 +343,12 @@ export const actividadesService = {
       conNotas: actividades.filter(a => a.notas).length
     }
 
-    // Contar por tipo de contacto
     actividades.forEach(actividad => {
       if (actividad.contacto) {
         const tipo = actividad.contacto.tipo_contacto
         stats.porTipoContacto[tipo] = (stats.porTipoContacto[tipo] || 0) + 1
       }
       
-      // Contar por institución
       if (actividad.institucion) {
         const inst = actividad.institucion.nombre
         stats.porInstitucion[inst] = (stats.porInstitucion[inst] || 0) + 1
@@ -279,20 +358,26 @@ export const actividadesService = {
     return stats
   },
 
-  // Formatear fecha y hora para display
-  formatearFechaHora(fecha: string, hora?: string | null): string {
-    const fechaFormateada = new Date(fecha).toLocaleDateString('es-MX')
-    
-    if (!hora) {
-      return fechaFormateada
+  formatearFechaHora(actividad: Actividad): string {
+    if (!actividad.fecha_actividad) {
+      return 'Fecha no disponible'
     }
     
-    // Formatear hora de 24h a 12h
-    const [hours, minutes] = hora.split(':')
-    const hour24 = parseInt(hours)
-    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
-    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    const fecha = new Date(actividad.fecha_actividad)
+    let result = fecha.toLocaleDateString('es-MX', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
     
-    return `${fechaFormateada} - ${hour12}:${minutes} ${ampm}`
+    if (actividad.hora_actividad) {
+      const [hours, minutes] = actividad.hora_actividad.split(':')
+      const hour24 = parseInt(hours)
+      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+      const ampm = hour24 >= 12 ? 'PM' : 'AM'
+      result += ` - ${hour12}:${minutes} ${ampm}`
+    }
+    
+    return result
   }
 }

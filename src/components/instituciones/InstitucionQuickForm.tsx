@@ -21,6 +21,7 @@ interface FormData {
   latitud: number;
   longitud: number;
   google_place_id?: string;
+  photo_reference?: string;
 }
 
 export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFormProps) {
@@ -29,7 +30,7 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>();
 
-  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult & { photo_reference?: string }) => {
     console.log('🎯 InstitucionQuickForm: handlePlaceSelect llamado');
     console.log('📦 Place recibido:', place);
     
@@ -61,6 +62,7 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
     setValue('latitud', lat);
     setValue('longitud', lng);
     setValue('google_place_id', place.place_id);
+    setValue('photo_reference', place.photo_reference);
 
     console.log('✅ InstitucionQuickForm: Valores seteados');
     toast.success('Datos cargados automáticamente');

@@ -9,6 +9,21 @@ export function useActividades() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const fetchAllActividades = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await actividadesService.getAllActividades()
+      setActividades(data)
+    } catch (err) {
+      console.error('Error fetching all actividades:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      toast.error('Error al cargar las actividades')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const fetchActividadesByInstitucion = useCallback(async (institucionId: string) => {
     try {
       setLoading(true)
@@ -109,9 +124,9 @@ export function useActividades() {
     }
   }, [])
 
-  const getEstadisticasActividades = useCallback(async (institucionId: string, fechaInicio?: string, fechaFin?: string) => {
+  const getEstadisticasActividades = useCallback(async (palId?: string, fechaInicio?: string, fechaFin?: string) => {
     try {
-      const stats = await actividadesService.getEstadisticasActividades(institucionId, fechaInicio, fechaFin)
+      const stats = await actividadesService.getEstadisticasActividades(palId, fechaInicio, fechaFin)
       return stats
     } catch (err) {
       console.error('Error getting actividades stats:', err)
@@ -129,6 +144,7 @@ export function useActividades() {
     loading,
     error,
     // Funciones principales
+    fetchAllActividades,
     fetchActividadesByInstitucion,
     fetchActividadesByFecha,
     fetchActividadesByPal,

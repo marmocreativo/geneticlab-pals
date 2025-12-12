@@ -3,14 +3,12 @@ import { fechasTratamientoService } from '@/services/fechasTratamientoService'
 import type { FechasTratamiento, FechasTratamientoInsert, FechasTratamientoUpdate } from '@/types/ficha'
 import { toast } from 'sonner'
 
-export function useFechasTratamiento(fichaId?: string) {
+export function useFechasTratamiento() {
   const [fechas, setFechas] = useState<FechasTratamiento[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchFechas = async () => {
-    if (!fichaId) return
-    
+  const fetchFechasByFicha = async (fichaId: string) => {
     try {
       setLoading(true)
       setError(null)
@@ -19,7 +17,7 @@ export function useFechasTratamiento(fichaId?: string) {
     } catch (err) {
       console.error('Error fetching fechas:', err)
       setError(err instanceof Error ? err.message : 'Error desconocido')
-      toast.error('Error al cargar las fechas')
+      toast.error('Error al cargar las fechas de tratamiento')
     } finally {
       setLoading(false)
     }
@@ -31,12 +29,12 @@ export function useFechasTratamiento(fichaId?: string) {
       setFechas(prev => [...prev, newFecha].sort((a, b) => 
         new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime()
       ))
-      toast.success('Fecha agregada exitosamente')
+      toast.success('Fecha de tratamiento creada exitosamente')
       return newFecha
     } catch (err) {
       console.error('Error creating fecha:', err)
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`Error al agregar la fecha: ${errorMessage}`)
+      toast.error(`Error al crear la fecha: ${errorMessage}`)
       throw err
     }
   }
@@ -46,8 +44,10 @@ export function useFechasTratamiento(fichaId?: string) {
       const updatedFecha = await fechasTratamientoService.updateFecha(id, updates)
       setFechas(prev => prev.map(fecha => 
         fecha.id === id ? updatedFecha : fecha
+      ).sort((a, b) => 
+        new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime()
       ))
-      toast.success('Fecha actualizada exitosamente')
+      toast.success('Fecha de tratamiento actualizada exitosamente')
       return updatedFecha
     } catch (err) {
       console.error('Error updating fecha:', err)
@@ -61,7 +61,7 @@ export function useFechasTratamiento(fichaId?: string) {
     try {
       await fechasTratamientoService.deleteFecha(id)
       setFechas(prev => prev.filter(fecha => fecha.id !== id))
-      toast.success('Fecha eliminada exitosamente')
+      toast.success('Fecha de tratamiento eliminada exitosamente')
     } catch (err) {
       console.error('Error deleting fecha:', err)
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
@@ -70,15 +70,11 @@ export function useFechasTratamiento(fichaId?: string) {
     }
   }
 
-  useEffect(() => {
-    fetchFechas()
-  }, [fichaId])
-
   return {
     fechas,
     loading,
     error,
-    fetchFechas,
+    fetchFechasByFicha,
     createFecha,
     updateFecha,
     deleteFecha

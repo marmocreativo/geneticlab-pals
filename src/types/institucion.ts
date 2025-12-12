@@ -7,6 +7,10 @@ export interface Institucion {
   longitud: number;
   sector_id?: string;
   google_place_id?: string;
+  photo_reference?: string;
+  contactos_count?: number
+  visitas_count?: number
+  sector_nombre?: string
   created_at: string;
 }
 
@@ -20,6 +24,7 @@ export interface GooglePlaceResult {
       lng: number;
     };
   };
+  photo_reference?: string;
 }
 
 export interface CreateInstitucionInput {
@@ -29,4 +34,8 @@ export interface CreateInstitucionInput {
   longitud: number;
   sector_id?: string;
   google_place_id?: string;
+  photo_reference?: string;
+  contactos_count?: number
+  visitas_count?: number
+  sector_nombre?: string
 }
