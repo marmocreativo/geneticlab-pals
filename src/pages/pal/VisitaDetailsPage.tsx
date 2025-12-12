@@ -180,7 +180,7 @@ const VisitaDetailsPage: React.FC = () => {
     if (!visita) return
     
     // Para visitas presenciales, requerir evidencia fotográfica
-    if (visita.tipo_visita === 'presencial' && bucketReady) {
+    if (bucketReady) {
       setShowEvidenciaDialog(true)
       return
     }
@@ -322,18 +322,14 @@ const VisitaDetailsPage: React.FC = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3 mb-3">
-              {visita.tipo_visita === 'presencial' ? (
-                <MapPin className="h-5 w-5 text-blue-600" />
-              ) : (
-                <Phone className="h-5 w-5 text-green-600" />
-              )}
+              <MapPin className="h-5 w-5 text-blue-600" />
               <div className="flex-1">
                 <h2 className="font-medium text-lg">{visita.institucion?.nombre}</h2>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                   <span>{format(new Date(visita.fecha_visita), 'dd MMM', { locale: es })}</span>
                   <span>{format(new Date(visita.fecha_visita), 'HH:mm')}</span>
                   <Badge variant="outline" className="text-xs">
-                    {visita.tipo_visita === 'presencial' ? 'Presencial' : 'Telefónica'}
+                    Presencial
                   </Badge>
                 </div>
               </div>
@@ -356,7 +352,7 @@ const VisitaDetailsPage: React.FC = () => {
             </div>
 
             {/* Estado GPS si está validado */}
-            {visita.tipo_visita === 'presencial' && visita.validacion_gps && (
+            {visita.validacion_gps && (
               <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded text-sm mb-3">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <span className="text-green-700">Ubicación validada ({visita.distancia_metros}m)</span>
@@ -387,7 +383,7 @@ const VisitaDetailsPage: React.FC = () => {
           <Card>
             <CardContent className="p-4 space-y-4">
               {/* Validar GPS para visitas presenciales */}
-              {visita.tipo_visita === 'presencial' && !visita.validacion_gps && (
+              {!visita.validacion_gps && (
                 <div>
                   <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm mb-3">
                     <AlertCircle className="h-4 w-4 text-yellow-600" />
@@ -415,14 +411,14 @@ const VisitaDetailsPage: React.FC = () => {
               )}
 
               {/* Confirmar asistencia - disponible cuando GPS está validado o es telefónica */}
-              {(visita.tipo_visita === 'telefono' || visita.validacion_gps) && (
+              {(visita.validacion_gps) && (
                 <div className="grid grid-cols-2 gap-3">
                   <Button 
                     onClick={handleConfirmarAsistencia}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    {visita.tipo_visita === 'presencial' && bucketReady ? 'Confirmar + Foto' : 'Confirmar'}
+                    {bucketReady ? 'Confirmar + Foto' : 'Confirmar'}
                   </Button>
                   <Button 
                     onClick={handleMarcarFalta}

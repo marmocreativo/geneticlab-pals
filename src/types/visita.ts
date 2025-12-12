@@ -8,10 +8,10 @@ export interface Visita {
   longitud_registro?: number
   distancia_metros?: number
   estado: 'programada' | 'asistio' | 'falto'
-  tipo_visita: 'presencial' | 'telefono'
+  // tipo_visita removido - todas las visitas son presenciales
   created_at: string
   updated_at: string
-  // Relaciones
+  // Relaciones (sin cambios)
   institucion?: {
     id: string
     nombre: string
@@ -32,7 +32,7 @@ export interface VisitaInsert {
   institucion_id: string
   fecha_visita: string
   estado?: 'programada' | 'asistio' | 'falto'
-  tipo_visita: 'presencial' | 'telefono'
+  // tipo_visita removido
   validacion_gps?: boolean
   latitud_registro?: number
   longitud_registro?: number
@@ -42,7 +42,7 @@ export interface VisitaInsert {
 export interface VisitaUpdate {
   fecha_visita?: string
   estado?: 'programada' | 'asistio' | 'falto'
-  tipo_visita?: 'presencial' | 'telefono'
+  // tipo_visita removido
   validacion_gps?: boolean
   latitud_registro?: number
   longitud_registro?: number

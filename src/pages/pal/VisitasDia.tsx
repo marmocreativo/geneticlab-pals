@@ -176,27 +176,16 @@ export default function VisitasDia() {
                           {visita.institucion?.nombre}
                         </h3>
 
-                        {/* Hora y tipo de visita */}
+                        {/* Hora de visita */}
                         <div className="flex items-center gap-3 mb-2">
                           <div className="flex items-center gap-1 text-sm font-medium">
                             <Clock className="h-4 w-4 text-muted-foreground" />
                             {format(visitaDate, 'HH:mm')}
                           </div>
-                          
-                          <div className="flex items-center gap-1">
-                            {visita.tipo_visita === 'presencial' ? (
-                              <MapPin className="h-4 w-4 text-blue-600" />
-                            ) : (
-                              <Phone className="h-4 w-4 text-green-600" />
-                            )}
-                            <Badge variant="outline" className="text-xs">
-                              {visita.tipo_visita === 'presencial' ? 'Presencial' : 'Telefónica'}
-                            </Badge>
-                          </div>
                         </div>
 
                         {/* Dirección (solo para presenciales) */}
-                        {visita.tipo_visita === 'presencial' && visita.institucion?.direccion && (
+                        {visita.institucion?.direccion && (
                           <p className="text-xs text-muted-foreground line-clamp-1">
                             {visita.institucion.direccion}
                           </p>

@@ -28,6 +28,9 @@ const step1Schema = z.object({
 
 // Schema para paso 2
 const step2Schema = z.object({
+  tipo_actividad: z.enum(['presencial', 'telefono']).refine((val) => val !== undefined, {
+    message: 'Selecciona el tipo de actividad'
+  }),
   contacto_id: z.string().optional(),
   descripcion_actividad: z.string().optional(),
   temas_impartidos: z.string().optional(),
@@ -71,6 +74,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const step2Form = useForm<Step2Data>({
     resolver: zodResolver(step2Schema),
     defaultValues: {
+      tipo_actividad: 'presencial', // Valor por defecto
       contacto_id: '',
       descripcion_actividad: '',
       temas_impartidos: '',
@@ -114,6 +118,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       institucion_id: step1Data.institucion_id,
       fecha_actividad: step1Data.fecha_actividad,
       hora_actividad: step1Data.hora_actividad || undefined,
+      tipo_actividad: data.tipo_actividad, // AGREGAR ESTA LÍNEA
       contacto_id: data.contacto_id || undefined,
       descripcion_actividad: data.descripcion_actividad || undefined,
       temas_impartidos: data.temas_impartidos || undefined,
@@ -204,6 +209,34 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                       </FormItem>
                     )}
                   />
+
+                  {/* Tipo de actividad */}
+                    <div className="space-y-4">
+                      <FormField
+                        control={step2Form.control}
+                        name="tipo_actividad"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-1">
+                              <FileText className="h-4 w-4" />
+                              Tipo de Actividad
+                            </FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecciona el tipo" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="presencial">Presencial</SelectItem>
+                                <SelectItem value="telefono">Telefónica</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField

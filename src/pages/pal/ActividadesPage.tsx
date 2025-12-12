@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Plus, Search, Calendar, Building2, User, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Search, Calendar, Building2, User, ChevronDown, ChevronUp, FileText  } from 'lucide-react'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import type { ActividadInsert } from '@/types/actividad'
 
@@ -36,6 +36,7 @@ export default function ActividadesPage() {
   const [institucionSeleccionada, setInstitucionSeleccionada] = useState('todas')
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [tipoActividad, setTipoActividad] = useState('todos')
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [showWizard, setShowWizard] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
@@ -97,6 +98,12 @@ export default function ActividadesPage() {
              temas.includes(searchLower)
     }
 
+    // Filtro por tipo de actividad
+    if (tipoActividad !== 'todos' && actividad.tipo_actividad !== tipoActividad) {
+      return false
+    }
+    
+
     return true
   })
 
@@ -125,7 +132,8 @@ export default function ActividadesPage() {
     const now = new Date()
     const inicio = startOfMonth(subMonths(now, 1))
     const fin = endOfMonth(now)
-    
+
+    setTipoActividad('todos')
     setFechaInicio(format(inicio, 'yyyy-MM-dd'))
     setFechaFin(format(fin, 'yyyy-MM-dd'))
     setInstitucionSeleccionada('todas')
@@ -253,6 +261,7 @@ export default function ActividadesPage() {
                     <TableHead>Fecha/Hora</TableHead>
                     <TableHead>Institución</TableHead>
                     <TableHead>Contacto</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Actividad</TableHead>
                     <TableHead>Temas</TableHead>
                     <TableHead>Entregas</TableHead>
@@ -287,6 +296,14 @@ export default function ActividadesPage() {
                         ) : (
                           <span className="text-muted-foreground">Sin contacto</span>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={actividad.tipo_actividad === 'presencial' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {actividad.tipo_actividad === 'presencial' ? 'Presencial' : 'Telefónica'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm max-w-xs">
@@ -371,6 +388,12 @@ export default function ActividadesPage() {
                               <div className="flex items-center gap-2">
                                 <User className="h-3 w-3" />
                                 {formatearNombreContacto(actividad.contacto)}
+                                <Badge 
+                                  variant={actividad.tipo_actividad === 'presencial' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {actividad.tipo_actividad === 'presencial' ? 'Presencial' : 'Telefónica'}
+                                </Badge>
                               </div>
                             ) : (
                               <span className="text-muted-foreground">Sin contacto</span>

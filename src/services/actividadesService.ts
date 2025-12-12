@@ -8,33 +8,33 @@ export const actividadesService = {
     const { data, error } = await supabase
       .from('actividades')
       .select(`
-        *,
-        contacto:contactos(
-          id, 
-          nombre, 
-          apellido_pat, 
-          apellido_mat, 
-          tipo_contacto
-        ),
-        institucion:instituciones(
-          id,
-          nombre,
-          direccion
-        ),
-        pal:users(
-          id,
-          nombre_completo,
-          email
-        ),
-        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
-          id,
-          nombre
-        ),
-        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
-          id,
-          nombre
-        )
-      `)
+      *,
+      contacto:contactos(
+        id, 
+        nombre, 
+        apellido_pat, 
+        apellido_mat, 
+        tipo_contacto
+      ),
+      institucion:instituciones(
+        id,
+        nombre,
+        direccion
+      ),
+      pal:users(
+        id,
+        nombre_completo,
+        email
+      ),
+      entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+        id,
+        nombre
+      ),
+      entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+        id,
+        nombre
+      )
+    `)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -46,33 +46,33 @@ export const actividadesService = {
     let query = supabase
       .from('actividades')
       .select(`
-        *,
-        contacto:contactos(
-          id, 
-          nombre, 
-          apellido_pat, 
-          apellido_mat, 
-          tipo_contacto
-        ),
-        institucion:instituciones(
-          id,
-          nombre,
-          direccion
-        ),
-        pal:users(
-          id,
-          nombre_completo,
-          email
-        ),
-        entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
-          id,
-          nombre
-        ),
-        entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
-          id,
-          nombre
-        )
-      `)
+      *,
+      contacto:contactos(
+        id, 
+        nombre, 
+        apellido_pat, 
+        apellido_mat, 
+        tipo_contacto
+      ),
+      institucion:instituciones(
+        id,
+        nombre,
+        direccion
+      ),
+      pal:users(
+        id,
+        nombre_completo,
+        email
+      ),
+      entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(
+        id,
+        nombre
+      ),
+      entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(
+        id,
+        nombre
+      )
+    `)
       .eq('pal_id', palId)
 
     if (fechaInicio) {
@@ -379,5 +379,21 @@ export const actividadesService = {
     }
     
     return result
-  }
+  },
+
+  getTipoActividadLabel(tipoActividad: string): string {
+     const labels: Record<string, string> = {
+       'presencial': 'Presencial',
+       'telefono': 'Telefónica'
+     }
+     
+     return labels[tipoActividad] || tipoActividad
+   },
+   
+   // También actualizar formatearFechaHora para incluir el tipo si lo necesitas
+   formatearFechaHoraConTipo(actividad: Actividad): string {
+     const fechaHora = this.formatearFechaHora(actividad)
+     const tipo = this.getTipoActividadLabel(actividad.tipo_actividad)
+     return `${fechaHora} (${tipo})`
+   }
 }

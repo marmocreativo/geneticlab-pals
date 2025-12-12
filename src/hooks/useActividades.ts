@@ -157,6 +157,8 @@ export function useActividades() {
     // Funciones de utilidad del servicio
     formatearNombreContacto: actividadesService.formatearNombreContacto,
     getTipoContactoLabel: actividadesService.getTipoContactoLabel,
-    formatearFechaHora: actividadesService.formatearFechaHora
+    formatearFechaHora: actividadesService.formatearFechaHora,
+    getTipoActividadLabel: actividadesService.getTipoActividadLabel, // NUEVO
+     formatearFechaHoraConTipo: actividadesService.formatearFechaHoraConTipo // NUEVO
   }
 }

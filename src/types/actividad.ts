@@ -11,7 +11,8 @@ export interface Actividad {
   fecha_actividad: string
   hora_actividad?: string | null
   pal_id: string
-  // Relaciones
+  tipo_actividad: 'presencial' | 'telefono'  // NUEVO CAMPO
+  // Relaciones (sin cambios)
   contacto?: {
     id: string
     nombre: string
@@ -50,6 +51,7 @@ export interface ActividadInsert {
   fecha_actividad: string
   hora_actividad?: string
   pal_id: string
+  tipo_actividad: 'presencial' | 'telefono'  // NUEVO CAMPO
 }
 
 export interface ActividadUpdate {
@@ -61,4 +63,5 @@ export interface ActividadUpdate {
   notas?: string
   fecha_actividad?: string
   hora_actividad?: string
+  tipo_actividad?: 'presencial' | 'telefono'  // NUEVO CAMPO
 }

@@ -203,7 +203,6 @@ export default function AdminAgendaPage() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>PAL</TableHead>
                   <TableHead>Institución</TableHead>
-                  <TableHead>Tipo</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>GPS</TableHead>
                   <TableHead>Evidencia</TableHead>
@@ -235,12 +234,6 @@ export default function AdminAgendaPage() {
                         <MapPin className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm">{visita.institucion?.nombre || 'N/A'}</span>
                       </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge variant="outline">
-                        {visita.tipo_visita === 'presencial' ? 'Presencial' : 'Teléfono'}
-                      </Badge>
                     </TableCell>
 
                     <TableCell>
