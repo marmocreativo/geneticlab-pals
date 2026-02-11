@@ -1,6 +1,6 @@
 // components/common/CameraCapture.tsx
 import React, { useState, useEffect, useRef } from 'react'
-import { Camera, ImageIcon, X, AlertCircle } from 'lucide-react'
+import { Camera, ImageIcon, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
@@ -10,7 +10,7 @@ interface CameraCaptureProps {
   onCancel: () => void
 }
 
-const CameraCapture: React.FC<CameraCaptureProps> = ({ onPhotoCapture, onCancel }) => {
+const CameraCapture: React.FC<CameraCaptureProps> = ({ onPhotoCapture }) => {
   const [showCamera, setShowCamera] = useState(false)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [loading, setLoading] = useState(false)

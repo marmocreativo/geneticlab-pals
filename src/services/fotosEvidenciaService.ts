@@ -10,7 +10,7 @@ export const fotosEvidenciaService = {
       const filePath = `evidencias/${fileName}`
 
       // Subir archivo a Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('evidencias')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -87,7 +87,7 @@ export const fotosEvidenciaService = {
   // Verificar si el bucket existe y está configurado correctamente
   async verificarBucket() {
     try {
-      const { data, error } = await supabase.storage
+      const {  error } = await supabase.storage
         .from('evidencias')
         .list('', {
           limit: 1

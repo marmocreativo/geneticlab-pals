@@ -8,15 +8,13 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import FichaForm from '@/components/pacientes/FichaForm'
 
-import { Plus, Search, Filter, Users, FileText, Calendar } from 'lucide-react'
+import {Search, Filter, Users, FileText, Calendar } from 'lucide-react'
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
-import { useAuth } from '@/contexts/AuthContext'
 import { contactosService } from '@/services/contactosService'
 import type { FichaPaciente } from '@/types/ficha'
 
 export default function PacientesPage() {
-  const { user } = useAuth()
   const navigate = useNavigate()
   const { fichas, loading, fetchFichas, buscarFichas } = useFichas()
   const { instituciones } = useInstituciones()

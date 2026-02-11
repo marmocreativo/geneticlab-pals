@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { visitasService } from '@/services/visitasService'
 import type { Visita, VisitaInsert, VisitaUpdate } from '@/types/visita'
 import { toast } from 'sonner'

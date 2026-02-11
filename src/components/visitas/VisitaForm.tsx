@@ -28,7 +28,9 @@ import { Badge } from '@/components/ui/badge'
 import { useVisitas } from '@/hooks/useVisitas'
 import { useInstituciones } from '@/hooks/useInstituciones'
 import { useAuth } from '@/contexts/AuthContext'
+import { InstitucionQuickForm } from '@/components/instituciones/InstitucionQuickForm'
 import type { VisitaInsert } from '@/types/visita'
+import type { Institucion } from '@/types/institucion'
 
 const visitaSchema = z.object({
   institucion_id: z.string().min(1, 'Selecciona una institución'),
@@ -50,13 +52,9 @@ interface VisitaFormProps {
 export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaFormProps) {
   const [loading, setLoading] = useState(false)
   const [showNewInstitucionForm, setShowNewInstitucionForm] = useState(false)
-  const [newInstitucionData, setNewInstitucionData] = useState({
-    nombre: '',
-    direccion: ''
-  })
 
   const { createVisita } = useVisitas()
-  const { instituciones } = useInstituciones()
+  const { instituciones, fetchInstituciones } = useInstituciones()
   const { user } = useAuth()
 
   const form = useForm<VisitaFormData>({
@@ -79,7 +77,6 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
         pal_id: user.id,
         institucion_id: data.institucion_id,
         fecha_visita: `${data.fecha_visita}T${data.hora_visita}:00`,
-        tipo_visita: data.tipo_visita,
         estado: 'programada'
       }
 
@@ -94,9 +91,19 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
   }
 
   const handleCreateNewInstitucion = () => {
-    // Aquí podrías integrar con Google Places API o un formulario más completo
-    // Por ahora, solo mostraremos el formulario básico
     setShowNewInstitucionForm(true)
+  }
+
+  const handleNewInstitucionSuccess = (institucion: Institucion) => {
+    // Seleccionar automáticamente la nueva institución
+    form.setValue('institucion_id', institucion.id)
+    setShowNewInstitucionForm(false)
+    // Refrescar la lista de instituciones
+    fetchInstituciones()
+  }
+
+  const handleNewInstitucionCancel = () => {
+    setShowNewInstitucionForm(false)
   }
 
   const getTipoVisitaBadge = (tipo: string) => {
@@ -113,6 +120,16 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
         <Phone className="h-3 w-3 mr-1" />
         Telefónica
       </Badge>
+    )
+  }
+
+  // Si se está mostrando el formulario de nueva institución, renderizarlo
+  if (showNewInstitucionForm) {
+    return (
+      <InstitucionQuickForm
+        onSuccess={handleNewInstitucionSuccess}
+        onCancel={handleNewInstitucionCancel}
+      />
     )
   }
 

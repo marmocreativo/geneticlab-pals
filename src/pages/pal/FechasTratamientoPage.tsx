@@ -19,7 +19,7 @@ export default function FechasTratamientoPage() {
   const { fichaId } = useParams<{ fichaId: string }>()
   const navigate = useNavigate()
   const { getFichaById } = useFichas()
-  const { fechas, loading, createFecha, updateFecha, deleteFecha } = useFechasTratamiento(fichaId)
+  const { fechas, loading, createFecha, updateFecha, deleteFecha } = useFechasTratamiento()
 
   const [ficha, setFicha] = useState<any>(null)
   const [loadingFicha, setLoadingFicha] = useState(true)

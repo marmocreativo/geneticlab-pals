@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
-import { User, MapPin, Calendar, Filter, Eye, Edit, Trash2, Plus, FileText, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { User, MapPin, Filter, Eye, Edit, Trash2, FileText, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

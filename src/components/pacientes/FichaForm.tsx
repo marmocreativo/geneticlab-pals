@@ -61,22 +61,35 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
   })
 
   // Cargar contactos cuando se selecciona institución
-  useEffect(() => {
-    const loadContactosInstitucion = async () => {
-      if (selectedInstitucion) {
-        try {
-          const contactos = await contactosService.getContactosByInstitucion(selectedInstitucion)
-          const pacientes = contactos.filter(c => c.tipo_contacto === 'paciente')
-          setContactosInstitucion(pacientes)
-        } catch (error) {
-          console.error('Error loading contactos:', error)
-          setContactosInstitucion([])
-        }
+useEffect(() => {
+  const loadContactosInstitucion = async () => {
+    if (selectedInstitucion) {
+      try {
+        const contactos = await contactosService.getContactosByInstitucion(selectedInstitucion)
+        const pacientes = contactos
+          .filter(c => c.tipo_contacto === 'paciente')
+          .reduce((unique, contacto) => {
+            const fullName = `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim()
+            const isDuplicate = unique.some(item => {
+              const itemFullName = `${item.nombre} ${item.apellido_pat || ''} ${item.apellido_mat || ''}`.trim()
+              return itemFullName === fullName
+            })
+            if (!isDuplicate) {
+              unique.push(contacto)
+            }
+            return unique
+          }, [] as Contacto[])
+        
+        setContactosInstitucion(pacientes)
+      } catch (error) {
+        console.error('Error loading contactos:', error)
+        setContactosInstitucion([])
       }
     }
+  }
 
-    loadContactosInstitucion()
-  }, [selectedInstitucion])
+  loadContactosInstitucion()
+}, [selectedInstitucion])
 
   const resetForm = () => {
     setStep('institucion')

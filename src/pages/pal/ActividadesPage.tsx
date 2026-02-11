@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Plus, Search, Calendar, Building2, User, ChevronDown, ChevronUp, FileText  } from 'lucide-react'
+import { Plus, Search, Calendar, Building2, User, ChevronDown, ChevronUp  } from 'lucide-react'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import type { ActividadInsert } from '@/types/actividad'
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { fechasTratamientoService } from '@/services/fechasTratamientoService'
 import type { FechasTratamiento, FechasTratamientoInsert, FechasTratamientoUpdate } from '@/types/ficha'
 import { toast } from 'sonner'

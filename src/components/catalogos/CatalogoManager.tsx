@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useCatalogos } from '@/hooks/useCatalogos';
-import { supabase } from '@/lib/supabase';
 import type { TipoCatalogo } from '@/types/catalogo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

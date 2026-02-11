@@ -15,9 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check } from 'lucide-react'
+import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check, Plus } from 'lucide-react'
 import { format } from 'date-fns'
+import { ContactoQuickForm } from '@/components/contactos/ContactoQuickForm'
 import type { ActividadInsert } from '@/types/actividad'
+import type { Contacto } from '@/types/contacto'
 
 // Schema para paso 1
 const step1Schema = z.object({
@@ -61,6 +63,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const [contactSearch, setContactSearch] = useState('')
   const [showAddAnother, setShowAddAnother] = useState(false)
   const [contactosLoaded, setContactosLoaded] = useState(false)
+  const [showNewContactoForm, setShowNewContactoForm] = useState(false)
 
   const step1Form = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -86,16 +89,17 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
 
   // Reset wizard when dialog closes
   useEffect(() => {
-  if (!open) {
-    setCurrentStep(1)
-    setStep1Data(null)
-    setShowAddAnother(false)
-    setContactosLoaded(false)
-    step1Form.reset()
-    step2Form.reset()
-    setContactSearch('')
-  }
-}, [open]) 
+    if (!open) {
+      setCurrentStep(1)
+      setStep1Data(null)
+      setShowAddAnother(false)
+      setContactosLoaded(false)
+      setShowNewContactoForm(false)
+      step1Form.reset()
+      step2Form.reset()
+      setContactSearch('')
+    }
+  }, [open]) 
 
   // Cargar contactos solo una vez cuando se avanza al paso 2
   useEffect(() => {
@@ -118,7 +122,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       institucion_id: step1Data.institucion_id,
       fecha_actividad: step1Data.fecha_actividad,
       hora_actividad: step1Data.hora_actividad || undefined,
-      tipo_actividad: data.tipo_actividad, // AGREGAR ESTA LÍNEA
+      tipo_actividad: data.tipo_actividad,
       contacto_id: data.contacto_id || undefined,
       descripcion_actividad: data.descripcion_actividad || undefined,
       temas_impartidos: data.temas_impartidos || undefined,
@@ -150,17 +154,67 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
     setStep1Data(null)
   }
 
-  // Filtrar contactos por búsqueda
-  const filteredContactos = contactos.filter(contacto => {
-    const fullName = `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.toLowerCase()
-    return fullName.includes(contactSearch.toLowerCase())
-  })
+  const handleCreateNewContacto = () => {
+    setShowNewContactoForm(true)
+  }
+
+  const handleNewContactoSuccess = (contacto: Contacto) => {
+    // Seleccionar automáticamente el nuevo contacto
+    step2Form.setValue('contacto_id', contacto.id)
+    setShowNewContactoForm(false)
+    setContactSearchOpen(false)
+    // Refrescar la lista de contactos
+    fetchContactos()
+  }
+
+  const handleNewContactoCancel = () => {
+    setShowNewContactoForm(false)
+  }
+
+  // Filtrar contactos por búsqueda, institución y eliminar duplicados por nombre completo
+  const filteredContactos = contactos
+    .filter(contacto => {
+      // Filtrar por institución seleccionada
+      if (step1Data?.institucion_id && contacto.institucion_id !== step1Data.institucion_id) {
+        return false
+      }
+      
+      // Filtrar por búsqueda
+      const fullName = `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.toLowerCase()
+      return fullName.includes(contactSearch.toLowerCase())
+    })
+    .reduce((unique, contacto) => {
+      const fullName = `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim()
+      const isDuplicate = unique.some(item => {
+        const itemFullName = `${item.nombre} ${item.apellido_pat || ''} ${item.apellido_mat || ''}`.trim()
+        return itemFullName === fullName
+      })
+      if (!isDuplicate) {
+        unique.push(contacto)
+      }
+      return unique
+    }, [] as typeof contactos)
 
   // Filtrar catálogos
   const entregaSobres = catalogos.filter(c => c.tipo === 'entrega_sobres' && c.activo)
   const kitRash = catalogos.filter(c => c.tipo === 'kit_rash' && c.activo)
 
   const selectedInstitucion = instituciones.find(i => i.id === step1Data?.institucion_id)
+
+  // Si se está mostrando el formulario de nuevo contacto, renderizarlo
+  if (showNewContactoForm && step1Data) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <ContactoQuickForm
+            institucionId={step1Data.institucion_id}
+            onSuccess={handleNewContactoSuccess}
+            onCancel={handleNewContactoCancel}
+          />
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -211,32 +265,32 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                   />
 
                   {/* Tipo de actividad */}
-                    <div className="space-y-4">
-                      <FormField
-                        control={step2Form.control}
-                        name="tipo_actividad"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-1">
-                              <FileText className="h-4 w-4" />
-                              Tipo de Actividad
-                            </FormLabel>
-                            <Select value={field.value} onValueChange={field.onChange}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecciona el tipo" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="presencial">Presencial</SelectItem>
-                                <SelectItem value="telefono">Telefónica</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                  <div className="space-y-4">
+                    <FormField
+                      control={step2Form.control}
+                      name="tipo_actividad"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1">
+                            <FileText className="h-4 w-4" />
+                            Tipo de Actividad
+                          </FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecciona el tipo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="presencial">Presencial</SelectItem>
+                              <SelectItem value="telefono">Telefónica</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
@@ -370,6 +424,19 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                           </Command>
                         </PopoverContent>
                       </Popover>
+                      
+                      {/* Botón para nuevo contacto */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCreateNewContacto}
+                        className="w-full h-8 text-xs mt-2"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Agregar Nuevo Contacto
+                      </Button>
+                      
                       <FormMessage />
                     </FormItem>
                   )}

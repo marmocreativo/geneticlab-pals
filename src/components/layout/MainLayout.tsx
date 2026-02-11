@@ -23,7 +23,6 @@ import {
   User,
   BookOpen,
   Calendar,
-  UserCheck,
   Stethoscope,
   PenTool
 } from 'lucide-react'

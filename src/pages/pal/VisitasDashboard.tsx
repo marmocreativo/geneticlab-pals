@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, Clock, MapPin, Phone, Plus, ArrowLeft, ArrowRight, AlertCircle, CalendarDays, CalendarIcon } from 'lucide-react'
+import { Calendar, Plus, ArrowLeft, ArrowRight, AlertCircle, CalendarDays, CalendarIcon } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { useVisitas } from '@/hooks/useVisitas'
 import { useInstituciones } from '@/hooks/useInstituciones'
 import { useAuth } from '@/contexts/AuthContext'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, isPast, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isPast, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import type { Visita, VisitaInsert } from '@/types/visita'
@@ -26,7 +26,6 @@ export default function VisitasDashboard() {
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false)
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('')
   const [visitaFecha, setVisitaFecha] = useState<Date>(new Date())
-  const [tipoVisita, setTipoVisita] = useState<'presencial' | 'telefono'>('presencial')
   
   const { visitas, loading, fetchVisitasByFecha, createVisita } = useVisitas()
   const { instituciones, fetchInstituciones } = useInstituciones()
@@ -68,32 +67,31 @@ export default function VisitasDashboard() {
   const handleOpenNewVisit = () => {
     setVisitaFecha(selectedDate) // Inicializar con el día seleccionado
     setSelectedInstitucion('')
-    setTipoVisita('presencial') // Reset a presencial por defecto
     setShowNewVisitDialog(true)
   }
 
   // Manejar creación de visita completa
   const handleCreateVisita = async () => {
-    if (!selectedInstitucion || !user?.id) return
+  if (!selectedInstitucion || !user?.id) return
 
-    const nuevaVisita: VisitaInsert = {
-      pal_id: user.id,
-      institucion_id: selectedInstitucion,
-      fecha_visita: visitaFecha.toISOString(),
-      tipo_visita: tipoVisita
-    }
-
-    await createVisita(nuevaVisita)
-    setShowNewVisitDialog(false)
-    setSelectedInstitucion('')
-    
-    // Refrescar visitas del día si es el mismo día
-    const fechaVisita = format(visitaFecha, 'yyyy-MM-dd')
-    const fechaSeleccionada = format(selectedDate, 'yyyy-MM-dd')
-    if (fechaVisita === fechaSeleccionada) {
-      await fetchVisitasByFecha(fechaSeleccionada)
-    }
+  const nuevaVisita: VisitaInsert = {
+    pal_id: user.id,
+    institucion_id: selectedInstitucion,
+    fecha_visita: visitaFecha.toISOString(),
+    estado: 'programada'
   }
+
+  await createVisita(nuevaVisita)
+  setShowNewVisitDialog(false)
+  setSelectedInstitucion('')
+  
+  // Refrescar visitas del día si es el mismo día
+  const fechaVisita = format(visitaFecha, 'yyyy-MM-dd')
+  const fechaSeleccionada = format(selectedDate, 'yyyy-MM-dd')
+  if (fechaVisita === fechaSeleccionada) {
+    await fetchVisitasByFecha(fechaSeleccionada)
+  }
+}
 
   // Obtener días de la semana actual
   const getWeekDays = () => {
@@ -184,13 +182,6 @@ export default function VisitasDashboard() {
     }
   }, [visitas, viewMode])
 
-  const getTipoVisitaIcon = (tipo: string) => {
-    return tipo === 'presencial' ? (
-      <MapPin className="h-4 w-4 text-blue-600" />
-    ) : (
-      <Phone className="h-4 w-4 text-green-600" />
-    )
-  }
 
   const isHoy = isSameDay(selectedDate, new Date())
 
@@ -391,7 +382,6 @@ export default function VisitasDashboard() {
                                 <div className="text-lg sm:text-sm font-mono font-bold sm:font-normal text-primary sm:text-muted-foreground">
                                   {format(new Date(visita.fecha_visita), 'HH:mm')}
                                 </div>
-                                {getTipoVisitaIcon(visita.tipo_visita)}
                                 <div className="sm:hidden">
                                   {getEstadoBadge(visita)}
                                 </div>
@@ -419,26 +409,6 @@ export default function VisitasDashboard() {
                               </p>
                             </div>
                             
-                            {/* GPS Badge */}
-                            {visita.tipo_visita === 'presencial' && (
-                              <div className="flex justify-start mt-2">
-                                {visita.validacion_gps ? (
-                                  <Badge variant="outline" className={cn(
-                                    "bg-green-50 text-green-700 border-green-200 text-xs",
-                                    esPasado && !requiereAtencion ? "opacity-60" : ""
-                                  )}>
-                                    GPS Validado
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className={cn(
-                                    "bg-yellow-50 text-yellow-700 border-yellow-200 text-xs",
-                                    esPasado && !requiereAtencion ? "opacity-60" : ""
-                                  )}>
-                                    Pendiente GPS
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
                           </CardContent>
                         </Card>
                       </div>
@@ -478,31 +448,6 @@ export default function VisitasDashboard() {
               </Select>
             </div>
 
-            {/* Tipo de Visita */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">
-                Tipo de Visita
-              </Label>
-              <Select value={tipoVisita} onValueChange={(value: 'presencial' | 'telefono') => setTipoVisita(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="presencial">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-blue-600" />
-                      Presencial
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="telefono">
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-green-600" />
-                      Telefónica
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Seleccionar Fecha */}
             <div>

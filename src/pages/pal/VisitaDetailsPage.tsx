@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { 
   ArrowLeft, 
   MapPin, 
-  Phone, 
   Navigation,
   CheckCircle,
   AlertCircle,
@@ -205,35 +204,6 @@ const VisitaDetailsPage: React.FC = () => {
       console.error('Error marking absence:', error)
     }
   }
-
-   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-
-      // Validar que sea una imagen
-      if (!file.type.startsWith('image/')) {
-        toast.error('Solo se permiten archivos de imagen')
-        return
-      }
-
-      // Validar tamaño (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('La imagen debe ser menor a 5MB')
-        return
-      }
-
-      setFotoSeleccionada(file)
-      
-      // Crear preview
-      const reader = new FileReader()
-      reader.onload = () => {
-        setPreviewUrl(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-
-      // Limpiar el input
-      e.target.value = ''
-    }
 
   const handleSubirEvidencia = async () => {
     if (!visita || !fotoSeleccionada) return

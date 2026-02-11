@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
-import { Activity, User, MapPin, Calendar, Filter, Eye, Edit, Trash2, Plus } from 'lucide-react'
+import { Activity, User, MapPin, Calendar, Filter, Eye, Edit, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

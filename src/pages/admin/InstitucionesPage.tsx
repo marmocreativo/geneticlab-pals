@@ -67,7 +67,11 @@ export default function InstitucionesPage() {
     toast.success('Institución creada exitosamente')
     setShowCreateDialog(false)
     fetchInstituciones()
+    // log para evitar error ts
+    console.log(institucion);
   }
+
+
 
   return (
     <div className="space-y-6">
