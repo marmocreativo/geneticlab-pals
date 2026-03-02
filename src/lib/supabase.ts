@@ -7,4 +7,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Faltan las variables de entorno de Supabase')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  },
+  // Configuraciones adicionales para datos frescos
+  db: {
+    schema: 'public'
+  },
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+})

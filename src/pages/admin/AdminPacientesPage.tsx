@@ -1,41 +1,45 @@
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
-import { User, MapPin, Filter, Eye, Edit, Trash2, FileText, CheckCircle, XCircle, Clock } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { User, MapPin, Filter, Eye, FileText, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
+import type { FichaPaciente } from '@/types/ficha'
 
 export default function AdminFichasPacientesPage() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroInstitucion, setFiltroInstitucion] = useState<string>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
+  const [selectedFicha, setSelectedFicha] = useState<FichaPaciente | null>(null)
+  const [showDetail, setShowDetail] = useState(false)
 
-  const { fichas, loading, deleteFicha } = useFichas()
+  const { fichas, loading } = useFichas()
   const { instituciones } = useInstituciones()
 
   // Procesar fechas de tratamiento para generar columnas dinámicas
   const { fichasConFechas, todasLasFechas } = useMemo(() => {
-  const fechasSet = new Set<string>()
-  
-  // Las fechas ya vienen en la respuesta del servicio
-  fichas.forEach(ficha => {
-    ficha.fechas_tratamiento?.forEach((fecha: any) => {
-      fechasSet.add(fecha.fecha_programada)
+    const fechasSet = new Set<string>()
+    
+    // Las fechas ya vienen en la respuesta del servicio
+    fichas.forEach(ficha => {
+      ficha.fechas_tratamiento?.forEach((fecha: any) => {
+        fechasSet.add(fecha.fecha_programada)
+      })
     })
-  })
-  
-  const fechasOrdenadas = Array.from(fechasSet).sort()
-  
-  return {
-    fichasConFechas: fichas, // Ya no necesitas procesar, las fechas vienen incluidas
-    todasLasFechas: fechasOrdenadas
-  }
-}, [fichas])
+    
+    const fechasOrdenadas = Array.from(fechasSet).sort()
+    
+    return {
+      fichasConFechas: fichas,
+      todasLasFechas: fechasOrdenadas
+    }
+  }, [fichas])
 
   const fichasFiltradas = fichasConFechas.filter(ficha => {
     // Filtro de búsqueda
@@ -56,12 +60,6 @@ export default function AdminFichasPacientesPage() {
     
     return true
   })
-
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de que deseas eliminar esta ficha?')) {
-      await deleteFicha(id)
-    }
-  }
 
   const calcularEdad = (fechaNacimiento?: string) => {
     if (!fechaNacimiento) return 'N/A'
@@ -105,6 +103,18 @@ export default function AdminFichasPacientesPage() {
     return { tipo: 'programada', icono: Clock, color: 'text-yellow-600' }
   }
 
+  const handleViewFicha = (ficha: FichaPaciente) => {
+    setSelectedFicha(ficha)
+    setShowDetail(true)
+  }
+
+  const formatearNombrePaciente = (paciente: any) => {
+    if (!paciente) return 'N/A'
+    return [paciente.nombre, paciente.apellido_pat, paciente.apellido_mat]
+      .filter(Boolean)
+      .join(' ')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -116,64 +126,57 @@ export default function AdminFichasPacientesPage() {
         </div>
       </div>
 
+      {/* Filtros minimalistas */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filtros y Búsqueda
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Buscar ficha/paciente</label>
-              <Input
-                placeholder="Folio o nombre del paciente..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-              />
+        <CardContent className="py-2">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filtros:</span>
             </div>
+            
+            <Input
+              placeholder="Buscar folio o paciente..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-[250px]"
+            />
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Institución</label>
-              <Select value={filtroInstitucion} onValueChange={setFiltroInstitucion}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar institución" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas las instituciones</SelectItem>
-                  {instituciones.map((institucion) => (
-                    <SelectItem key={institucion.id} value={institucion.id}>
-                      {institucion.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={filtroInstitucion} onValueChange={setFiltroInstitucion}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Institución" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas las instituciones</SelectItem>
+                {instituciones.map((institucion) => (
+                  <SelectItem key={institucion.id} value={institucion.id}>
+                    {institucion.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Estado</label>
-              <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="activos">Activos</SelectItem>
-                  <SelectItem value="completados">Completados</SelectItem>
-                  <SelectItem value="vencidos">Con faltas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="activos">Activos</SelectItem>
+                <SelectItem value="completados">Completados</SelectItem>
+                <SelectItem value="vencidos">Con faltas</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Fichas de Tratamiento ({fichasFiltradas.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">Fichas de Tratamiento ({fichasFiltradas.length})</h2>
+          </div>
+
           {loading ? (
             <div className="text-center py-8">Cargando fichas...</div>
           ) : (
@@ -191,7 +194,7 @@ export default function AdminFichasPacientesPage() {
                         {format(new Date(fecha), "dd/MM/yy")}
                       </TableHead>
                     ))}
-                    <TableHead className="min-w-[120px]">Acciones</TableHead>
+                    <TableHead className="min-w-[80px]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -202,7 +205,7 @@ export default function AdminFichasPacientesPage() {
                           <User className="w-4 h-4 text-muted-foreground" />
                           <div className="space-y-1">
                             <div className="font-medium">
-                              {ficha.paciente?.nombre} {ficha.paciente?.apellido_pat} {ficha.paciente?.apellido_mat}
+                              {formatearNombrePaciente(ficha.paciente)}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               {ficha.paciente?.telefono || 'Sin teléfono'}
@@ -248,22 +251,13 @@ export default function AdminFichasPacientesPage() {
                       })}
 
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm" title="Ver detalles">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" title="Editar ficha">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            title="Eliminar ficha"
-                            onClick={() => handleDelete(ficha.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleViewFicha(ficha)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -282,6 +276,128 @@ export default function AdminFichasPacientesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de detalle de ficha */}
+      <Dialog open={showDetail} onOpenChange={setShowDetail}>
+        <DialogContent 
+          className="overflow-y-auto" 
+          style={{ 
+            maxWidth: '90vw', 
+            maxHeight: '90vh', 
+            width: '90vw',
+            height: '90vh'
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Detalle de Ficha de Paciente</DialogTitle>
+          </DialogHeader>
+
+          {selectedFicha && (
+            <div className="space-y-6">
+              {/* Información del paciente */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">Información del Paciente</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
+                        <p className="text-sm">{formatearNombrePaciente(selectedFicha.paciente)}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Edad</label>
+                        <p className="text-sm">{calcularEdad(selectedFicha.paciente?.fecha_nacimiento)}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Teléfono</label>
+                        <p className="text-sm">{selectedFicha.paciente?.telefono || 'No disponible'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Fecha de Nacimiento</label>
+                        <p className="text-sm">
+                          {selectedFicha.paciente?.fecha_nacimiento 
+                            ? new Date(selectedFicha.paciente.fecha_nacimiento).toLocaleDateString()
+                            : 'No disponible'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">Información de la Ficha</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Folio</label>
+                        <p className="text-sm font-mono">{selectedFicha.folio}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Institución</label>
+                        <p className="text-sm">{selectedFicha.institucion?.nombre}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Fecha de Registro</label>
+                        <p className="text-sm">{new Date(selectedFicha.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Diagnóstico y Terapia */}
+              <div className="grid gap-4 md:grid-cols-2">
+                {selectedFicha.diagnostico && (
+                  <Card>
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold mb-3">Diagnóstico</h3>
+                      <p className="text-sm">{selectedFicha.diagnostico}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {selectedFicha.terapia && (
+                  <Card>
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold mb-3">Terapia</h3>
+                      <p className="text-sm">{selectedFicha.terapia}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Fechas de tratamiento */}
+              {selectedFicha.fechas_tratamiento && selectedFicha.fechas_tratamiento.length > 0 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">Cronograma de Tratamiento</h3>
+                    <div className="space-y-3">
+                      {selectedFicha.fechas_tratamiento.map((fecha: any) => (
+                        <div key={fecha.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="text-sm font-medium">
+                              {new Date(fecha.fecha_programada).toLocaleDateString()}
+                            </div>
+                            <Badge variant={fecha.asistencia ? 'default' : 'secondary'}>
+                              {fecha.asistencia ? 'Asistió' : 'No asistió'}
+                            </Badge>
+                          </div>
+                          {fecha.notas && (
+                            <div className="text-sm text-muted-foreground max-w-xs truncate">
+                              {fecha.notas}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -33,9 +33,12 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md bg-gradient-to-b from-accent/50 to-white">
         <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-4">
+          <img src="/logo.svg" alt="Control PALs Logo" className="h-16 w-auto" />
+        </div>
           <CardTitle className="text-3xl font-bold">Control PALs</CardTitle>
           <CardDescription>
             Ingresa tus credenciales para acceder
@@ -85,7 +88,7 @@ export default function Login() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={loading}
             >
               {loading ? (

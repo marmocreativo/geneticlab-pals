@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -45,22 +46,21 @@ const navItems: NavItem[] = [
   {
     title: 'Agenda',
     href: '/admin/agenda',
-    icon: Users,
+    icon: Calendar,
     roles: ['admin']
   },
   {
     title: 'Actividades',
     href: '/admin/actividades',
-    icon: Users,
+    icon: PenTool,
     roles: ['admin']
   },
   {
     title: 'Pacientes',
     href: '/admin/pacientes',
-    icon: Users,
+    icon: Stethoscope,
     roles: ['admin']
   },
-
   {
     title: 'Usuarios',
     href: '/admin/usuarios',
@@ -159,7 +159,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   )
 
   return (
-    <div className="h-screen flex">
+    <div className="h-screen flex bg-gradient-to-b from-muted/50 to-white">
       {/* Sidebar Desktop */}
       <aside className="hidden lg:flex w-64 flex-col border-r bg-card">
         <div className="p-6">
@@ -204,7 +204,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header */}
-        <div className="lg:hidden sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b bg-background px-4 shadow-sm">
+        <div className="lg:hidden sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 bg-transparent px-4">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon">
@@ -276,10 +276,37 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         {/* Page Content */}
-        <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
+        <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto pb-20 lg:pb-8">
           {children}
         </div>
       </main>
+
+      {/* Bottom Navigation - Mobile */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-border/40">
+        <div className="flex justify-around py-2">
+          {filteredNavItems.slice(0, 4).map((item) => {
+            const Icon = item.icon
+            const isActive = location.pathname === item.href
+            
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  'flex flex-col items-center px-3 py-2 rounded-lg transition-colors min-w-0',
+                  isActive
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Icon className="h-5 w-5 mb-1" />
+                <span className="text-xs font-medium truncate">{item.title}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
+      <PWAInstallPrompt />
     </div>
   )
 }

@@ -9,13 +9,15 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
-  ChevronDown,
-  ChevronUp,
   CalendarX,
   Camera,
   Image as ImageIcon,
   Trash2,
-  Upload
+  Upload,
+  MoreHorizontal,
+  Clock,
+  Calendar,
+  Wifi
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,6 +25,12 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import CameraCapture from '@/components/common/CameraCapture'
 import { useVisitas } from '@/hooks/useVisitas'
 import { useConfiguraciones } from '@/hooks/useConfiguraciones'
@@ -287,121 +295,140 @@ const VisitaDetailsPage: React.FC = () => {
       </div>
 
       {/* Contenido scrolleable */}
-      <div className="flex-1 p-4 space-y-4">
-        {/* Información básica con acciones integradas */}
-        <Card>
+      <div className="flex-1 p-4 space-y-6">
+        {/* 1. INSTITUCIÓN - Carta con degradado */}
+        <Card className="bg-gradient-to-r from-primary to-accent text-primary-foreground overflow-hidden">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <MapPin className="h-5 w-5 text-blue-600" />
+            <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h2 className="font-medium text-lg">{visita.institucion?.nombre}</h2>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                  <span>{format(new Date(visita.fecha_visita), 'dd MMM', { locale: es })}</span>
-                  <span>{format(new Date(visita.fecha_visita), 'HH:mm')}</span>
-                  <Badge variant="outline" className="text-xs">
-                    Presencial
-                  </Badge>
+                <h1 className="text-2xl font-bold mb-1">{visita.institucion?.nombre}</h1>
+                <div className="text-primary-foreground/80 text-sm">
+                  Visita programada
                 </div>
               </div>
               
-              {/* Botones de acción como iconos */}
-              <div className="flex gap-1">
-                {/* Reagendar - solo si está programada */}
-                {visita.estado === 'programada' && (
-                  <Button 
-                    onClick={() => setShowReagendarDialog(true)}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    title="Reagendar visita"
-                  >
-                    <CalendarX className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              {/* Menú de opciones */}
+              {visita.estado === 'programada' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-primary-foreground hover:bg-white/20">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShowReagendarDialog(true)}>
+                      <CalendarX className="h-4 w-4 mr-2" />
+                      Reagendar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowDireccion(!showDireccion)}>
+                      <MapPin className="h-4 w-4 mr-2" />
+                      {showDireccion ? 'Ocultar dirección' : 'Ver dirección'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
-
-            {/* Estado GPS si está validado */}
-            {visita.validacion_gps && (
-              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded text-sm mb-3">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-green-700">Ubicación validada ({visita.distancia_metros}m)</span>
-              </div>
-            )}
-
-            {/* Dirección colapsable */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDireccion(!showDireccion)}
-              className="w-full justify-between h-8 text-xs p-2"
-            >
-              Ver dirección
-              {showDireccion ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </Button>
-
-            {showDireccion && (
-              <div className="mt-2 p-2 bg-muted/50 rounded text-xs text-muted-foreground">
-                {visita.institucion?.direccion}
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Acciones principales */}
-        {visita.estado === 'programada' && (
-          <Card>
-            <CardContent className="p-4 space-y-4">
-              {/* Validar GPS para visitas presenciales */}
-              {!visita.validacion_gps && (
-                <div>
-                  <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm mb-3">
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                    <span className="text-yellow-700">Primero valida tu ubicación</span>
-                  </div>
-                  
-                  <Button 
-                    onClick={handleValidarGPS}
-                    disabled={validandoGPS}
-                    className="w-full"
-                  >
-                    {validandoGPS ? (
-                      <>
-                        <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin mr-2" />
-                        Validando ubicación...
-                      </>
-                    ) : (
-                      <>
-                        <Navigation className="h-4 w-4 mr-2" />
-                        Validar GPS
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
+        {/* 2. DATOS DE LA VISITA - Píldoras */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {format(new Date(visita.fecha_visita), 'dd MMM yyyy', { locale: es })}
+            </Badge>
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {format(new Date(visita.fecha_visita), 'HH:mm')}
+            </Badge>
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Wifi className="h-3 w-3" />
+              Presencial
+            </Badge>
+          </div>
 
-              {/* Confirmar asistencia - disponible cuando GPS está validado o es telefónica */}
-              {(visita.validacion_gps) && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    onClick={handleConfirmarAsistencia}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {bucketReady ? 'Confirmar + Foto' : 'Confirmar'}
-                  </Button>
-                  <Button 
-                    onClick={handleMarcarFalta}
-                    variant="outline"
-                    className="border-red-200 text-red-600 hover:bg-red-50"
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Marcar falta
-                  </Button>
+          {/* Dirección colapsable */}
+          {showDireccion && (
+            <Card>
+              <CardContent className="p-3">
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <p className="text-sm text-muted-foreground">
+                    {visita.institucion?.direccion}
+                  </p>
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* SEPARADOR */}
+        <div className="border-t border-dashed"></div>
+
+        {/* 3. VALIDACIÓN GPS */}
+        {visita.estado === 'programada' && !visita.validacion_gps && (
+          <Card 
+            className="cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={handleValidarGPS}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="relative inline-block mb-3">
+                <Navigation className={`h-12 w-12 text-primary ${validandoGPS ? 'animate-pulse' : ''}`} />
+                {validandoGPS && (
+                  <div className="absolute inset-0 border-2 border-primary rounded-full animate-ping"></div>
+                )}
+              </div>
+              <h3 className="font-semibold mb-1">Validar Ubicación</h3>
+              <p className="text-sm text-muted-foreground">
+                {validandoGPS ? 'Obteniendo ubicación...' : 'Toca para validar tu GPS'}
+              </p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Estado GPS validado */}
+        {visita.validacion_gps && (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-4 py-0">
+              <div className="flex items-center gap-3 text-green-700">
+                <CheckCircle className="h-5 w-5" />
+                <div>
+                  <p className="font-medium">Ubicación validada</p>
+                  <p className="text-sm">Distancia: {visita.distancia_metros}m</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 4. CONFIRMAR VISITA */}
+        {visita.estado === 'programada' && visita.validacion_gps && (
+          <Card 
+            className="cursor-pointer hover:bg-green-50 transition-colors border-green-200"
+            onClick={handleConfirmarAsistencia}
+          >
+            <CardContent className="p-6 text-center">
+              <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
+              <h3 className="font-semibold mb-1 text-green-700">Confirmar Visita</h3>
+              <p className="text-sm text-muted-foreground">
+                {bucketReady ? 'Incluir evidencia fotográfica' : 'Marcar como completada'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Botón discreto para marcar falta */}
+        {visita.estado === 'programada' && visita.validacion_gps && (
+          <Button 
+            onClick={handleMarcarFalta}
+            variant="outline"
+            size="sm"
+            className="w-full text-muted-foreground border-muted-foreground/20 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Marcar falta
+          </Button>
         )}
 
         {/* Fotos de evidencia para visitas confirmadas */}
@@ -451,17 +478,25 @@ const VisitaDetailsPage: React.FC = () => {
 
         {/* Mensajes informativos para estados finales */}
         {visita.estado === 'asistio' && (
-          <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded text-sm">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span className="text-green-700">Visita confirmada exitosamente</span>
-          </div>
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 text-green-700">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Visita confirmada exitosamente</span>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {visita.estado === 'falto' && (
-          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded text-sm">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <span className="text-red-700">Falta registrada</span>
-          </div>
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 text-red-700">
+                <XCircle className="h-5 w-5" />
+                <span className="font-medium">Falta registrada</span>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 

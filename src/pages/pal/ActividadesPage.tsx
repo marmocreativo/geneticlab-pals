@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Plus, Search, Calendar, Building2, User, ChevronDown, ChevronUp  } from 'lucide-react'
+import { Plus, Search, Calendar, Building2, User, ChevronDown, ChevronUp, Filter, Clock, MapPin } from 'lucide-react'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { es } from 'date-fns/locale'
 import type { ActividadInsert } from '@/types/actividad'
 
 const ITEMS_PER_PAGE = 10
@@ -39,6 +40,7 @@ export default function ActividadesPage() {
   const [tipoActividad, setTipoActividad] = useState('todos')
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [showWizard, setShowWizard] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
 
   // Inicializar fechas (último mes)
@@ -103,7 +105,6 @@ export default function ActividadesPage() {
       return false
     }
     
-
     return true
   })
 
@@ -141,14 +142,55 @@ export default function ActividadesPage() {
     setCurrentPage(1)
   }
 
+  const formatDateRange = () => {
+    if (!fechaInicio || !fechaFin) return 'Seleccionar período'
+    
+    const inicio = new Date(fechaInicio)
+    const fin = new Date(fechaFin)
+    
+    return `${format(inicio, 'd MMM', { locale: es })} - ${format(fin, 'd MMM yyyy', { locale: es })}`
+  }
+
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      {/* Header - Diferentes para Desktop y Mobile */}
+      {/* Desktop Header */}
+      <div className="hidden md:flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Mis Actividades</h1>
         <Button onClick={() => setShowWizard(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Nueva Actividad
         </Button>
+      </div>
+
+      {/* Mobile Header */}
+      <div className="md:hidden mb-6">
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold">Mis Actividades Registradas</h1>
+          <p className="text-muted-foreground mt-1">
+            Historial completo de actividades realizadas en el campo
+          </p>
+        </div>
+
+        {/* Botones principales - Mobile */}
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex-[2] justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              <span className="truncate">{formatDateRange()}</span>
+            </div>
+            {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+          
+          <Button onClick={() => setShowWizard(true)} className="flex-1">
+            <Plus className="h-4 w-4 mr-1" />
+            Nueva
+          </Button>
+        </div>
       </div>
 
       {/* Wizard de nueva actividad */}
@@ -159,87 +201,159 @@ export default function ActividadesPage() {
         loading={formLoading}
       />
 
-      {/* Filtros */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Fecha inicio */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                Fecha Inicio
-              </label>
-              <Input
-                type="date"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-              />
+      {/* Filtros - Desktop siempre visible, Mobile colapsable */}
+      <div className="hidden md:block mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Filtros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Fecha inicio */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  Fecha Inicio
+                </label>
+                <Input
+                  type="date"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                />
+              </div>
+
+              {/* Fecha fin */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  Fecha Fin
+                </label>
+                <Input
+                  type="date"
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                />
+              </div>
+
+              {/* Institución */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-1">
+                  <Building2 className="h-4 w-4" />
+                  Institución
+                </label>
+                <Select value={institucionSeleccionada} onValueChange={setInstitucionSeleccionada}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas las instituciones" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas las instituciones</SelectItem>
+                    {instituciones.map(institucion => (
+                      <SelectItem key={institucion.id} value={institucion.id}>
+                        {institucion.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Búsqueda */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-1">
+                  <Search className="h-4 w-4" />
+                  Buscar
+                </label>
+                <Input
+                  placeholder="Buscar actividades..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
 
-            {/* Fecha fin */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                Fecha Fin
-              </label>
-              <Input
-                type="date"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-              />
+            <div className="flex justify-between items-center mt-4">
+              <Button variant="outline" size="sm" onClick={resetFilters}>
+                Limpiar Filtros
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                {loading ? 'Cargando...' : `${totalItems} actividades encontradas`}
+              </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
 
-            {/* Institución */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-1">
-                <Building2 className="h-4 w-4" />
-                Institución
-              </label>
-              <Select value={institucionSeleccionada} onValueChange={setInstitucionSeleccionada}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las instituciones" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas las instituciones</SelectItem>
-                  {instituciones.map(institucion => (
-                    <SelectItem key={institucion.id} value={institucion.id}>
-                      {institucion.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Filtros colapsables - Solo Mobile */}
+      <div className="md:hidden">
+        <Collapsible open={showFilters} onOpenChange={setShowFilters}>
+          <CollapsibleContent>
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <div className="space-y-4">
+                  {/* Fecha inicio */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Fecha Inicio</label>
+                    <Input
+                      type="date"
+                      value={fechaInicio}
+                      onChange={(e) => setFechaInicio(e.target.value)}
+                    />
+                  </div>
 
-            {/* Búsqueda */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-1">
-                <Search className="h-4 w-4" />
-                Buscar
-              </label>
-              <Input
-                placeholder="Buscar actividades..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+                  {/* Fecha fin */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Fecha Fin</label>
+                    <Input
+                      type="date"
+                      value={fechaFin}
+                      onChange={(e) => setFechaFin(e.target.value)}
+                    />
+                  </div>
 
-          <div className="flex justify-between items-center mt-4">
-            <Button variant="outline" size="sm" onClick={resetFilters}>
-              Limpiar Filtros
-            </Button>
-            <div className="text-sm text-muted-foreground">
-              {loading ? 'Cargando...' : `${totalItems} actividades encontradas`}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  {/* Institución */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Institución</label>
+                    <Select value={institucionSeleccionada} onValueChange={setInstitucionSeleccionada}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas</SelectItem>
+                        {instituciones.map(institucion => (
+                          <SelectItem key={institucion.id} value={institucion.id}>
+                            {institucion.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Búsqueda */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Buscar</label>
+                    <Input
+                      placeholder="Descripción, contacto..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    Limpiar Filtros
+                  </Button>
+                  <div className="text-sm text-muted-foreground">
+                    {loading ? 'Cargando...' : `${totalItems} actividades`}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
       {/* Vista Desktop - Tabla */}
       <div className="hidden md:block">
@@ -349,103 +463,116 @@ export default function ActividadesPage() {
         </Card>
       </div>
 
-      {/* Vista Mobile - Cards */}
+      {/* Vista Mobile - Cards minimalistas */}
       <div className="md:hidden">
         <div className="space-y-3">
           {loading ? (
             <Card>
-              <CardContent className="p-4">
-                <div className="text-center">Cargando actividades...</div>
+              <CardContent className="p-6">
+                <div className="text-center text-muted-foreground">
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  Cargando actividades...
+                </div>
               </CardContent>
             </Card>
           ) : paginatedActividades.length === 0 ? (
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-6">
                 <div className="text-center text-muted-foreground">
-                  No se encontraron actividades
+                  <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <h3 className="font-medium mb-1">No hay actividades</h3>
+                  <p className="text-sm">No se encontraron actividades para los filtros seleccionados</p>
                 </div>
               </CardContent>
             </Card>
           ) : (
             paginatedActividades.map(actividad => (
               <Collapsible key={actividad.id}>
-                <Card>
+                <Card className="hover:shadow-md transition-shadow">
                   <CollapsibleTrigger 
                     className="w-full"
                     onClick={() => toggleExpand(actividad.id)}
                   >
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 text-left">
-                          <div className="font-medium text-sm">
-                            {actividad.institucion?.nombre || 'Sin institución'}
+                    <CardContent className="p-4 py-0">
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1 text-left space-y-2">
+                          {/* 1. DESCRIPCIÓN - Más importante */}
+                          <div>
+                            <h3 className="font-semibold text-base leading-tight">
+                              {actividad.descripcion_actividad || 'Actividad sin descripción'}
+                            </h3>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {formatearFechaHora(actividad)}
-                          </div>
-                          <div className="text-xs mt-1">
-                            {actividad.contacto ? (
-                              <div className="flex items-center gap-2">
-                                <User className="h-3 w-3" />
-                                {formatearNombreContacto(actividad.contacto)}
-                                <Badge 
-                                  variant={actividad.tipo_actividad === 'presencial' ? 'default' : 'secondary'}
-                                  className="text-xs"
-                                >
-                                  {actividad.tipo_actividad === 'presencial' ? 'Presencial' : 'Telefónica'}
-                                </Badge>
+
+                          {/* 2. FECHA Y HORA - Segunda importancia (misma fila) */}
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(actividad.fecha_actividad), 'd MMM yyyy', { locale: es })}
+                            </div>
+                            {actividad.hora_actividad && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {actividad.hora_actividad.slice(0, 5)}
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground">Sin contacto</span>
                             )}
+                            <Badge 
+                              variant={actividad.tipo_actividad === 'presencial' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {actividad.tipo_actividad === 'presencial' ? 'Presencial' : 'Telefónica'}
+                            </Badge>
                           </div>
+
+                          {/* 3. INSTITUCIÓN - Fila separada */}
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{actividad.institucion?.nombre || 'Sin institución'}</span>
+                          </div>
+
+                          {/* 4. CONTACTO - Tercera importancia */}
+                          {actividad.contacto && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">
+                                {formatearNombreContacto(actividad.contacto)}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
-                        <div className="ml-2">
+
+                        {/* Icono de expansión */}
+                        <div className="flex-shrink-0">
                           {expandedItems.has(actividad.id) ? (
-                            <ChevronUp className="h-4 w-4" />
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
                           ) : (
-                            <ChevronDown className="h-4 w-4" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
                           )}
                         </div>
                       </div>
                     </CardContent>
                   </CollapsibleTrigger>
                   
+                  {/* Contenido expandible */}
                   <CollapsibleContent>
                     <CardContent className="pt-0 px-4 pb-4">
-                      <div className="space-y-3 border-t pt-3">
-                        {actividad.contacto && (
-                          <div>
-                            <span className="text-xs font-medium">Tipo de Contacto:</span>
-                            <div className="mt-1">
-                              <Badge variant="outline" className="text-xs">
-                                {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
-                              </Badge>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {actividad.descripcion_actividad && (
-                          <div>
-                            <span className="text-xs font-medium">Actividad:</span>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {actividad.descripcion_actividad}
-                            </p>
-                          </div>
-                        )}
-                        
+                      <div className="border-t pt-4 space-y-3">
+                        {/* Temas impartidos */}
                         {actividad.temas_impartidos && (
                           <div>
-                            <span className="text-xs font-medium">Temas Impartidos:</span>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <span className="text-sm font-medium">Temas Impartidos:</span>
+                            <p className="text-sm text-muted-foreground mt-1">
                               {actividad.temas_impartidos}
                             </p>
                           </div>
                         )}
                         
+                        {/* Entregas */}
                         {(actividad.entrega_sobres || actividad.entrega_kit_rash) && (
                           <div>
-                            <span className="text-xs font-medium">Entregas:</span>
+                            <span className="text-sm font-medium">Entregas:</span>
                             <div className="flex gap-2 mt-1">
                               {actividad.entrega_sobres && (
                                 <Badge variant="secondary" className="text-xs">
@@ -461,11 +588,22 @@ export default function ActividadesPage() {
                           </div>
                         )}
                         
+                        {/* Notas */}
                         {actividad.notas && (
                           <div>
-                            <span className="text-xs font-medium">Notas:</span>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <span className="text-sm font-medium">Notas:</span>
+                            <p className="text-sm text-muted-foreground mt-1">
                               {actividad.notas}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Dirección de la institución */}
+                        {actividad.institucion?.direccion && (
+                          <div>
+                            <span className="text-sm font-medium">Dirección:</span>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {actividad.institucion.direccion}
                             </p>
                           </div>
                         )}

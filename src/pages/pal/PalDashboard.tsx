@@ -6,27 +6,6 @@ import { Card, CardContent } from '@/components/ui/card'
 export default function PalDashboard() {
   const navigate = useNavigate()
 
-  const menuItems = [
-    {
-      title: 'Agenda',
-      icon: Calendar,
-      path: '/pal/calendario',
-      description: 'Ver calendario de visitas'
-    },
-    {
-      title: 'Actividades',
-      icon: PenTool,
-      path: '/pal/actividades',
-      description: 'Registrar actividades'
-    },
-    {
-      title: 'Censo Pacientes',
-      icon: Stethoscope,
-      path: '/pal/pacientes',
-      description: 'Gestión de pacientes'
-    }
-  ]
-
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8">
@@ -36,25 +15,50 @@ export default function PalDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {menuItems.map((item) => (
-          <Card 
-            key={item.path}
-            className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95"
-            onClick={() => navigate(item.path)}
-          >
-            <CardContent className="flex flex-col items-center justify-center p-8 min-h-[200px]">
-              <item.icon className="h-16 w-16 mb-4 text-primary" />
-              <h3 className="text-xl font-semibold mb-2 text-center">
-                {item.title}
-              </h3>
-              <p className="text-sm text-muted-foreground text-center">
-                {item.description}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-4">
+      {/* Primera fila - Agenda (botón grande horizontal) */}
+      <Card 
+        className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-95 bg-primary text-primary-foreground overflow-hidden"
+        onClick={() => navigate('/pal/calendario')}
+      >
+        <CardContent className="relative flex items-center justify-start p-6 min-h-[100px]">
+          <div className="z-10">
+            <h3 className="text-3xl font-bold mb-1">Agenda</h3>
+            <p className="text-primary-foreground/80">Ver calendario de visitas</p>
+          </div>
+          <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 h-40 w-40 opacity-20 rotate-12" />
+        </CardContent>
+      </Card>
+
+      {/* Segunda fila - Actividades y Censo (dos botones) */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card 
+          className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-95 bg-secondary text-secondary-foreground overflow-hidden"
+          onClick={() => navigate('/pal/actividades')}
+        >
+          <CardContent className="relative flex flex-col justify-center p-4 min-h-[120px]">
+            <div className="z-10">
+              <h3 className="text-xl font-bold mb-1">Actividades</h3>
+              <p className="text-secondary-foreground/80 text-sm">Registrar actividades</p>
+            </div>
+            <PenTool className="absolute right-2 top-1/2 -translate-y-1/2 h-20 w-20 opacity-20 -rotate-12" />
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-95 bg-accent text-accent-foreground overflow-hidden"
+          onClick={() => navigate('/pal/pacientes')}
+        >
+          <CardContent className="relative flex flex-col justify-center p-4 min-h-[120px]">
+            <div className="z-10">
+              <h3 className="text-xl font-bold mb-1">Censo Pacientes</h3>
+              <p className="text-accent-foreground/80 text-sm">Gestión de pacientes</p>
+            </div>
+            <Stethoscope className="absolute right-2 top-1/2 -translate-y-1/2 h-20 w-20 opacity-20 rotate-12" />
+          </CardContent>
+        </Card>
       </div>
+    </div>
     </div>
   )
 }
