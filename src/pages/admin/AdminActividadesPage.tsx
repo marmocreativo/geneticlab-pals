@@ -13,9 +13,16 @@ import { useCatalogos } from '@/hooks/useCatalogos'
 import type { Actividad } from '@/types/actividad'
 
 export default function AdminActividadesPage() {
+  const currentDate = new Date()
   const [filtroInstitucion, setFiltroInstitucion] = useState<string>('todos')
   const [filtroPal, setFiltroPal] = useState<string>('todos')
   const [filtroActividad, setFiltroActividad] = useState<string>('todos')
+  const [filtroFechaInicio, setFiltroFechaInicio] = useState<string>(
+    `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`
+  )
+  const [filtroFechaFin, setFiltroFechaFin] = useState<string>(
+    new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0]
+  )
   const [selectedActividad, setSelectedActividad] = useState<Actividad | null>(null)
   const [showDetail, setShowDetail] = useState(false)
 
@@ -31,6 +38,8 @@ export default function AdminActividadesPage() {
     if (filtroInstitucion !== 'todos' && actividad.institucion?.id !== filtroInstitucion) return false
     if (filtroPal !== 'todos' && actividad.pal?.id !== filtroPal) return false
     if (filtroActividad !== 'todos' && actividad.entrega_sobres_id !== filtroActividad) return false
+    if (filtroFechaInicio && actividad.fecha_actividad < filtroFechaInicio) return false
+    if (filtroFechaFin && actividad.fecha_actividad > filtroFechaFin) return false
     return true
   }) || []
 
@@ -48,21 +57,18 @@ export default function AdminActividadesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Actividades</h1>
-          <p className="text-muted-foreground">
-            Administra todas las actividades
-          </p>
+          <p className="text-muted-foreground">Administra todas las actividades</p>
         </div>
       </div>
 
-      {/* Filtros minimalistas */}
       <Card>
-        <CardContent className="py-2">
-          <div className="flex items-center gap-4">
+        <CardContent className="py-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Filtros:</span>
             </div>
-            
+
             <Select value={filtroInstitucion} onValueChange={setFiltroInstitucion}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Institución" />
@@ -104,6 +110,24 @@ export default function AdminActividadesPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Desde:</span>
+              <input
+                type="date"
+                value={filtroFechaInicio}
+                onChange={(e) => setFiltroFechaInicio(e.target.value)}
+                className="text-sm border rounded px-2 py-1 h-9"
+              />
+              <span className="text-sm text-muted-foreground">Hasta:</span>
+              <input
+                type="date"
+                value={filtroFechaFin}
+                onChange={(e) => setFiltroFechaFin(e.target.value)}
+                className="text-sm border rounded px-2 py-1 h-9"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -134,12 +158,10 @@ export default function AdminActividadesPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <div className="text-sm">
-                          {formatearFechaHora(actividad)}
-                        </div>
+                        <div className="text-sm">{formatearFechaHora(actividad)}</div>
                       </div>
                     </TableCell>
-                    
+
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-muted-foreground" />
@@ -190,8 +212,8 @@ export default function AdminActividadesPage() {
                     </TableCell>
 
                     <TableCell>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => handleViewActivity(actividad)}
                       >
@@ -213,13 +235,12 @@ export default function AdminActividadesPage() {
         </CardContent>
       </Card>
 
-      {/* Dialog de detalle de actividad */}
       <Dialog open={showDetail} onOpenChange={setShowDetail}>
-        <DialogContent 
-          className="overflow-y-auto" 
-          style={{ 
-            maxWidth: '90vw', 
-            maxHeight: '90vh', 
+        <DialogContent
+          className="overflow-y-auto"
+          style={{
+            maxWidth: '90vw',
+            maxHeight: '90vh',
             width: '90vw',
             height: '90vh'
           }}
@@ -230,7 +251,6 @@ export default function AdminActividadesPage() {
 
           {selectedActividad && (
             <div className="space-y-6">
-              {/* Información principal */}
               <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -281,7 +301,6 @@ export default function AdminActividadesPage() {
                 </Card>
               </div>
 
-              {/* Descripción de actividad */}
               {selectedActividad.descripcion_actividad && (
                 <Card>
                   <CardHeader>
@@ -293,7 +312,6 @@ export default function AdminActividadesPage() {
                 </Card>
               )}
 
-              {/* Temas impartidos */}
               {selectedActividad.temas_impartidos && (
                 <Card>
                   <CardHeader>
@@ -305,7 +323,6 @@ export default function AdminActividadesPage() {
                 </Card>
               )}
 
-              {/* Entregas */}
               {(selectedActividad.entrega_sobres || selectedActividad.entrega_kit_rash) && (
                 <Card>
                   <CardHeader>
@@ -314,21 +331,16 @@ export default function AdminActividadesPage() {
                   <CardContent>
                     <div className="flex gap-2">
                       {selectedActividad.entrega_sobres && (
-                        <Badge variant="secondary">
-                          {selectedActividad.entrega_sobres.nombre}
-                        </Badge>
+                        <Badge variant="secondary">{selectedActividad.entrega_sobres.nombre}</Badge>
                       )}
                       {selectedActividad.entrega_kit_rash && (
-                        <Badge variant="secondary">
-                          {selectedActividad.entrega_kit_rash.nombre}
-                        </Badge>
+                        <Badge variant="secondary">{selectedActividad.entrega_kit_rash.nombre}</Badge>
                       )}
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Notas */}
               {selectedActividad.notas && (
                 <Card>
                   <CardHeader>

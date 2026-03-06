@@ -2,34 +2,24 @@ import { useState } from 'react'
 import { useUsers } from '@/hooks/useUsers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Search, UserCheck, UserX, Pencil } from 'lucide-react'
+import { Plus, Search, UserCheck, UserX, Pencil, Trash2 } from 'lucide-react'
 import { formatearFecha, formatearTelefono } from '@/lib/utils'
 import UserForm from '@/components/admin/UserForm'
+import { toast } from 'sonner'
 import type { UserProfile } from '@/hooks/useUsers'
 
 export default function Usuarios() {
-  const { users, loading, toggleUserStatus, fetchUsers } = useUsers()
+  const { users, loading, toggleUserStatus, fetchUsers, deleteUserComplete } = useUsers()
   const [searchTerm, setSearchTerm] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null)
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const filteredUsers = users.filter(user =>
     user.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,9 +29,7 @@ export default function Usuarios() {
 
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     const result = await toggleUserStatus(id, !currentStatus)
-    if (result.success) {
-      fetchUsers()
-    }
+    if (result.success) fetchUsers()
   }
 
   const handleCreateSuccess = () => {
@@ -60,11 +48,24 @@ export default function Usuarios() {
     setEditingUser(null)
   }
 
+  const handleDeleteConfirm = async () => {
+    if (!deletingUser) return
+    setDeleting(true)
+    const result = await deleteUserComplete(deletingUser.id)
+    if (result.success) {
+      toast.success(`Usuario ${deletingUser.nombre_completo} eliminado`)
+    } else {
+      toast.error(`Error al eliminar: ${result.error}`)
+    }
+    setDeleting(false)
+    setDeletingUser(null)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-muted-foreground">Cargando usuarios...</p>
         </div>
       </div>
@@ -76,9 +77,7 @@ export default function Usuarios() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Usuarios</h1>
-          <p className="text-muted-foreground">
-            Gestiona los usuarios PAL del sistema
-          </p>
+          <p className="text-muted-foreground">Gestiona los usuarios PAL del sistema</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -89,14 +88,9 @@ export default function Usuarios() {
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>
-                {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
-              </DialogTitle>
+              <DialogTitle>{editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</DialogTitle>
               <DialogDescription>
-                {editingUser 
-                  ? 'Modifica la información del usuario'
-                  : 'Completa los datos para crear un nuevo PAL'
-                }
+                {editingUser ? 'Modifica la información del usuario' : 'Completa los datos para crear un nuevo PAL'}
               </DialogDescription>
             </DialogHeader>
             <UserForm
@@ -111,9 +105,7 @@ export default function Usuarios() {
       <Card>
         <CardHeader>
           <CardTitle>Lista de Usuarios</CardTitle>
-          <CardDescription>
-            Total de usuarios: {users.length}
-          </CardDescription>
+          <CardDescription>Total de usuarios: {users.length}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
@@ -149,9 +141,7 @@ export default function Usuarios() {
                 ) : (
                   filteredUsers.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        {user.nombre_completo}
-                      </TableCell>
+                      <TableCell className="font-medium">{user.nombre_completo}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         {user.telefono ? formatearTelefono(user.telefono) : '-'}
@@ -171,11 +161,7 @@ export default function Usuarios() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(user)}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
@@ -183,11 +169,17 @@ export default function Usuarios() {
                             size="sm"
                             onClick={() => handleToggleStatus(user.id, user.activo)}
                           >
-                            {user.activo ? (
-                              <UserX className="h-4 w-4 text-destructive" />
-                            ) : (
-                              <UserCheck className="h-4 w-4 text-green-600" />
-                            )}
+                            {user.activo
+                              ? <UserX className="h-4 w-4 text-destructive" />
+                              : <UserCheck className="h-4 w-4 text-green-600" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeletingUser(user)}
+                            disabled={user.role === 'admin'}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       </TableCell>
@@ -199,6 +191,28 @@ export default function Usuarios() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Confirmación de borrado */}
+      <AlertDialog open={!!deletingUser} onOpenChange={(open) => { if (!open) setDeletingUser(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar usuario permanentemente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Estás a punto de eliminar a <strong>{deletingUser?.nombre_completo}</strong> y todos sus datos asociados: visitas, actividades, contactos y fotos de evidencia. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar todo'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

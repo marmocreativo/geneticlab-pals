@@ -14,7 +14,6 @@ import { useContactos } from '@/hooks/useContactos'
 import { useFichas } from '@/hooks/useFichas'
 import { useAuth } from '@/contexts/AuthContext'
 import { contactosService } from '@/services/contactosService'
-import type { FichaPacienteInsert } from '@/types/ficha'
 import type { ContactoInsert, Contacto } from '@/types/contacto'
 import { cn } from '@/lib/utils'
 
@@ -22,26 +21,27 @@ interface FichaFormProps {
   onSuccess?: () => void
 }
 
+type Step = 'institucion' | 'paciente' | 'medico' | 'ficha'
+
 export default function FichaForm({ onSuccess }: FichaFormProps) {
   const { user } = useAuth()
   const { instituciones } = useInstituciones()
   const { createContacto } = useContactos()
   const { createFicha } = useFichas()
-  
+
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'institucion' | 'paciente' | 'ficha'>('institucion')
-  
-  // Estados para institución
+  const [step, setStep] = useState<Step>('institucion')
+
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('')
-  
-  // Estados para paciente
-  const [contactosInstitucion, setContactosInstitucion] = useState<Contacto[]>([])
+  const [pacientesInstitucion, setPacientesInstitucion] = useState<Contacto[]>([])
+  const [medicosInstitucion, setMedicosInstitucion] = useState<Contacto[]>([])
+  const [loadingContactos, setLoadingContactos] = useState(false)
+
+  // Paciente
   const [selectedPaciente, setSelectedPaciente] = useState<string>('')
   const [createNewPaciente, setCreateNewPaciente] = useState(false)
-  const [openCombobox, setOpenCombobox] = useState(false)
-
-  // Datos del nuevo paciente
+  const [openPacienteCombobox, setOpenPacienteCombobox] = useState(false)
   const [pacienteData, setPacienteData] = useState<ContactoInsert>({
     tipo_contacto: 'paciente',
     nombre: '',
@@ -52,120 +52,151 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     pal_id: user?.id || ''
   })
 
-  // Datos de la ficha
-  const [fichaData, setFichaData] = useState<FichaPacienteInsert>({
-    institucion_id: '',
-    paciente_id: '',
-    diagnostico: '',
-    terapia: ''
+  // Médico
+  const [selectedMedico, setSelectedMedico] = useState<string>('')
+  const [createNewMedico, setCreateNewMedico] = useState(false)
+  const [openMedicoCombobox, setOpenMedicoCombobox] = useState(false)
+  const [medicoData, setMedicoData] = useState<ContactoInsert>({
+    tipo_contacto: 'medico',
+    nombre: '',
+    apellido_pat: '',
+    apellido_mat: '',
+    telefono: '',
+    pal_id: user?.id || ''
   })
 
-  // Cargar contactos cuando se selecciona institución
-useEffect(() => {
-  const loadContactosInstitucion = async () => {
-    if (selectedInstitucion) {
+  // Ficha
+  const [fichaData, setFichaData] = useState({
+    diagnostico: '',
+    terapia: '',
+    dosis: '',
+    fecha_inicio_tratamiento: '',
+  })
+  const [fichaErrors, setFichaErrors] = useState<{ dosis?: string; fecha_inicio_tratamiento?: string }>({})
+
+  useEffect(() => {
+    const loadContactos = async () => {
+      if (!selectedInstitucion) return
+      setLoadingContactos(true)
       try {
-        const contactos = await contactosService.getContactosByInstitucion(selectedInstitucion)
-        const pacientes = contactos
-          .filter(c => c.tipo_contacto === 'paciente')
-          .reduce((unique, contacto) => {
-            const fullName = `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim()
-            const isDuplicate = unique.some(item => {
-              const itemFullName = `${item.nombre} ${item.apellido_pat || ''} ${item.apellido_mat || ''}`.trim()
-              return itemFullName === fullName
-            })
-            if (!isDuplicate) {
-              unique.push(contacto)
+        const data = await contactosService.getContactosByInstitucion(selectedInstitucion)
+
+        const uniqueByNombre = (list: Contacto[]) =>
+          list.reduce((unique, c) => {
+            const nombre = `${c.nombre} ${c.apellido_pat || ''} ${c.apellido_mat || ''}`.trim()
+            if (!unique.some(u => `${u.nombre} ${u.apellido_pat || ''} ${u.apellido_mat || ''}`.trim() === nombre)) {
+              unique.push(c)
             }
             return unique
           }, [] as Contacto[])
-        
-        setContactosInstitucion(pacientes)
-      } catch (error) {
-        console.error('Error loading contactos:', error)
-        setContactosInstitucion([])
+
+        setPacientesInstitucion(uniqueByNombre(data.filter(c => c.tipo_contacto === 'paciente')))
+        setMedicosInstitucion(uniqueByNombre(data.filter(c => c.tipo_contacto === 'medico')))
+      } catch {
+        setPacientesInstitucion([])
+        setMedicosInstitucion([])
+      } finally {
+        setLoadingContactos(false)
       }
     }
-  }
-
-  loadContactosInstitucion()
-}, [selectedInstitucion])
+    loadContactos()
+  }, [selectedInstitucion])
 
   const resetForm = () => {
     setStep('institucion')
     setSelectedInstitucion('')
+    setPacientesInstitucion([])
+    setMedicosInstitucion([])
     setSelectedPaciente('')
     setCreateNewPaciente(false)
-    setContactosInstitucion([])
-    setPacienteData({
-      tipo_contacto: 'paciente',
-      nombre: '',
-      apellido_pat: '',
-      apellido_mat: '',
-      telefono: '',
-      fecha_nacimiento: '',
-      pal_id: user?.id || ''
-    })
-    setFichaData({
-      institucion_id: '',
-      paciente_id: '',
-      diagnostico: '',
-      terapia: ''
-    })
+    setSelectedMedico('')
+    setCreateNewMedico(false)
+    setPacienteData({ tipo_contacto: 'paciente', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', fecha_nacimiento: '', pal_id: user?.id || '' })
+    setMedicoData({ tipo_contacto: 'medico', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', pal_id: user?.id || '' })
+    setFichaData({ diagnostico: '', terapia: '', dosis: '', fecha_inicio_tratamiento: '' })
+    setFichaErrors({})
   }
 
-  const handleInstitucionNext = () => {
-    if (selectedInstitucion) {
-      setFichaData(prev => ({ ...prev, institucion_id: selectedInstitucion }))
-      setPacienteData(prev => ({ ...prev, institucion_id: selectedInstitucion }))
-      setStep('paciente')
-    }
-  }
-
-  const handlePacienteNext = () => {
-    if (createNewPaciente || selectedPaciente) {
-      setStep('ficha')
-    }
+  const validateFicha = (): boolean => {
+    const errors: typeof fichaErrors = {}
+    if (!fichaData.dosis.trim()) errors.dosis = 'Requerido'
+    if (!fichaData.fecha_inicio_tratamiento) errors.fecha_inicio_tratamiento = 'Requerido'
+    setFichaErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const handleSubmit = async () => {
+    if (!validateFicha()) return
     try {
       setLoading(true)
+
       let pacienteId = selectedPaciente
-
-      // Si se va a crear un nuevo paciente, crearlo primero
       if (createNewPaciente) {
-        const newPaciente = await createContacto(pacienteData)
-        pacienteId = newPaciente.id
+        const nuevo = await createContacto({ ...pacienteData, institucion_id: selectedInstitucion })
+        pacienteId = nuevo.id
       }
 
-      // Crear la ficha
-      const fichaToCreate = {
-        ...fichaData,
-        paciente_id: pacienteId
+      let medicoId: string | undefined = selectedMedico || undefined
+      if (createNewMedico) {
+        const nuevo = await createContacto({ ...medicoData, institucion_id: selectedInstitucion })
+        medicoId = nuevo.id
       }
 
-      await createFicha(fichaToCreate)
-      
+      await createFicha({
+        institucion_id: selectedInstitucion,
+        paciente_id: pacienteId,
+        doctor_id: medicoId,
+        diagnostico: fichaData.diagnostico || undefined,
+        terapia: fichaData.terapia || undefined,
+        dosis: fichaData.dosis,
+        fecha_inicio_tratamiento: fichaData.fecha_inicio_tratamiento,
+      })
+
       setOpen(false)
       resetForm()
       onSuccess?.()
-    } catch (error) {
-      console.error('Error creating ficha:', error)
+    } catch {
+      // el hook ya muestra el toast
     } finally {
       setLoading(false)
     }
   }
 
-  const formatearNombreCompleto = (contacto: Contacto) => {
-    return contactosService.formatearNombreCompleto(contacto)
+  const formatNombre = (c: Contacto) => contactosService.formatearNombreCompleto(c)
+
+  const selectedInstitucionData = instituciones.find(i => i.id === selectedInstitucion)
+  const selectedPacienteData = pacientesInstitucion.find(c => c.id === selectedPaciente)
+  const selectedMedicoData = medicosInstitucion.find(m => m.id === selectedMedico)
+
+  const resumen = (
+    <div className="text-sm text-muted-foreground space-y-1">
+      <p>Institución: <strong>{selectedInstitucionData?.nombre}</strong></p>
+      {(selectedPaciente || createNewPaciente) && (
+        <p>Paciente: <strong>
+          {createNewPaciente
+            ? `${pacienteData.nombre} ${pacienteData.apellido_pat || ''} ${pacienteData.apellido_mat || ''}`.trim()
+            : selectedPacienteData ? formatNombre(selectedPacienteData) : ''}
+        </strong></p>
+      )}
+      {(selectedMedico || createNewMedico) && step === 'ficha' && (
+        <p>Médico: <strong>
+          {createNewMedico
+            ? `${medicoData.nombre} ${medicoData.apellido_pat || ''} ${medicoData.apellido_mat || ''}`.trim()
+            : selectedMedicoData ? formatNombre(selectedMedicoData) : ''}
+        </strong></p>
+      )}
+    </div>
+  )
+
+  const stepLabel: Record<Step, string> = {
+    institucion: 'Seleccionar Institución',
+    paciente: 'Seleccionar Paciente',
+    medico: 'Seleccionar Médico',
+    ficha: 'Datos de la Ficha',
   }
 
-  const selectedPacienteData = contactosInstitucion.find(c => c.id === selectedPaciente)
-  const selectedInstitucionData = instituciones.find(i => i.id === selectedInstitucion)
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm() }}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="h-4 w-4 mr-2" />
@@ -174,118 +205,95 @@ useEffect(() => {
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {step === 'institucion' && 'Seleccionar Institución'}
-            {step === 'paciente' && 'Seleccionar Paciente'}
-            {step === 'ficha' && 'Datos de la Ficha'}
-          </DialogTitle>
+          <DialogTitle>{stepLabel[step]}</DialogTitle>
         </DialogHeader>
 
+        {/* PASO 1 - Institución */}
         {step === 'institucion' && (
           <div className="space-y-6">
-            <div>
-              <Label htmlFor="institucion">Institución *</Label>
+            <div className="space-y-1">
+              <Label>Institución <span className="text-destructive">*</span></Label>
               <Select value={selectedInstitucion} onValueChange={setSelectedInstitucion}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar institución" />
                 </SelectTrigger>
                 <SelectContent>
-                  {instituciones.map(institucion => (
-                    <SelectItem key={institucion.id} value={institucion.id}>
-                      {institucion.nombre}
-                    </SelectItem>
+                  {instituciones.map(inst => (
+                    <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="flex justify-end">
-              <Button onClick={handleInstitucionNext} disabled={!selectedInstitucion}>
+              <Button onClick={() => setStep('paciente')} disabled={!selectedInstitucion}>
                 Continuar
               </Button>
             </div>
           </div>
         )}
 
+        {/* PASO 2 - Paciente */}
         {step === 'paciente' && (
           <div className="space-y-6">
-            <div className="text-sm text-muted-foreground mb-4">
-              Institución: <strong>{selectedInstitucionData?.nombre}</strong>
-            </div>
+            {resumen}
 
-            {/* Selección de paciente existente */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Paciente Existente</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <Label>Buscar paciente</Label>
-                  <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={openCombobox}
-                        className="w-full justify-between"
-                        disabled={createNewPaciente}
-                      >
-                        {selectedPacienteData
-                          ? formatearNombreCompleto(selectedPacienteData)
-                          : "Seleccionar paciente..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar paciente..." />
-                        <CommandList>
-                          <CommandEmpty>No se encontraron pacientes.</CommandEmpty>
-                          <CommandGroup>
-                            {contactosInstitucion.map((paciente) => (
-                              <CommandItem
-                                key={paciente.id}
-                                value={formatearNombreCompleto(paciente)}
-                                onSelect={() => {
-                                  setSelectedPaciente(paciente.id === selectedPaciente ? "" : paciente.id)
-                                  setOpenCombobox(false)
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    selectedPaciente === paciente.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {formatearNombreCompleto(paciente)}
-                                {paciente.telefono && (
-                                  <span className="ml-auto text-sm text-muted-foreground">
-                                    {paciente.telefono}
-                                  </span>
-                                )}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <Popover open={openPacienteCombobox} onOpenChange={setOpenPacienteCombobox}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                      disabled={createNewPaciente}
+                    >
+                      {loadingContactos
+                        ? 'Cargando...'
+                        : selectedPacienteData ? formatNombre(selectedPacienteData) : 'Seleccionar paciente...'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar paciente..." />
+                      <CommandList>
+                        <CommandEmpty>No se encontraron pacientes.</CommandEmpty>
+                        <CommandGroup>
+                          {pacientesInstitucion.map((p) => (
+                            <CommandItem
+                              key={p.id}
+                              value={formatNombre(p)}
+                              onSelect={() => {
+                                setSelectedPaciente(p.id === selectedPaciente ? '' : p.id)
+                                setOpenPacienteCombobox(false)
+                              }}
+                            >
+                              <Check className={cn('mr-2 h-4 w-4', selectedPaciente === p.id ? 'opacity-100' : 'opacity-0')} />
+                              {formatNombre(p)}
+                              {p.telefono && (
+                                <span className="ml-auto text-sm text-muted-foreground">{p.telefono}</span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </CardContent>
             </Card>
 
-            <div className="text-center">
-              <span className="text-muted-foreground">- O -</span>
-            </div>
+            <div className="text-center text-muted-foreground text-sm">— O —</div>
 
-            {/* Crear nuevo paciente */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center justify-between">
                   Crear Nuevo Paciente
                   <Button
-                    type="button"
-                    variant={createNewPaciente ? "default" : "outline"}
+                    variant={createNewPaciente ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
                       setCreateNewPaciente(!createNewPaciente)
@@ -299,43 +307,37 @@ useEffect(() => {
               {createNewPaciente && (
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="nombre">Nombre *</Label>
+                    <div className="space-y-1">
+                      <Label>Nombre <span className="text-destructive">*</span></Label>
                       <Input
-                        id="nombre"
                         value={pacienteData.nombre}
                         onChange={(e) => setPacienteData(prev => ({ ...prev, nombre: e.target.value }))}
-                        required
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="apellido_pat">Apellido Paterno</Label>
+                    <div className="space-y-1">
+                      <Label>Apellido Paterno</Label>
                       <Input
-                        id="apellido_pat"
                         value={pacienteData.apellido_pat || ''}
                         onChange={(e) => setPacienteData(prev => ({ ...prev, apellido_pat: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="apellido_mat">Apellido Materno</Label>
+                    <div className="space-y-1">
+                      <Label>Apellido Materno</Label>
                       <Input
-                        id="apellido_mat"
                         value={pacienteData.apellido_mat || ''}
                         onChange={(e) => setPacienteData(prev => ({ ...prev, apellido_mat: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="telefono">Teléfono</Label>
+                    <div className="space-y-1">
+                      <Label>Teléfono</Label>
                       <Input
-                        id="telefono"
                         value={pacienteData.telefono || ''}
                         onChange={(e) => setPacienteData(prev => ({ ...prev, telefono: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
+                    <div className="space-y-1">
+                      <Label>Fecha de Nacimiento</Label>
                       <Input
-                        id="fecha_nacimiento"
                         type="date"
                         value={pacienteData.fecha_nacimiento || ''}
                         onChange={(e) => setPacienteData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
@@ -347,56 +349,195 @@ useEffect(() => {
             </Card>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep('institucion')}>
-                Atrás
-              </Button>
-              <Button onClick={handlePacienteNext} disabled={!createNewPaciente && !selectedPaciente}>
+              <Button variant="outline" onClick={() => setStep('institucion')}>Atrás</Button>
+              <Button
+                onClick={() => setStep('medico')}
+                disabled={!createNewPaciente && !selectedPaciente}
+              >
                 Continuar
               </Button>
             </div>
           </div>
         )}
 
+        {/* PASO 3 - Médico */}
+        {step === 'medico' && (
+          <div className="space-y-6">
+            {resumen}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Médico Existente</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Popover open={openMedicoCombobox} onOpenChange={setOpenMedicoCombobox}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                      disabled={createNewMedico}
+                    >
+                      {loadingContactos
+                        ? 'Cargando...'
+                        : selectedMedicoData ? formatNombre(selectedMedicoData) : 'Seleccionar médico...'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar médico..." />
+                      <CommandList>
+                        <CommandEmpty>No se encontraron médicos.</CommandEmpty>
+                        <CommandGroup>
+                          {medicosInstitucion.map((m) => (
+                            <CommandItem
+                              key={m.id}
+                              value={formatNombre(m)}
+                              onSelect={() => {
+                                setSelectedMedico(m.id === selectedMedico ? '' : m.id)
+                                setOpenMedicoCombobox(false)
+                              }}
+                            >
+                              <Check className={cn('mr-2 h-4 w-4', selectedMedico === m.id ? 'opacity-100' : 'opacity-0')} />
+                              {formatNombre(m)}
+                              {m.telefono && (
+                                <span className="ml-auto text-sm text-muted-foreground">{m.telefono}</span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </CardContent>
+            </Card>
+
+            <div className="text-center text-muted-foreground text-sm">— O —</div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  Crear Nuevo Médico
+                  <Button
+                    variant={createNewMedico ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setCreateNewMedico(!createNewMedico)
+                      if (!createNewMedico) setSelectedMedico('')
+                    }}
+                  >
+                    {createNewMedico ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              {createNewMedico && (
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label>Nombre <span className="text-destructive">*</span></Label>
+                      <Input
+                        value={medicoData.nombre}
+                        onChange={(e) => setMedicoData(prev => ({ ...prev, nombre: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Apellido Paterno</Label>
+                      <Input
+                        value={medicoData.apellido_pat || ''}
+                        onChange={(e) => setMedicoData(prev => ({ ...prev, apellido_pat: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Apellido Materno</Label>
+                      <Input
+                        value={medicoData.apellido_mat || ''}
+                        onChange={(e) => setMedicoData(prev => ({ ...prev, apellido_mat: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Teléfono</Label>
+                      <Input
+                        value={medicoData.telefono || ''}
+                        onChange={(e) => setMedicoData(prev => ({ ...prev, telefono: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep('paciente')}>Atrás</Button>
+              {/* Médico es opcional, se puede omitir */}
+              <Button onClick={() => setStep('ficha')}>
+                {selectedMedico || createNewMedico ? 'Continuar' : 'Omitir'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* PASO 4 - Datos de la ficha */}
         {step === 'ficha' && (
           <div className="space-y-6">
-            <div className="text-sm text-muted-foreground space-y-1">
-              <div>Institución: <strong>{selectedInstitucionData?.nombre}</strong></div>
-              <div>
-                Paciente: <strong>
-                  {createNewPaciente 
-                    ? `${pacienteData.nombre} ${pacienteData.apellido_pat || ''} ${pacienteData.apellido_mat || ''}`.trim()
-                    : selectedPacienteData ? formatearNombreCompleto(selectedPacienteData) : ''
-                  }
-                </strong>
-              </div>
-            </div>
+            {resumen}
 
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="diagnostico">Diagnóstico</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Dosis <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={fichaData.dosis}
+                    onChange={(e) => {
+                      setFichaData(prev => ({ ...prev, dosis: e.target.value }))
+                      if (fichaErrors.dosis) setFichaErrors(prev => ({ ...prev, dosis: undefined }))
+                    }}
+                    placeholder="Ej. 100mg cada 8h"
+                    className={fichaErrors.dosis ? 'border-destructive' : ''}
+                  />
+                  {fichaErrors.dosis && <p className="text-xs text-destructive">{fichaErrors.dosis}</p>}
+                </div>
+                <div className="space-y-1">
+                  <Label>Inicio de Tratamiento <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="date"
+                    value={fichaData.fecha_inicio_tratamiento}
+                    onChange={(e) => {
+                      setFichaData(prev => ({ ...prev, fecha_inicio_tratamiento: e.target.value }))
+                      if (fichaErrors.fecha_inicio_tratamiento) setFichaErrors(prev => ({ ...prev, fecha_inicio_tratamiento: undefined }))
+                    }}
+                    className={fichaErrors.fecha_inicio_tratamiento ? 'border-destructive' : ''}
+                  />
+                  {fichaErrors.fecha_inicio_tratamiento && (
+                    <p className="text-xs text-destructive">{fichaErrors.fecha_inicio_tratamiento}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Diagnóstico</Label>
                 <Textarea
-                  id="diagnostico"
-                  value={fichaData.diagnostico || ''}
+                  value={fichaData.diagnostico}
                   onChange={(e) => setFichaData(prev => ({ ...prev, diagnostico: e.target.value }))}
                   placeholder="Descripción del diagnóstico..."
+                  rows={2}
                 />
               </div>
 
-              <div>
-                <Label htmlFor="terapia">Terapia</Label>
+              <div className="space-y-1">
+                <Label>Terapia</Label>
                 <Textarea
-                  id="terapia"
-                  value={fichaData.terapia || ''}
+                  value={fichaData.terapia}
                   onChange={(e) => setFichaData(prev => ({ ...prev, terapia: e.target.value }))}
                   placeholder="Descripción de la terapia..."
+                  rows={2}
                 />
               </div>
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep('paciente')}>
-                Atrás
-              </Button>
+              <Button variant="outline" onClick={() => setStep('medico')}>Atrás</Button>
               <Button onClick={handleSubmit} disabled={loading}>
                 {loading ? 'Creando...' : 'Crear Ficha'}
               </Button>

@@ -1,25 +1,33 @@
 import { supabase } from '@/lib/supabase'
-import type { FichaPaciente, FichaPacienteInsert, FichaPacienteUpdate, FechasTratamiento  } from '@/types/ficha'
+import type { FichaPaciente, FichaPacienteInsert, FichaPacienteUpdate, FechasTratamiento } from '@/types/ficha'
+
+const SELECT_FICHA = `
+  *,
+  institucion:instituciones (
+    id,
+    nombre
+  ),
+  paciente:contactos!paciente_id (
+    id,
+    nombre,
+    apellido_pat,
+    apellido_mat,
+    telefono,
+    fecha_nacimiento
+  ),
+  doctor:contactos!doctor_id (
+    id,
+    nombre,
+    apellido_pat,
+    apellido_mat
+  )
+`
 
 export const fichasService = {
   async getFichas() {
     const { data, error } = await supabase
       .from('ficha_paciente')
-      .select(`
-        *,
-        institucion:instituciones (
-          id,
-          nombre
-        ),
-        paciente:contactos!paciente_id (
-          id,
-          nombre,
-          apellido_pat,
-          apellido_mat,
-          telefono,
-          fecha_nacimiento
-        )
-      `)
+      .select(SELECT_FICHA)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -29,21 +37,7 @@ export const fichasService = {
   async getFichasByInstitucion(institucionId: string) {
     const { data, error } = await supabase
       .from('ficha_paciente')
-      .select(`
-        *,
-        institucion:instituciones (
-          id,
-          nombre
-        ),
-        paciente:contactos!paciente_id (
-          id,
-          nombre,
-          apellido_pat,
-          apellido_mat,
-          telefono,
-          fecha_nacimiento
-        )
-      `)
+      .select(SELECT_FICHA)
       .eq('institucion_id', institucionId)
       .order('created_at', { ascending: false })
 
@@ -54,21 +48,7 @@ export const fichasService = {
   async getFichaById(id: string) {
     const { data, error } = await supabase
       .from('ficha_paciente')
-      .select(`
-        *,
-        institucion:instituciones (
-          id,
-          nombre
-        ),
-        paciente:contactos!paciente_id (
-          id,
-          nombre,
-          apellido_pat,
-          apellido_mat,
-          telefono,
-          fecha_nacimiento
-        )
-      `)
+      .select(SELECT_FICHA)
       .eq('id', id)
       .single()
 
@@ -80,21 +60,7 @@ export const fichasService = {
     const { data, error } = await supabase
       .from('ficha_paciente')
       .insert(ficha)
-      .select(`
-        *,
-        institucion:instituciones (
-          id,
-          nombre
-        ),
-        paciente:contactos!paciente_id (
-          id,
-          nombre,
-          apellido_pat,
-          apellido_mat,
-          telefono,
-          fecha_nacimiento
-        )
-      `)
+      .select(SELECT_FICHA)
       .single()
 
     if (error) throw error
@@ -106,21 +72,7 @@ export const fichasService = {
       .from('ficha_paciente')
       .update(updates)
       .eq('id', id)
-      .select(`
-        *,
-        institucion:instituciones (
-          id,
-          nombre
-        ),
-        paciente:contactos!paciente_id (
-          id,
-          nombre,
-          apellido_pat,
-          apellido_mat,
-          telefono,
-          fecha_nacimiento
-        )
-      `)
+      .select(SELECT_FICHA)
       .single()
 
     if (error) throw error
@@ -139,21 +91,7 @@ export const fichasService = {
   async buscarFichas(texto: string) {
     const { data, error } = await supabase
       .from('ficha_paciente')
-      .select(`
-        *,
-        institucion:instituciones (
-          id,
-          nombre
-        ),
-        paciente:contactos!paciente_id (
-          id,
-          nombre,
-          apellido_pat,
-          apellido_mat,
-          telefono,
-          fecha_nacimiento
-        )
-      `)
+      .select(SELECT_FICHA)
       .or(`folio.ilike.%${texto}%`)
       .order('created_at', { ascending: false })
 
@@ -162,7 +100,6 @@ export const fichasService = {
   },
 
   async getFichasConFechas() {
-    // Obtener el usuario actual y su rol
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('No autenticado')
 
@@ -175,19 +112,7 @@ export const fichasService = {
     let query = supabase
       .from('ficha_paciente')
       .select(`
-        *,
-        institucion:instituciones (
-          id,
-          nombre
-        ),
-        paciente:contactos!paciente_id (
-          id,
-          nombre,
-          apellido_pat,
-          apellido_mat,
-          telefono,
-          fecha_nacimiento
-        ),
+        ${SELECT_FICHA},
         fechas_tratamiento (
           id,
           fecha_programada,
@@ -196,13 +121,9 @@ export const fichasService = {
         )
       `)
 
-    // Si es PAL, filtrar por contactos que pertenecen al PAL
     if (userData?.role === 'pal') {
-      // Filtrar por contactos que el PAL creó
       query = query.eq('paciente.pal_id', user.id)
     }
-    
-    // Si es admin, mostrar todas las fichas (no agregar filtro)
 
     const { data, error } = await query.order('created_at', { ascending: false })
 

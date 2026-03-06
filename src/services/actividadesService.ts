@@ -319,7 +319,8 @@ export const actividadesService = {
       'familiar': 'Familiar',
       'cuidador': 'Cuidador',
       'enfermera': 'Enfermera',
-      'enfermero': 'Enfermero'
+      'enfermero': 'Enfermero',
+      'kam': 'KAM'
     }
     
     return labels[tipoContacto] || tipoContacto

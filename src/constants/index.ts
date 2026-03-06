@@ -11,7 +11,8 @@ export const CONTACT_TYPES = {
   MEDICO: 'medico',
   ENFERMERA: 'enfermera',
   CUIDADOR: 'cuidador',
-  PACIENTE: 'paciente'
+  PACIENTE: 'paciente',
+  KAM: 'kam',
 } as const
 
 export const CONTACT_METHODS = {

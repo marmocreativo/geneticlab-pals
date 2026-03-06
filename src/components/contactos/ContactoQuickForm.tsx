@@ -104,7 +104,8 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
       'familiar': 'Familiar',
       'cuidador': 'Cuidador',
       'enfermera': 'Enfermera',
-      'enfermero': 'Enfermero'
+      'enfermero': 'Enfermero',
+      'kam': 'KAM'
     }
     return labels[tipo] || tipo
   }
@@ -140,6 +141,7 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
                       <SelectItem value="cuidador">Cuidador</SelectItem>
                       <SelectItem value="enfermera">Enfermera</SelectItem>
                       <SelectItem value="enfermero">Enfermero</SelectItem>
+                      <SelectItem value="kam">KAM</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

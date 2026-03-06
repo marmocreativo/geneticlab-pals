@@ -100,6 +100,20 @@ export function useUsers() {
     return updateUser(id, { activo })
   }
 
+  const deleteUserComplete = async (id: string) => {
+    try {
+      const { error } = await supabase.rpc('delete_user_complete', { user_id: id })
+      if (error) throw error
+      await fetchUsers()
+      return { success: true }
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Error al eliminar usuario'
+      }
+    }
+  }
+
   useEffect(() => {
     fetchUsers()
   }, [])
@@ -112,5 +126,6 @@ export function useUsers() {
     createUser,
     updateUser,
     toggleUserStatus,
+    deleteUserComplete,
   }
 }
