@@ -1,32 +1,76 @@
 // services/fotosEvidenciaService.ts
 import { supabase } from '@/lib/supabase'
 
+async function comprimirImagen(file: File, maxWidth = 1280, quality = 0.8): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+
+      const canvas = document.createElement('canvas')
+      let { width, height } = img
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width)
+        width = maxWidth
+      }
+
+      canvas.width = width
+      canvas.height = height
+
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, width, height)
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return }
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+            type: 'image/jpeg'
+          })
+          resolve(compressed)
+        },
+        'image/jpeg',
+        quality
+      )
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(file)
+    }
+
+    img.src = url
+  })
+}
+
 export const fotosEvidenciaService = {
   async subirFoto(visitaId: string, file: File) {
     try {
-      // Generar nombre único para el archivo
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${visitaId}-${Date.now()}.${fileExt}`
+      const fileToUpload = file.type.startsWith('image/')
+        ? await comprimirImagen(file)
+        : file
+
+      const fileName = `${visitaId}-${Date.now()}.jpg`
       const filePath = `evidencias/${fileName}`
 
-      // Subir archivo a Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('evidencias')
-        .upload(filePath, file, {
+        .upload(filePath, fileToUpload, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: 'image/jpeg'
         })
 
       if (uploadError) throw uploadError
 
-      // Obtener URL pública del archivo
       const { data: urlData } = supabase.storage
         .from('evidencias')
         .getPublicUrl(filePath)
 
       if (!urlData.publicUrl) throw new Error('No se pudo obtener la URL pública')
 
-      // Guardar registro en la tabla fotos_evidencia
       const { data: fotoData, error: dbError } = await supabase
         .from('fotos_evidencia')
         .insert({
@@ -62,14 +106,12 @@ export const fotosEvidenciaService = {
 
   async eliminarFoto(fotoId: string, filePath: string) {
     try {
-      // Eliminar archivo del storage
       const { error: storageError } = await supabase.storage
         .from('evidencias')
         .remove([filePath])
 
       if (storageError) console.warn('Error eliminando archivo del storage:', storageError)
 
-      // Eliminar registro de la base de datos
       const { error: dbError } = await supabase
         .from('fotos_evidencia')
         .delete()
@@ -84,14 +126,11 @@ export const fotosEvidenciaService = {
     }
   },
 
-  // Verificar si el bucket existe y está configurado correctamente
   async verificarBucket() {
     try {
-      const {  error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('evidencias')
-        .list('', {
-          limit: 1
-        })
+        .list('', { limit: 1 })
 
       if (error) {
         console.error('Error verificando bucket:', error)

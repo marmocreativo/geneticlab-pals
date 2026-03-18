@@ -9,6 +9,7 @@ export default function PalDashboard() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8">
+        <img src="/logo.svg" alt="Control PALs Logo" className="h-24 w-auto mx-auto" />
         <h1 className="text-3xl font-bold text-center mb-2">Bienvenido</h1>
         <p className="text-muted-foreground text-center">
           Selecciona una opción para continuar

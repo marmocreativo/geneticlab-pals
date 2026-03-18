@@ -68,8 +68,8 @@ export function useFotosEvidencia() {
       return null
     }
 
-    // Validar tamaño (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validar tamaño (máximo 15MB)
+    if (file.size > 15 * 1024 * 1024) {
       toast.error('La imagen debe ser menor a 5MB')
       return null
     }

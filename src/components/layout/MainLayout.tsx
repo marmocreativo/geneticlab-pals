@@ -159,11 +159,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   )
 
   return (
-    <div className="h-screen flex bg-gradient-to-b from-muted/50 to-white">
+    <div className="h-screen flex bg-gradient-to-b from-background to-white">
       {/* Sidebar Desktop */}
-      <aside className="hidden lg:flex w-64 flex-col border-r bg-card">
+      <aside className="hidden lg:flex w-64 flex-col border-r bg-gradient-to-b from-white to-primary/20">
         <div className="p-6">
-          <h1 className="text-2xl font-bold">Control PALs</h1>
+          <img src="/logo.svg" alt="Control PALs Logo" className="h-32 w-auto" />
           <div className="flex items-center gap-2 mt-1">
             <p className="text-xs text-muted-foreground">
               {role === 'admin' ? 'Panel Administrativo' : 'Panel PAL'}
@@ -212,9 +212,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               </Button>
             </SheetTrigger>
             
-            <SheetContent side="left" className="w-64 p-0">
+            <SheetContent side="left" className="w-64 p-0 bg-gradient-to-b from-white to-primary">
               <div className="p-6">
-                <h1 className="text-2xl font-bold">Control PALs</h1>
+                <img src="/logo.svg" alt="Control PALs Logo" className="h-32 w-auto" />
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-xs text-muted-foreground">
                     {role === 'admin' ? 'Panel Administrativo' : 'Panel PAL'}

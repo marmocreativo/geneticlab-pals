@@ -33,13 +33,13 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md bg-gradient-to-b from-accent/50 to-white">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-primary/20 p-4">
+      <Card className="w-full max-w-md ">
         <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-          <img src="/logo.svg" alt="Control PALs Logo" className="h-16 w-auto" />
+          <div className="flex justify-center mb-3">
+          <img src="/logo.svg" alt="Control PALs Logo" className="h-32 w-auto" />
         </div>
-          <CardTitle className="text-3xl font-bold">Control PALs</CardTitle>
+          <CardTitle className="text-xl font-bold">Acceso a usuarios</CardTitle>
           <CardDescription>
             Ingresa tus credenciales para acceder
           </CardDescription>
