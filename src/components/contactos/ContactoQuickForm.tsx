@@ -30,7 +30,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import type { Contacto, ContactoInsert } from '@/types/contacto'
 
 const contactoSchema = z.object({
-  tipo_contacto: z.enum(['medico', 'paciente', 'familiar', 'cuidador', 'enfermera', 'enfermero'], {
+  tipo_contacto: z.enum(['medico', 'paciente', 'familiar', 'cuidador', 'enfermera', 'enfermero', 'kam'], {
     message: 'Selecciona el tipo de contacto'
   }),
   nombre: z.string().min(1, 'El nombre es requerido'),

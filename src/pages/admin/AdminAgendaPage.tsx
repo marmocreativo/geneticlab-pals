@@ -1,4 +1,3 @@
-// pages/admin/AdminAgendaPage.tsx
 import { useState, useEffect, useMemo } from 'react'
 import {
   format,
@@ -18,6 +17,7 @@ import {
   Clock,
   Loader2,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,7 +33,6 @@ import { visitasService } from '@/services/visitasService'
 import { useUsers } from '@/hooks/useUsers'
 import type { Visita } from '@/types/visita'
 
-// Helpers
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
@@ -47,6 +46,8 @@ const ESTADO_COLORS: Record<string, string> = {
 
 export default function AdminAgendaPage() {
   const now = new Date()
+  const navigate = useNavigate()
+
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth())
   const [selectedYear, setSelectedYear] = useState(now.getFullYear())
   const [userSearch, setUserSearch] = useState('')
@@ -57,13 +58,11 @@ export default function AdminAgendaPage() {
 
   const { users } = useUsers()
 
-  // Solo PALs activos
   const palUsers = useMemo(
     () => users.filter((u) => u.role === 'pal' && u.activo),
     [users]
   )
 
-  // Filtro de usuarios por búsqueda
   const filteredUsers = useMemo(() => {
     if (!userSearch.trim()) return palUsers
     const search = userSearch.toLowerCase()
@@ -74,7 +73,6 @@ export default function AdminAgendaPage() {
     )
   }, [palUsers, userSearch])
 
-  // Usuarios a mostrar (si seleccionó uno específico, solo ese)
   const displayUsers = useMemo(() => {
     if (selectedUserId) {
       const found = palUsers.find((u) => u.id === selectedUserId)
@@ -83,14 +81,12 @@ export default function AdminAgendaPage() {
     return filteredUsers
   }, [selectedUserId, filteredUsers, palUsers])
 
-  // Días del mes
   const monthDays = useMemo(() => {
     const start = startOfMonth(new Date(selectedYear, selectedMonth))
     const end = endOfMonth(start)
     return eachDayOfInterval({ start, end })
   }, [selectedMonth, selectedYear])
 
-  // Agrupar días por semana
   const weeks = useMemo(() => {
     const weeksMap: Date[][] = []
     let currentWeek: Date[] = []
@@ -111,22 +107,14 @@ export default function AdminAgendaPage() {
     return weeksMap
   }, [monthDays])
 
-  // Semana actual visible
   const currentWeekDays = weeks[currentWeekIndex] || []
 
-  // Cargar visitas cuando cambie mes/año
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       try {
-        const start = format(
-          startOfMonth(new Date(selectedYear, selectedMonth)),
-          'yyyy-MM-dd'
-        )
-        const end = format(
-          endOfMonth(new Date(selectedYear, selectedMonth)),
-          'yyyy-MM-dd'
-        )
+        const start = format(startOfMonth(new Date(selectedYear, selectedMonth)), 'yyyy-MM-dd')
+        const end = format(endOfMonth(new Date(selectedYear, selectedMonth)), 'yyyy-MM-dd')
         const data = await visitasService.getVisitasByRangoFechas(start, end)
         setVisitas(data)
       } catch (err) {
@@ -138,23 +126,15 @@ export default function AdminAgendaPage() {
     fetchData()
   }, [selectedMonth, selectedYear])
 
-  // Reset semana al cambiar mes
   useEffect(() => {
-    // Encontrar la semana que contiene "hoy" si estamos en el mes actual
-    if (
-      selectedMonth === now.getMonth() &&
-      selectedYear === now.getFullYear()
-    ) {
-      const todayWeekIdx = weeks.findIndex((week) =>
-        week.some((d) => isToday(d))
-      )
+    if (selectedMonth === now.getMonth() && selectedYear === now.getFullYear()) {
+      const todayWeekIdx = weeks.findIndex((week) => week.some((d) => isToday(d)))
       setCurrentWeekIndex(todayWeekIdx >= 0 ? todayWeekIdx : 0)
     } else {
       setCurrentWeekIndex(0)
     }
   }, [weeks])
 
-  // Obtener visitas de un usuario en un día
   const getVisitasForUserDay = (userId: string, day: Date): Visita[] => {
     const dayStr = format(day, 'yyyy-MM-dd')
     return visitas.filter((v) => {
@@ -163,7 +143,11 @@ export default function AdminAgendaPage() {
     })
   }
 
-  // Años disponibles
+  const handleVisitaClick = (visita: Visita) => {
+    const fecha = format(new Date(visita.fecha_visita), 'yyyy-MM-dd')
+    navigate(`/admin/visitas/${visita.id}?pal=${visita.pal_id}&institucion=${visita.institucion_id}&fecha=${fecha}`)
+  }
+
   const years = useMemo(() => {
     const current = now.getFullYear()
     return [current - 1, current, current + 1]
@@ -183,11 +167,9 @@ export default function AdminAgendaPage() {
         </p>
       </div>
 
-      {/* Filtros */}
       <Card>
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            {/* Mes */}
             <div className="flex gap-2">
               <Select
                 value={String(selectedMonth)}
@@ -222,7 +204,6 @@ export default function AdminAgendaPage() {
               </Select>
             </div>
 
-            {/* Buscador de usuario */}
             <div className="flex-1 flex gap-2">
               <div className="relative flex-1 max-w-xs">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -236,15 +217,11 @@ export default function AdminAgendaPage() {
                   className="pl-9"
                 />
                 {(userSearch || selectedUserId) && (
-                  <button
-                    onClick={clearUserFilter}
-                    className="absolute right-2.5 top-2.5"
-                  >
+                  <button onClick={clearUserFilter} className="absolute right-2.5 top-2.5">
                     <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                   </button>
                 )}
 
-                {/* Dropdown de resultados */}
                 {userSearch && !selectedUserId && filteredUsers.length > 0 && (
                   <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
                     {filteredUsers.map((u) => (
@@ -257,9 +234,7 @@ export default function AdminAgendaPage() {
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
                       >
                         {u.nombre_completo}
-                        <span className="text-muted-foreground ml-2 text-xs">
-                          {u.email}
-                        </span>
+                        <span className="text-muted-foreground ml-2 text-xs">{u.email}</span>
                       </button>
                     ))}
                   </div>
@@ -270,7 +245,6 @@ export default function AdminAgendaPage() {
         </CardContent>
       </Card>
 
-      {/* Navegación de semanas */}
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
@@ -287,10 +261,7 @@ export default function AdminAgendaPage() {
           {currentWeekDays.length > 0 && (
             <span className="text-muted-foreground ml-2">
               ({format(currentWeekDays[0], 'd MMM', { locale: es })} -{' '}
-              {format(currentWeekDays[currentWeekDays.length - 1], 'd MMM', {
-                locale: es,
-              })}
-              )
+              {format(currentWeekDays[currentWeekDays.length - 1], 'd MMM', { locale: es })})
             </span>
           )}
         </span>
@@ -298,9 +269,7 @@ export default function AdminAgendaPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            setCurrentWeekIndex((p) => Math.min(weeks.length - 1, p + 1))
-          }
+          onClick={() => setCurrentWeekIndex((p) => Math.min(weeks.length - 1, p + 1))}
           disabled={currentWeekIndex >= weeks.length - 1}
         >
           Siguiente
@@ -308,15 +277,12 @@ export default function AdminAgendaPage() {
         </Button>
       </div>
 
-      {/* Tabla principal */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-sm text-muted-foreground">
-                Cargando visitas...
-              </span>
+              <span className="ml-2 text-sm text-muted-foreground">Cargando visitas...</span>
             </div>
           ) : displayUsers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
@@ -338,21 +304,10 @@ export default function AdminAgendaPage() {
                           isToday(day) && 'bg-primary/5'
                         )}
                       >
-                        <div
-                          className={cn(
-                            'text-xs text-muted-foreground',
-                            isToday(day) && 'text-primary font-semibold'
-                          )}
-                        >
+                        <div className={cn('text-xs text-muted-foreground', isToday(day) && 'text-primary font-semibold')}>
                           {format(day, 'EEE', { locale: es })}
                         </div>
-                        <div
-                          className={cn(
-                            'text-base',
-                            isToday(day) &&
-                              'text-primary font-bold'
-                          )}
-                        >
+                        <div className={cn('text-base', isToday(day) && 'text-primary font-bold')}>
                           {format(day, 'd')}
                         </div>
                       </th>
@@ -372,48 +327,34 @@ export default function AdminAgendaPage() {
                         return (
                           <td
                             key={day.toISOString()}
-                            className={cn(
-                              'p-1.5 border-l align-top',
-                              isToday(day) && 'bg-primary/5'
-                            )}
+                            className={cn('p-1.5 border-l align-top', isToday(day) && 'bg-primary/5')}
                           >
                             {dayVisitas.length > 0 ? (
                               <div className="space-y-1">
                                 {dayVisitas
-                                  .sort(
-                                    (a, b) =>
-                                      new Date(a.fecha_visita).getTime() -
-                                      new Date(b.fecha_visita).getTime()
-                                  )
+                                  .sort((a, b) => new Date(a.fecha_visita).getTime() - new Date(b.fecha_visita).getTime())
                                   .map((v) => (
-                                    <div
+                                    <button
                                       key={v.id}
+                                      onClick={() => handleVisitaClick(v)}
                                       className={cn(
-                                        'rounded p-1.5 text-xs border',
-                                        ESTADO_COLORS[v.estado] ||
-                                          'bg-gray-50 border-gray-200'
+                                        'rounded p-1.5 text-xs border w-full text-left hover:opacity-80 transition-opacity cursor-pointer',
+                                        ESTADO_COLORS[v.estado] || 'bg-gray-50 border-gray-200'
                                       )}
                                     >
                                       <div className="flex items-center gap-1 font-medium truncate">
                                         <MapPin className="h-3 w-3 flex-shrink-0" />
-                                        <span className="truncate">
-                                          {v.institucion?.nombre || 'N/A'}
-                                        </span>
+                                        <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
                                       </div>
                                       <div className="flex items-center gap-1 mt-0.5 text-[10px] opacity-75">
                                         <Clock className="h-2.5 w-2.5" />
-                                        {format(
-                                          new Date(v.fecha_visita),
-                                          'HH:mm'
-                                        )}
+                                        {format(new Date(v.fecha_visita), 'HH:mm')}
                                       </div>
-                                    </div>
+                                    </button>
                                   ))}
                               </div>
                             ) : (
-                              <div className="text-center text-muted-foreground text-xs py-2">
-                                -
-                              </div>
+                              <div className="text-center text-muted-foreground text-xs py-2">-</div>
                             )}
                           </td>
                         )
@@ -427,7 +368,6 @@ export default function AdminAgendaPage() {
         </CardContent>
       </Card>
 
-      {/* Leyenda */}
       <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-yellow-200 border border-yellow-300" />

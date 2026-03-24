@@ -8,7 +8,7 @@ export type Json =
 
 export type UserRole = 'admin' | 'pal'
 
-export type TipoContacto = 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero'
+export type TipoContacto = 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero' | 'kam'
 
 export type TipoVisita = 'presencial' | 'telefono'
 
