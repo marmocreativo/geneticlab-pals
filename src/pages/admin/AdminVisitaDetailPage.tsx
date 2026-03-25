@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { visitasService } from '@/services/visitasService'
 import { actividadesService } from '@/services/actividadesService'
+import { fotosEvidenciaService } from '@/services/fotosEvidenciaService'
 import type { Visita } from '@/types/visita'
 import type { Actividad } from '@/types/actividad'
 
@@ -33,8 +34,10 @@ export default function AdminVisitaDetailPage() {
 
   const [visita, setVisita] = useState<Visita | null>(null)
   const [actividades, setActividades] = useState<Actividad[]>([])
+  const [fotos, setFotos] = useState<{ id: string; url_storage: string }[]>([])
   const [loadingVisita, setLoadingVisita] = useState(true)
   const [loadingActividades, setLoadingActividades] = useState(true)
+  const [loadingFotos, setLoadingFotos] = useState(true)
 
   useEffect(() => {
     if (!visitaId) return
@@ -65,6 +68,21 @@ export default function AdminVisitaDetailPage() {
     }
     fetchActividades()
   }, [palId, fecha])
+
+  useEffect(() => {
+    if (!visitaId) return
+    const fetchFotos = async () => {
+      try {
+        const data = await fotosEvidenciaService.getFotosByVisita(visitaId)
+        setFotos(data)
+      } catch (err) {
+        console.error('Error cargando fotos:', err)
+      } finally {
+        setLoadingFotos(false)
+      }
+    }
+    fetchFotos()
+  }, [visitaId])
 
   return (
     <div className="space-y-6">
@@ -162,6 +180,37 @@ export default function AdminVisitaDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Fotos de evidencia */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Fotos de Evidencia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingFotos ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+              <span className="text-sm text-muted-foreground">Cargando fotos...</span>
+            </div>
+          ) : fotos.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No hay fotos de evidencia para esta visita
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {fotos.map((foto) => (
+                <a key={foto.id} href={foto.url_storage} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={foto.url_storage}
+                    alt="Evidencia"
+                    className="w-full aspect-square object-cover rounded-md border hover:opacity-80 transition-opacity"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Actividades del día */}
       <Card>

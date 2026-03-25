@@ -1,66 +1,104 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { useGooglePlaces } from '@/hooks/useGooglePlaces';
-import { MapPin } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 
 interface PlaceSearchInputProps {
   onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
 }
 
+interface Suggestion {
+  place_id: string;
+  description: string;
+  structured_formatting: {
+    main_text: string;
+    secondary_text: string;
+  };
+}
+
 export function PlaceSearchInput({ onPlaceSelect }: PlaceSearchInputProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const { isLoaded } = useGooglePlaces();
   const [inputValue, setInputValue] = useState('');
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
+  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesService = useRef<google.maps.places.PlacesService | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isLoaded || !inputRef.current) {
+    if (!isLoaded) return;
+    autocompleteService.current = new google.maps.places.AutocompleteService();
+    // PlacesService necesita un elemento DOM o mapa
+    const div = document.createElement('div');
+    placesService.current = new google.maps.places.PlacesService(div);
+  }, [isLoaded]);
+
+  // Cerrar al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const buscarSugerencias = useCallback((texto: string) => {
+    if (!autocompleteService.current || texto.length < 3) {
+      setSuggestions([]);
+      setOpen(false);
       return;
     }
 
-    try {
-      // Limpiar instancia anterior si existe
-      if (autocompleteRef.current) {
-        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+    setSearching(true);
+    autocompleteService.current.getPlacePredictions(
+      {
+        input: texto,
+        types: ['hospital'],
+        componentRestrictions: { country: 'mx' },
+      },
+      (predictions, status) => {
+        setSearching(false);
+        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          setSuggestions(predictions as Suggestion[]);
+          setOpen(true);
+        } else {
+          setSuggestions([]);
+          setOpen(false);
+        }
       }
+    );
+  }, []);
 
-      // Crear nueva instancia de Autocomplete
-      autocompleteRef.current = new google.maps.places.Autocomplete(
-        inputRef.current,
-        {
-          types: ['hospital'],
-          componentRestrictions: { country: 'mx' },
-          fields: ['name', 'formatted_address', 'geometry', 'place_id'],
-        }
-      );
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
 
-      // Listener para cuando se selecciona un lugar
-      const listener = autocompleteRef.current.addListener('place_changed', () => {
-        const place = autocompleteRef.current?.getPlace();
-        
-        if (place && place.geometry) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => buscarSugerencias(value), 300);
+  };
+
+  const handleSelectSuggestion = (suggestion: Suggestion) => {
+    if (!placesService.current) return;
+
+    setInputValue(suggestion.structured_formatting.main_text);
+    setOpen(false);
+    setSuggestions([]);
+
+    placesService.current.getDetails(
+      {
+        placeId: suggestion.place_id,
+        fields: ['name', 'formatted_address', 'geometry', 'place_id', 'photos'],
+      },
+      (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
           onPlaceSelect(place);
-          setInputValue(place.name || '');
         }
-      });
-
-      // Cleanup
-      return () => {
-        if (listener) {
-          google.maps.event.removeListener(listener);
-        }
-      };
-    } catch (error) {
-      console.error('Error initializing Google Places Autocomplete:', error);
-    }
-  }, [isLoaded, onPlaceSelect]);
-
-  // Manejar Enter para seleccionar automáticamente el primer resultado
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      // Google Places maneja automáticamente Enter, solo prevenimos el submit del form
-    }
+      }
+    );
   };
 
   if (!isLoaded) {
@@ -73,19 +111,39 @@ export function PlaceSearchInput({ onPlaceSelect }: PlaceSearchInputProps) {
   }
 
   return (
-    <div className="relative">
-      <Input
-        ref={inputRef}
-        type="text"
-        placeholder="Buscar hospital o clínica..."
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        autoComplete="off"
-      />
-      <p className="text-xs text-muted-foreground mt-1">
-        💡 Escribe y presiona <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> o usa las flechas <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↓</kbd> <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↑</kbd> y <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd>
-      </p>
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Input
+          type="text"
+          placeholder="Buscar hospital o clínica..."
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          autoComplete="off"
+        />
+        {searching && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+        )}
+      </div>
+
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-md max-h-60 overflow-auto">
+          {suggestions.map((s) => (
+            <li
+              key={s.place_id}
+              className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-muted active:bg-muted"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handleSelectSuggestion(s)}
+            >
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{s.structured_formatting.main_text}</p>
+                <p className="text-xs text-muted-foreground truncate">{s.structured_formatting.secondary_text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

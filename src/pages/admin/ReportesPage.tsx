@@ -1,4 +1,6 @@
+// src/pages/admin/ReportesPage.tsx
 import { useState, useEffect } from 'react'
+import * as XLSX from 'xlsx'
 import { BarChart3, Download, FileSpreadsheet, Users, Building, Activity, Calendar } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,9 +9,7 @@ import { Input } from '@/components/ui/input'
 import { useContactos } from '@/hooks/useContactos'
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
-import { visitasService } from '@/services/visitasService'
-import { actividadesService } from '@/services/actividadesService'
-import { exportService } from '@/services/exportService'
+import { supabase } from '@/lib/supabase'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { toast } from 'sonner'
 
@@ -31,30 +31,59 @@ export default function ReportesPage() {
     setFechaFin(format(fin, 'yyyy-MM-dd'))
   }, [])
 
+  const descargarExcel = (sheets: { nombre: string; datos: Record<string, unknown>[] }[], nombreArchivo: string) => {
+    const workbook = XLSX.utils.book_new()
+    for (const sheet of sheets) {
+      const worksheet = XLSX.utils.json_to_sheet(sheet.datos)
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheet.nombre)
+    }
+    const fecha = format(new Date(), 'yyyy-MM-dd')
+    XLSX.writeFile(workbook, `${nombreArchivo}_${fecha}.xlsx`)
+  }
+
   const generateVisitasReport = async () => {
     try {
       setLoading(true)
-      const data = await visitasService.getVisitasByRangoFechas(fechaInicio, fechaFin)
 
-      if (!data.length) {
+      const { data, error } = await supabase
+        .from('visitas')
+        .select(`
+          id,
+          fecha_visita,
+          estado,
+          validacion_gps,
+          distancia_metros,
+          updated_at,
+          pal:users(nombre_completo),
+          institucion:instituciones(nombre),
+          fotos_evidencia(id, url_storage)
+        `)
+        .gte('fecha_visita', `${fechaInicio}T00:00:00`)
+        .lte('fecha_visita', `${fechaFin}T23:59:59`)
+        .order('fecha_visita', { ascending: true })
+
+      if (error) throw error
+      if (!data?.length) {
         toast.warning('No hay visitas en el período seleccionado')
         return
       }
 
-      const reportData = data.map(visita => ({
-        fecha_contacto: visita.fecha_visita,
-        pal_nombre: visita.pal?.nombre_completo || 'N/A',
-        institucion_nombre: visita.institucion?.nombre || 'N/A',
-        tipo_contacto: 'presencial',
-        estado: visita.estado,
-        validacion_gps: visita.validacion_gps,
-        distancia_metros: visita.distancia_metros || 0
+      const datos = data.map((v: any) => ({
+        'ID': v.id,
+        'PAL': v.pal?.nombre_completo || 'N/A',
+        'Institución': v.institucion?.nombre || 'N/A',
+        'Fecha': format(new Date(v.fecha_visita), 'dd/MM/yyyy HH:mm'),
+        'Estado': v.estado,
+        'Validación GPS': v.validacion_gps ? 'Sí' : 'No',
+        'Distancia (m)': v.distancia_metros ?? '',
+        'Fotos Evidencia': v.fotos_evidencia?.map((f: any) => f.url_storage).join(', ') || '',
+        'Última Actualización': format(new Date(v.updated_at), 'dd/MM/yyyy HH:mm'),
       }))
 
-      exportService.exportarContactosExcel(reportData, 'reporte_visitas')
-      toast.success('Reporte de visitas descargado exitosamente')
-    } catch (error) {
-      console.error('Error generando reporte:', error)
+      descargarExcel([{ nombre: 'Visitas', datos }], 'reporte_visitas')
+      toast.success('Reporte de visitas descargado')
+    } catch (err) {
+      console.error(err)
       toast.error('Error al generar el reporte')
     } finally {
       setLoading(false)
@@ -64,38 +93,52 @@ export default function ReportesPage() {
   const generateActividadesReport = async () => {
     try {
       setLoading(true)
-      const data = await actividadesService.getAllActividades()
 
-      const filtrados = data.filter(actividad => {
-        if (!fechaInicio || !fechaFin) return true
-        const fecha = new Date(actividad.fecha_actividad)
-        return fecha >= new Date(fechaInicio) && fecha <= new Date(fechaFin)
-      })
+      const { data, error } = await supabase
+        .from('actividades')
+        .select(`
+          id,
+          descripcion_actividad,
+          temas_impartidos,
+          notas,
+          fecha_actividad,
+          hora_actividad,
+          tipo_actividad,
+          pal:users(nombre_completo),
+          contacto:contactos(nombre, apellido_pat, apellido_mat, tipo_contacto),
+          entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(nombre),
+          entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(nombre)
+        `)
+        .gte('fecha_actividad', fechaInicio)
+        .lte('fecha_actividad', fechaFin)
+        .order('fecha_actividad', { ascending: true })
 
-      if (!filtrados.length) {
+      if (error) throw error
+      if (!data?.length) {
         toast.warning('No hay actividades en el período seleccionado')
         return
       }
 
-      const reportData = filtrados.map(actividad => ({
-        fecha_contacto: actividad.fecha_actividad,
-        pal_nombre: actividad.pal?.nombre_completo || 'N/A',
-        institucion_nombre: actividad.institucion?.nombre || 'N/A',
-        contacto_con: actividad.contacto
-          ? `${actividad.contacto.nombre} ${actividad.contacto.apellido_pat || ''}`.trim()
+      const datos = data.map((a: any) => ({
+        'ID': a.id,
+        'PAL': a.pal?.nombre_completo || 'N/A',
+        'Contacto': a.contacto
+          ? [a.contacto.nombre, a.contacto.apellido_pat, a.contacto.apellido_mat].filter(Boolean).join(' ')
           : 'N/A',
-        tipo_contacto: actividad.tipo_actividad,
-        estado: 'completada',
-        descripcion_actividad: actividad.descripcion_actividad || '',
-        tema_impartido: actividad.temas_impartidos || '',
-        entrega_sobres: actividad.entrega_sobres?.nombre || '',
-        entrega_kit_rash: actividad.entrega_kit_rash?.nombre || ''
+        'Tipo Contacto': a.contacto?.tipo_contacto || 'N/A',
+        'Descripción Actividad': a.descripcion_actividad || '',
+        'Temas Impartidos': a.temas_impartidos || '',
+        'Entrega Sobres': a.entrega_sobres?.nombre || '',
+        'Entrega Kit Rash': a.entrega_kit_rash?.nombre || '',
+        'Notas': a.notas || '',
+        'Fecha Actividad': a.fecha_actividad,
+        'Hora Actividad': a.hora_actividad || '',
       }))
 
-      exportService.exportarContactosExcel(reportData, 'reporte_actividades')
-      toast.success('Reporte de actividades descargado exitosamente')
-    } catch (error) {
-      console.error('Error generando reporte:', error)
+      descargarExcel([{ nombre: 'Actividades', datos }], 'reporte_actividades')
+      toast.success('Reporte de actividades descargado')
+    } catch (err) {
+      console.error(err)
       toast.error('Error al generar el reporte')
     } finally {
       setLoading(false)
@@ -106,68 +149,117 @@ export default function ReportesPage() {
     try {
       setLoading(true)
 
-      const filtrados = contactos.filter(contacto => {
-        if (!fechaInicio || !fechaFin) return true
-        const fecha = new Date(contacto.created_at)
-        return fecha >= new Date(fechaInicio) && fecha <= new Date(fechaFin)
-      })
-
-      if (!filtrados.length) {
-        toast.warning('No hay contactos en el período seleccionado')
+      if (!contactos.length) {
+        toast.warning('No hay contactos registrados')
         return
       }
 
-      const reportData = filtrados.map(contacto => ({
-        fecha_contacto: contacto.created_at,
-        pal_nombre: 'N/A',
-        institucion_nombre: contacto.institucion?.nombre || 'N/A',
-        nombre_completo: `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim(),
-        telefono: contacto.telefono || '',
-        tipo_contacto: contacto.tipo_contacto,
-        estado: 'registrado'
+      const datos = contactos.map(c => ({
+        'Nombre': c.nombre,
+        'Apellido Paterno': c.apellido_pat || '',
+        'Apellido Materno': c.apellido_mat || '',
+        'Institución': c.institucion?.nombre || 'N/A',
+        'Tipo Contacto': c.tipo_contacto,
       }))
 
-      exportService.exportarContactosExcel(reportData, 'reporte_contactos')
-      toast.success('Reporte de contactos descargado exitosamente')
-    } catch (error) {
-      console.error('Error generando reporte:', error)
+      descargarExcel([{ nombre: 'Contactos', datos }], 'reporte_contactos')
+      toast.success('Reporte de contactos descargado')
+    } catch (err) {
+      console.error(err)
       toast.error('Error al generar el reporte')
     } finally {
       setLoading(false)
     }
   }
 
-  const generateFichasReport = () => {
+  const generateFichasReport = async () => {
     try {
       setLoading(true)
 
-      const filtrados = fichas.filter(ficha => {
-        if (!fechaInicio || !fechaFin) return true
-        const fecha = new Date(ficha.created_at)
-        return fecha >= new Date(fechaInicio) && fecha <= new Date(fechaFin)
-      })
+      const { data, error } = await supabase
+        .from('ficha_paciente')
+        .select(`
+          id,
+          folio,
+          diagnostico,
+          terapia,
+          dosis,
+          fecha_inicio_tratamiento,
+          institucion:instituciones(nombre),
+          paciente:contactos!paciente_id(
+            nombre, apellido_pat, apellido_mat,
+            pal:users(nombre_completo)
+          ),
+          doctor:contactos!doctor_id(nombre, apellido_pat, apellido_mat),
+          fechas_tratamiento(id, fecha_programada, asistencia)
+        `)
+        .gte('fecha_inicio_tratamiento', fechaInicio)
+        .lte('fecha_inicio_tratamiento', fechaFin)
+        .order('created_at', { ascending: false })
 
-      if (!filtrados.length) {
+      if (error) throw error
+      if (!data?.length) {
         toast.warning('No hay fichas en el período seleccionado')
         return
       }
 
-      const reportData = filtrados.map(ficha => ({
-        fecha_contacto: ficha.created_at,
-        pal_nombre: 'N/A',
-        institucion_nombre: ficha.institucion?.nombre || 'N/A',
-        nombre_completo: ficha.paciente
-          ? `${ficha.paciente.nombre} ${ficha.paciente.apellido_pat || ''} ${ficha.paciente.apellido_mat || ''}`.trim()
-          : 'N/A',
-        telefono: ficha.paciente?.telefono || '',
-        tipo_contacto: 'paciente',
-        estado: 'registrado'
-      }))
+      // Hoja 1: datos principales
+      const datosFichas = data.map((f: any) => {
+        const pacienteNombre = f.paciente
+          ? [f.paciente.nombre, f.paciente.apellido_pat, f.paciente.apellido_mat].filter(Boolean).join(' ')
+          : 'N/A'
+        const doctorNombre = f.doctor
+          ? [f.doctor.nombre, f.doctor.apellido_pat, f.doctor.apellido_mat].filter(Boolean).join(' ')
+          : 'N/A'
+        const palNombre = f.paciente?.pal?.nombre_completo || 'N/A'
 
-      exportService.exportarContactosExcel(reportData, 'reporte_pacientes')
-      toast.success('Reporte de pacientes descargado exitosamente')
-    } catch (error) {
-      console.error('Error generando reporte:', error)
+        return {
+          'ID': f.id,
+          'Folio': f.folio,
+          'Paciente': pacienteNombre,
+          'Médico': doctorNombre,
+          'PAL': palNombre,
+          'Institución': f.institucion?.nombre || 'N/A',
+          'Diagnóstico': f.diagnostico || '',
+          'Terapia': f.terapia || '',
+          'Dosis': f.dosis || '',
+          'Fecha Inicio Tratamiento': f.fecha_inicio_tratamiento || '',
+        }
+      })
+
+      // Hoja 2: fechas de tratamiento agrupadas por paciente
+      const datosFechas = data.map((f: any) => {
+        const pacienteNombre = f.paciente
+          ? [f.paciente.nombre, f.paciente.apellido_pat, f.paciente.apellido_mat].filter(Boolean).join(' ')
+          : 'N/A'
+
+        const fechas = (f.fechas_tratamiento || [])
+          .sort((a: any, b: any) => a.fecha_programada.localeCompare(b.fecha_programada))
+          .slice(0, 5)
+
+        const fila: Record<string, unknown> = {
+          'ID': f.id,
+          'Folio': f.folio,
+          'Paciente': pacienteNombre,
+        }
+
+        for (let i = 0; i < 5; i++) {
+          const ft = fechas[i]
+          fila[`Fecha ${i + 1}`] = ft?.fecha_programada || ''
+          fila[`Estado ${i + 1}`] = ft ? (ft.asistencia ? 'Asistió' : 'No asistió') : ''
+        }
+
+        return fila
+      })
+
+      descargarExcel([
+        { nombre: 'Fichas', datos: datosFichas },
+        { nombre: 'Fechas Tratamiento', datos: datosFechas },
+      ], 'reporte_pacientes')
+
+      toast.success('Reporte de pacientes descargado')
+    } catch (err) {
+      console.error(err)
       toast.error('Error al generar el reporte')
     } finally {
       setLoading(false)
@@ -176,22 +268,15 @@ export default function ReportesPage() {
 
   const handleDownload = () => {
     switch (tipoReporte) {
-      case 'visitas':
-        generateVisitasReport()
-        break
-      case 'actividades':
-        generateActividadesReport()
-        break
-      case 'contactos':
-        generateContactosReport()
-        break
-      case 'pacientes':
-        generateFichasReport()
-        break
-      default:
-        toast.error('Selecciona un tipo de reporte válido')
+      case 'visitas': generateVisitasReport(); break
+      case 'actividades': generateActividadesReport(); break
+      case 'contactos': generateContactosReport(); break
+      case 'pacientes': generateFichasReport(); break
+      default: toast.error('Selecciona un tipo de reporte válido')
     }
   }
+
+  const mostrarFiltroFecha = tipoReporte !== 'contactos'
 
   return (
     <div className="space-y-6">
@@ -260,23 +345,27 @@ export default function ReportesPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha Inicio</label>
-              <Input
-                type="date"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-              />
-            </div>
+            {mostrarFiltroFecha && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fecha Inicio</label>
+                  <Input
+                    type="date"
+                    value={fechaInicio}
+                    onChange={(e) => setFechaInicio(e.target.value)}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha Fin</label>
-              <Input
-                type="date"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-              />
-            </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fecha Fin</label>
+                  <Input
+                    type="date"
+                    value={fechaFin}
+                    onChange={(e) => setFechaFin(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <label className="text-sm font-medium">&nbsp;</label>
@@ -294,10 +383,10 @@ export default function ReportesPage() {
           <div className="bg-muted/50 p-4 rounded-lg">
             <h4 className="font-medium mb-2">Descripción del Reporte:</h4>
             <p className="text-sm text-muted-foreground">
-              {tipoReporte === 'visitas' && 'Exporta todas las visitas del período con información de PAL, institución, estado y validación GPS.'}
-              {tipoReporte === 'actividades' && 'Exporta todas las actividades del período incluyendo contactos, temas impartidos y entregas.'}
-              {tipoReporte === 'contactos' && 'Exporta la base completa de contactos con información personal y de ubicación.'}
-              {tipoReporte === 'pacientes' && 'Exporta las fichas de pacientes con datos de institución y tratamiento.'}
+              {tipoReporte === 'visitas' && 'Exporta visitas del período con PAL, institución, estado, validación GPS, fotos de evidencia y fecha de actualización.'}
+              {tipoReporte === 'actividades' && 'Exporta actividades del período con contacto, temas impartidos, entregas y notas.'}
+              {tipoReporte === 'contactos' && 'Exporta la base completa de contactos sin filtro de fecha.'}
+              {tipoReporte === 'pacientes' && 'Exporta fichas de pacientes con dos hojas: datos principales y fechas de tratamiento agrupadas por paciente.'}
             </p>
           </div>
         </CardContent>
