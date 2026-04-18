@@ -10,7 +10,6 @@ import {
   AlertCircle,
   XCircle,
   CalendarX,
-  Image as ImageIcon,
   Trash2,
   MoreHorizontal,
   Clock,
