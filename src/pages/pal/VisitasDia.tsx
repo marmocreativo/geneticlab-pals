@@ -27,7 +27,7 @@ export default function VisitasDia() {
     if (fecha) {
       fetchVisitasByFecha(fecha)
     }
-  }, [fecha, fetchVisitasByFecha])
+  }, [fecha]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setVisitasDelDia(visitas)
@@ -41,7 +41,7 @@ export default function VisitasDia() {
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [fecha, fetchVisitasByFecha])
+  }, [fecha]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleVolverCalendario = () => {
     navigate('/pal/calendario')
