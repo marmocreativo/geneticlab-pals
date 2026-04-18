@@ -380,7 +380,7 @@ const VisitaDetailsPage: React.FC = () => {
     <div className="max-w-lg mx-auto min-h-screen flex flex-col">
 
       {/* Header */}
-      <div className="sticky top-0 bg-background border-b p-4 z-10">
+      <div className="bg-background border-b p-4 z-10">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={handleVolver}>
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -550,7 +550,7 @@ const VisitaDetailsPage: React.FC = () => {
             </CardContent>
           </Card>
         )}
-
+        {visita.estado === 'asistio' && ubicacionValidada && (
         <CardContent className="p-4">
           <div className="flex gap-3">
             
@@ -593,7 +593,8 @@ const VisitaDetailsPage: React.FC = () => {
 
           </div>
         </CardContent>
-
+        )}
+        
         {/* Marcar falta — solo visible si GPS ya validado pero aún programada */}
         {visita.estado === 'programada' && visita.validacion_gps && (
           <Button
