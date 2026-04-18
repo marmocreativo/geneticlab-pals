@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-
-interface Institucion {
-  id: string
-  nombre: string
-  direccion: string
-  latitud: number
-  longitud: number
-  sector_id: string | null
-  google_place_id: string | null
-  created_at: string
-}
+import type { Institucion } from '@/types/institucion'
 
 export function useInstituciones() {
   const [instituciones, setInstituciones] = useState<Institucion[]>([])

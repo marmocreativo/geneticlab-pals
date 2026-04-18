@@ -7,7 +7,7 @@ export interface Visita {
   latitud_registro?: number
   longitud_registro?: number
   distancia_metros?: number
-  estado: 'programada' | 'asistio' | 'falto'
+  estado: 'programada' | 'asistio' | 'falto' | 'reagendada'
   // tipo_visita removido - todas las visitas son presenciales
   created_at: string
   updated_at: string
@@ -25,26 +25,32 @@ export interface Visita {
     email: string
   }
   fotos_evidencia?: { id: string; url_storage: string }[]
+  notas_reagendado?: string
+  reagendado_de?: string
 }
 
 export interface VisitaInsert {
   pal_id: string
   institucion_id: string
   fecha_visita: string
-  estado?: 'programada' | 'asistio' | 'falto'
+  estado?: 'programada' | 'asistio' | 'falto' | 'reagendada'
   // tipo_visita removido
   validacion_gps?: boolean
   latitud_registro?: number
   longitud_registro?: number
   distancia_metros?: number
+  notas_reagendado?: string
+  reagendado_de?: string
 }
 
 export interface VisitaUpdate {
   fecha_visita?: string
-  estado?: 'programada' | 'asistio' | 'falto'
+  estado?: 'programada' | 'asistio' | 'falto' | 'reagendada'
   // tipo_visita removido
   validacion_gps?: boolean
   latitud_registro?: number
   longitud_registro?: number
   distancia_metros?: number
+  notas_reagendado?: string
+  reagendado_de?: string
 }

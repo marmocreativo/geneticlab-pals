@@ -1,5 +1,5 @@
 // pages/pal/VisitaDetailsPage.tsx
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { 
@@ -10,15 +10,16 @@ import {
   AlertCircle,
   XCircle,
   CalendarX,
-  Camera,
   Image as ImageIcon,
   Trash2,
-  Upload,
   MoreHorizontal,
   Clock,
   Calendar,
-  Wifi
+  Wifi,
+  Camera
 } from 'lucide-react'
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
+import L from 'leaflet'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,7 +32,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import CameraCapture from '@/components/common/CameraCapture'
 import { useVisitas } from '@/hooks/useVisitas'
 import { useConfiguraciones } from '@/hooks/useConfiguraciones'
 import { useFotosEvidencia } from '@/hooks/useFotosEvidencia'
@@ -39,48 +39,100 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { Visita } from '@/types/visita'
 
+const iconoHospital = L.divIcon({
+  className: '',
+  html: `<div style="background:#1d71b8;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+})
+
+const iconoUsuario = L.divIcon({
+  className: '',
+  html: `<div style="background:#e8308a;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+})
+
+interface UbicacionUsuario {
+  lat: number
+  lng: number
+}
+
 const VisitaDetailsPage: React.FC = () => {
   const { visitaId } = useParams<{ visitaId: string }>()
   const navigate = useNavigate()
   const location = useLocation()
-  const { getVisitaById, validarGPS, confirmarAsistencia, marcarFalta, updateVisita } = useVisitas()
+  const { getVisitaById, validarGPS, confirmarAsistencia, marcarFalta, updateVisita, createVisita } = useVisitas()
   const { getConfiguracionNumber } = useConfiguraciones()
   const { fotos, loading: fotosLoading, uploading, bucketReady, fetchFotosByVisita, subirFoto, eliminarFoto } = useFotosEvidencia()
-  
+
   const [visita, setVisita] = useState<Visita | null>(null)
   const [loading, setLoading] = useState(true)
   const [validandoGPS, setValidandoGPS] = useState(false)
+  const [ubicacionUsuario, setUbicacionUsuario] = useState<UbicacionUsuario | null>(null)
+  const [ubicacionValidada, setUbicacionValidada] = useState<UbicacionUsuario | null>(null)
+  const [horaValidacion, setHoraValidacion] = useState<string | null>(null)
   const [showDireccion, setShowDireccion] = useState(false)
   const [showReagendarDialog, setShowReagendarDialog] = useState(false)
   const [nuevaFecha, setNuevaFecha] = useState('')
   const [nuevaHora, setNuevaHora] = useState('')
-  const [showEvidenciaDialog, setShowEvidenciaDialog] = useState(false)
-  const [fotoSeleccionada, setFotoSeleccionada] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [showCamaraDialog, setShowCamaraDialog] = useState(false)
+  const [notasReagendado, setNotasReagendado] = useState('')
 
-  // Obtener fecha del estado de navegación
+  // Camera states (inline, sin CameraCapture)
+  const [stream, setStream] = useState<MediaStream | null>(null)
+  const [cameraLoading, setCameraLoading] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
   const selectedDate = location.state?.selectedDate
 
   useEffect(() => {
-    if (visitaId) {
-      fetchVisitaDetails()
-    }
+    if (visitaId) fetchVisitaDetails()
   }, [visitaId])
 
-  // Cargar fotos cuando la visita esté confirmada
   useEffect(() => {
-    if (visita && visita.estado === 'asistio' && bucketReady) {
+    if (visita?.estado === 'asistio' && bucketReady) {
       fetchFotosByVisita(visita.id)
     }
   }, [visita, bucketReady])
 
+  // Obtener ubicación automáticamente para el mapa
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUbicacionUsuario({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => console.warn('No se pudo obtener ubicación:', err),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    )
+  }, [])
+
+  // Configurar video cuando hay stream
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream
+      videoRef.current.play().catch(console.error)
+    }
+  }, [stream])
+
+  // Limpiar stream al desmontar
+  useEffect(() => {
+    return () => stopCamera()
+  }, [])
+
   const fetchVisitaDetails = async () => {
     if (!visitaId) return
-    
     try {
       setLoading(true)
       const visitaData = await getVisitaById(visitaId)
       setVisita(visitaData)
+      // Si ya tiene validación registrada, mostrar su ubicación
+      if (visitaData.latitud_registro && visitaData.longitud_registro) {
+        setUbicacionValidada({ lat: visitaData.latitud_registro, lng: visitaData.longitud_registro })
+      }
+      if (visitaData.updated_at) {
+        setHoraValidacion(visitaData.updated_at)
+      }
     } catch (error) {
       console.error('Error fetching visita:', error)
     } finally {
@@ -90,8 +142,7 @@ const VisitaDetailsPage: React.FC = () => {
 
   const handleVolver = () => {
     if (selectedDate) {
-      const fechaString = format(selectedDate, 'yyyy-MM-dd')
-      navigate(`/pal/visitas-dia/${fechaString}`)
+      navigate(`/pal/visitas-dia/${format(selectedDate, 'yyyy-MM-dd')}`)
     } else {
       navigate('/pal/calendario')
     }
@@ -99,107 +150,174 @@ const VisitaDetailsPage: React.FC = () => {
 
   const handleReagendar = async () => {
     if (!visita || !nuevaFecha || !nuevaHora) return
-
     try {
-      const nuevaFechaVisita = new Date(`${nuevaFecha}T${nuevaHora}`)
-      
+      const offsetMinutes = new Date().getTimezoneOffset()
+      const offsetSign = offsetMinutes <= 0 ? '+' : '-'
+      const absOffset = Math.abs(offsetMinutes)
+      const tzOffset = `${offsetSign}${String(Math.floor(absOffset / 60)).padStart(2, '0')}:${String(absOffset % 60).padStart(2, '0')}`
+
+      // Marcar visita original como reagendada
       await updateVisita(visita.id, {
-        fecha_visita: nuevaFechaVisita.toISOString()
+        estado: 'reagendada',
+        notas_reagendado: notasReagendado
       })
 
-      toast.success('Visita reagendada. Los administradores han sido notificados.')
+      // Crear nueva visita
+      await createVisita({
+        pal_id: visita.pal_id,
+        institucion_id: visita.institucion_id,
+        fecha_visita: `${nuevaFecha}T${nuevaHora}:00${tzOffset}`,
+        estado: 'programada',
+        reagendado_de: visita.id
+      })
+
+      toast.success('Visita reagendada correctamente')
       setShowReagendarDialog(false)
-      await fetchVisitaDetails()
-    } catch (error) {
+      navigate(selectedDate 
+        ? `/pal/visitas-dia/${format(selectedDate, 'yyyy-MM-dd')}`
+        : '/pal/calendario'
+      )
+    } catch {
       toast.error('Error al reagendar la visita')
     }
   }
 
-  const handleValidarGPS = async () => {
+  const handleValidarYFoto = async () => {
     if (!visita) return
+    if (!navigator.geolocation) {
+      toast.error('Tu dispositivo no tiene GPS disponible')
+      return
+    }
 
     setValidandoGPS(true)
-    
-    try {
-      if (!navigator.geolocation) {
-        toast.error('Tu dispositivo no tiene GPS disponible')
-        setValidandoGPS(false)
-        return
-      }
+    toast.info('Obteniendo tu ubicación...', { duration: 2000 })
 
-      toast.info('Obteniendo tu ubicación...', { duration: 2000 })
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        const distanciaPermitida = getConfiguracionNumber('distancia_validacion_gps') || 100
 
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords
-          const distanciaPermitida = getConfiguracionNumber('distancia_validacion_gps') || 100
+        setUbicacionUsuario({ lat: latitude, lng: longitude })
 
-          try {
-            const resultado = await validarGPS(visita.id, latitude, longitude, distanciaPermitida)
+        try {
+          const resultado = await validarGPS(visita.id, latitude, longitude, distanciaPermitida)
 
-            setVisita(prev => prev ? {
-              ...prev,
-              validacion_gps: resultado.validacion_gps,
-              latitud_registro: resultado.latitud_registro,
-              longitud_registro: resultado.longitud_registro,
-              distancia_metros: resultado.distancia_metros
-            } : null)
-
-          } catch (error) {
-            console.error('Error en validarGPS:', error)
-          } finally {
+          if (!resultado.validacionExitosa) {
+            toast.error(`Estás muy lejos (${resultado.distanciaCalculada}m). Máximo permitido: ${distanciaPermitida}m`)
             setValidandoGPS(false)
+            return
           }
-        },
-        (error) => {
-          console.error('Error de geolocalización:', error)
+
+          // Guardar ubicación y hora de validación
+          setUbicacionValidada({ lat: latitude, lng: longitude })
+          setHoraValidacion(new Date().toISOString())
+
+          setVisita(prev => prev ? {
+            ...prev,
+            validacion_gps: resultado.validacion_gps,
+            latitud_registro: resultado.latitud_registro,
+            longitud_registro: resultado.longitud_registro,
+            distancia_metros: resultado.distancia_metros
+          } : null)
+
+          // Abrir cámara inmediatamente
+          setShowCamaraDialog(true)
+          if (!isMobile) {
+            startCamera()
+          }
+
+        } catch (error) {
+          console.error('Error en validarGPS:', error)
+          toast.error('Error al validar ubicación')
+        } finally {
           setValidandoGPS(false)
-          
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              toast.error('Debes permitir el acceso a la ubicación')
-              break
-            case error.POSITION_UNAVAILABLE:
-              toast.error('No se pudo obtener tu ubicación')
-              break
-            case error.TIMEOUT:
-              toast.error('Tiempo de espera agotado')
-              break
-            default:
-              toast.error('Error al obtener la ubicación')
-              break
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 30000
         }
-      )
+      },
+      (error) => {
+        setValidandoGPS(false)
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            toast.error('Debes permitir el acceso a la ubicación')
+            break
+          case error.POSITION_UNAVAILABLE:
+            toast.error('No se pudo obtener tu ubicación')
+            break
+          case error.TIMEOUT:
+            toast.error('Tiempo de espera agotado')
+            break
+          default:
+            toast.error('Error al obtener la ubicación')
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    )
+  }
+
+  const startCamera = async () => {
+    try {
+      setCameraLoading(true)
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      })
+      setStream(mediaStream)
     } catch (error) {
-      console.error('Error general:', error)
-      toast.error('Error inesperado al validar ubicación')
-      setValidandoGPS(false)
+      console.error('Error accessing camera:', error)
+      toast.error('No se pudo acceder a la cámara')
+      // fallback a input file
+      setTimeout(() => document.getElementById('camera-input-fallback')?.click(), 500)
+    } finally {
+      setCameraLoading(false)
     }
   }
 
-  const handleConfirmarAsistencia = async () => {
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop())
+      setStream(null)
+    }
+  }
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !stream) return
+    const video = videoRef.current
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth || 640
+    canvas.height = video.videoHeight || 480
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `evidencia-${Date.now()}.jpg`, { type: 'image/jpeg' })
+        handleFotoCapturada(file)
+      }
+    }, 'image/jpeg', 0.8)
+  }
+
+  const handleFotoCapturada = async (file: File) => {
     if (!visita) return
-    
-    // Para visitas presenciales, requerir evidencia fotográfica
-    if (bucketReady) {
-      setShowEvidenciaDialog(true)
-      return
-    }
-    
-    // Para visitas telefónicas, confirmar directamente
+    stopCamera()
+    setShowCamaraDialog(false)
+
     try {
-      const visitaActualizada = await confirmarAsistencia(visita.id)
-      setVisita(visitaActualizada)
-      toast.success('Asistencia confirmada exitosamente')
+      const result = await subirFoto(visita.id, file)
+      if (result) {
+        const visitaActualizada = await confirmarAsistencia(visita.id)
+        setVisita(visitaActualizada)
+        toast.success('Visita confirmada con evidencia fotográfica')
+        // Recargar fotos
+        fetchFotosByVisita(visita.id)
+      }
     } catch (error) {
-      console.error('Error confirming attendance:', error)
+      console.error('Error subiendo evidencia:', error)
     }
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFotoCapturada(file)
+    e.target.value = ''
   }
 
   const handleMarcarFalta = async () => {
@@ -207,32 +325,8 @@ const VisitaDetailsPage: React.FC = () => {
     try {
       const visitaActualizada = await marcarFalta(visita.id)
       setVisita(visitaActualizada)
-      toast.success('Falta registrada')
     } catch (error) {
       console.error('Error marking absence:', error)
-    }
-  }
-
-  const handleSubirEvidencia = async () => {
-    if (!visita || !fotoSeleccionada) return
-
-    try {
-      const result = await subirFoto(visita.id, fotoSeleccionada)
-      
-      if (result) {
-        // Confirmar la visita después de subir la evidencia
-        const visitaActualizada = await confirmarAsistencia(visita.id)
-        setVisita(visitaActualizada)
-        
-        // Limpiar estado
-        setShowEvidenciaDialog(false)
-        setFotoSeleccionada(null)
-        setPreviewUrl(null)
-        
-        toast.success('Visita confirmada con evidencia fotográfica')
-      }
-    } catch (error) {
-      console.error('Error subiendo evidencia:', error)
     }
   }
 
@@ -281,9 +375,12 @@ const VisitaDetailsPage: React.FC = () => {
     )
   }
 
+  const distanciaPermitida = getConfiguracionNumber('distancia_validacion_gps') || 100
+
   return (
     <div className="max-w-lg mx-auto min-h-screen flex flex-col">
-      {/* Header fijo */}
+
+      {/* Header */}
       <div className="sticky top-0 bg-background border-b p-4 z-10">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={handleVolver}>
@@ -294,20 +391,16 @@ const VisitaDetailsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Contenido scrolleable */}
       <div className="flex-1 p-4 space-y-6">
-        {/* 1. INSTITUCIÓN - Carta con degradado */}
+
+        {/* Institución */}
         <Card className="bg-gradient-to-r from-primary to-accent text-primary-foreground overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold mb-1">{visita.institucion?.nombre}</h1>
-                <div className="text-primary-foreground/80 text-sm">
-                  Visita programada
-                </div>
+                <div className="text-primary-foreground/80 text-sm">Visita programada</div>
               </div>
-              
-              {/* Menú de opciones */}
               {visita.estado === 'programada' && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -331,7 +424,7 @@ const VisitaDetailsPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* 2. DATOS DE LA VISITA - Píldoras */}
+        {/* Datos */}
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary" className="flex items-center gap-1">
@@ -347,80 +440,164 @@ const VisitaDetailsPage: React.FC = () => {
               Presencial
             </Badge>
           </div>
-
-          {/* Dirección colapsable */}
           {showDireccion && (
             <Card>
               <CardContent className="p-3">
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <p className="text-sm text-muted-foreground">
-                    {visita.institucion?.direccion}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{visita.institucion?.direccion}</p>
                 </div>
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* SEPARADOR */}
         <div className="border-t border-dashed"></div>
 
-        {/* 3. VALIDACIÓN GPS */}
-        {visita.estado === 'programada' && !visita.validacion_gps && (
-          <Card 
-            className="cursor-pointer hover:bg-muted/50 transition-colors"
-            onClick={handleValidarGPS}
-          >
-            <CardContent className="p-6 text-center">
-              <div className="relative inline-block mb-3">
-                <Navigation className={`h-12 w-12 text-primary ${validandoGPS ? 'animate-pulse' : ''}`} />
-                {validandoGPS && (
-                  <div className="absolute inset-0 border-2 border-primary rounded-full animate-ping"></div>
+        {/* MAPA — programada: tiempo real con botón. confirmada: estático con resultado */}
+        {visita.institucion && (
+          <Card className="overflow-hidden relative z-0">
+            <CardContent className="p-0">
+              <div className="relative">
+                <MapContainer
+                  center={[visita.institucion.latitud, visita.institucion.longitud]}
+                  zoom={16}
+                  style={{ height: '240px', width: '100%' }}
+                  zoomControl={false}
+                  key={visita.estado} // re-montar al cambiar estado
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
+                  />
+
+                  {/* Hospital */}
+                  <Marker
+                    position={[visita.institucion.latitud, visita.institucion.longitud]}
+                    icon={iconoHospital}
+                  >
+                    <Popup>{visita.institucion.nombre}</Popup>
+                  </Marker>
+
+                  {/* Radio permitido — solo cuando está programada */}
+                  {visita.estado === 'programada' && (
+                    <Circle
+                      center={[visita.institucion.latitud, visita.institucion.longitud]}
+                      radius={distanciaPermitida}
+                      pathOptions={{ color: '#1d71b8', fillColor: '#1d71b8', fillOpacity: 0.1 }}
+                    />
+                  )}
+
+                  {/* Ubicación en tiempo real — solo cuando está programada */}
+                  {visita.estado === 'programada' && ubicacionUsuario && (
+                    <Marker position={[ubicacionUsuario.lat, ubicacionUsuario.lng]} icon={iconoUsuario}>
+                      <Popup>Tu ubicación</Popup>
+                    </Marker>
+                  )}
+
+                  {/* Ubicación validada — cuando ya confirmó */}
+                  {visita.estado === 'asistio' && ubicacionValidada && (
+                    <Marker position={[ubicacionValidada.lat, ubicacionValidada.lng]} icon={iconoUsuario}>
+                      <Popup>Ubicación registrada</Popup>
+                    </Marker>
+                  )}
+                </MapContainer>
+
+                {/* Botón flotante — solo cuando está programada y no validado */}
+                {visita.estado === 'programada' && (
+                  <div className="absolute bottom-3 right-3 z-[1000]">
+                    <Button
+                      size="sm"
+                      onClick={handleValidarYFoto}
+                      disabled={validandoGPS}
+                      className="shadow-lg"
+                    >
+                      {validandoGPS ? (
+                        <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin mr-2" />
+                      ) : (
+                        <Navigation className="h-4 w-4 mr-2" />
+                      )}
+                      {validandoGPS ? 'Validando...' : 'Validar y subir foto'}
+                    </Button>
+                  </div>
                 )}
               </div>
-              <h3 className="font-semibold mb-1">Validar Ubicación</h3>
-              <p className="text-sm text-muted-foreground">
-                {validandoGPS ? 'Obteniendo ubicación...' : 'Toca para validar tu GPS'}
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Estado GPS validado */}
-        {visita.validacion_gps && (
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="p-4 py-0">
-              <div className="flex items-center gap-3 text-green-700">
-                <CheckCircle className="h-5 w-5" />
-                <div>
-                  <p className="font-medium">Ubicación validada</p>
-                  <p className="text-sm">Distancia: {visita.distancia_metros}m</p>
+              {/* Leyenda */}
+              <div className="flex items-center gap-4 px-3 py-2 text-xs text-muted-foreground border-t">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-primary"></div>
+                  <span>Hospital</span>
                 </div>
+                {visita.estado === 'programada' && ubicacionUsuario && (
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-accent"></div>
+                    <span>Tu ubicación</span>
+                  </div>
+                )}
+                {visita.estado === 'asistio' && ubicacionValidada && (
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-accent"></div>
+                    <span>Ubicación registrada</span>
+                  </div>
+                )}
+                {visita.estado === 'programada' && (
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full border border-primary bg-primary/10"></div>
+                    <span>Zona válida ({distanciaPermitida}m)</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* 4. CONFIRMAR VISITA */}
-        {visita.estado === 'programada' && visita.validacion_gps && (
-          <Card 
-            className="cursor-pointer hover:bg-green-50 transition-colors border-green-200"
-            onClick={handleConfirmarAsistencia}
-          >
-            <CardContent className="p-6 text-center">
-              <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
-              <h3 className="font-semibold mb-1 text-green-700">Confirmar Visita</h3>
-              <p className="text-sm text-muted-foreground">
-                {bucketReady ? 'Incluir evidencia fotográfica' : 'Marcar como completada'}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        <CardContent className="p-4">
+          <div className="flex gap-3">
+            
+            {/* Foto */}
+            {bucketReady && !fotosLoading && fotos.length > 0 && (
+              <div className="relative group flex-shrink-0">
+                <img
+                  src={fotos[0].url_storage}
+                  alt="Evidencia"
+                  className="w-24 h-24 object-cover rounded border border-green-200"
+                />
+                <Button
+                  onClick={() => handleEliminarFoto(fotos[0].id, fotos[0].url_storage)}
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-1 right-1 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
 
-        {/* Botón discreto para marcar falta */}
+            {/* Datos */}
+            <div className="flex items-start gap-2 text-green-700 flex-1">
+              <CheckCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Visita confirmada</p>
+                {horaValidacion && (
+                  <p className="text-sm text-green-600">
+                    {format(new Date(horaValidacion), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
+                  </p>
+                )}
+                {visita.distancia_metros !== undefined && visita.distancia_metros !== null && (
+                  <p className="text-sm text-green-600">
+                    {visita.distancia_metros}m del hospital
+                  </p>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </CardContent>
+
+        {/* Marcar falta — solo visible si GPS ya validado pero aún programada */}
         {visita.estado === 'programada' && visita.validacion_gps && (
-          <Button 
+          <Button
             onClick={handleMarcarFalta}
             variant="outline"
             size="sm"
@@ -429,63 +606,6 @@ const VisitaDetailsPage: React.FC = () => {
             <XCircle className="h-4 w-4 mr-2" />
             Marcar falta
           </Button>
-        )}
-
-        {/* Fotos de evidencia para visitas confirmadas */}
-        {visita.estado === 'asistio' && bucketReady && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-sm flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4" />
-                  Evidencia Fotográfica
-                </h3>
-                <span className="text-xs text-muted-foreground">{fotos.length} foto(s)</span>
-              </div>
-
-              {fotosLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              ) : fotos.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">
-                  {fotos.map((foto) => (
-                    <div key={foto.id} className="relative group">
-                      <img 
-                        src={foto.url_storage} 
-                        alt="Evidencia"
-                        className="w-full aspect-square object-cover rounded border"
-                      />
-                      <Button
-                        onClick={() => handleEliminarFoto(foto.id, foto.url_storage)}
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4 text-xs text-muted-foreground">
-                  No hay fotos de evidencia
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Mensajes informativos para estados finales */}
-        {visita.estado === 'asistio' && (
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 text-green-700">
-                <CheckCircle className="h-5 w-5" />
-                <span className="font-medium">Visita confirmada exitosamente</span>
-              </div>
-            </CardContent>
-          </Card>
         )}
 
         {visita.estado === 'falto' && (
@@ -500,45 +620,41 @@ const VisitaDetailsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Dialog de Reagendar */}
+      {/* Dialog Reagendar */}
       <Dialog open={showReagendarDialog} onOpenChange={setShowReagendarDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reagendar Visita</DialogTitle>
+            <DialogTitle>Reagendar visita — {visita.institucion?.nombre}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs">
-              <AlertCircle className="h-4 w-4 inline mr-2 text-yellow-600" />
-              Los administradores serán notificados de este cambio
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-700">
+              <AlertCircle className="h-4 w-4 inline mr-2 text-blue-600" />
+              Solo reagenda si realizarás la visita otro día. Si llegaste antes o después de la hora, no es necesario.
             </div>
-            
             <div>
               <Label htmlFor="nueva-fecha">Nueva Fecha</Label>
-              <Input
-                id="nueva-fecha"
-                type="date"
-                value={nuevaFecha}
-                onChange={(e) => setNuevaFecha(e.target.value)}
-              />
+              <Input id="nueva-fecha" type="date" value={nuevaFecha} onChange={e => setNuevaFecha(e.target.value)} />
             </div>
-            
             <div>
               <Label htmlFor="nueva-hora">Nueva Hora</Label>
+              <Input id="nueva-hora" type="time" value={nuevaHora} onChange={e => setNuevaHora(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="notas-reagendado">Razón del reagendado</Label>
               <Input
-                id="nueva-hora"
-                type="time"
-                value={nuevaHora}
-                onChange={(e) => setNuevaHora(e.target.value)}
+                id="notas-reagendado"
+                placeholder="Ej: El doctor no se encontraba disponible"
+                value={notasReagendado}
+                onChange={e => setNotasReagendado(e.target.value)}
               />
             </div>
-            
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowReagendarDialog(false)} className="flex-1">
                 Cancelar
               </Button>
               <Button 
-                onClick={handleReagendar}
-                disabled={!nuevaFecha || !nuevaHora}
+                onClick={handleReagendar} 
+                disabled={!nuevaFecha || !nuevaHora || !notasReagendado}
                 className="flex-1"
               >
                 Reagendar
@@ -548,87 +664,89 @@ const VisitaDetailsPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Evidencia Fotográfica */}
-      <Dialog open={showEvidenciaDialog} onOpenChange={setShowEvidenciaDialog}>
+      {/* Dialog Cámara */}
+      <Dialog open={showCamaraDialog} onOpenChange={(open) => {
+        if (!open) { stopCamera(); setShowCamaraDialog(false) }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              Evidencia Fotográfica
+              Foto de Evidencia
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs">
-              <AlertCircle className="h-4 w-4 inline mr-2 text-blue-600" />
-              Sube una foto como evidencia de tu visita presencial
-            </div>
-
-            {/* Preview de la imagen */}
-            {previewUrl && (
-              <div className="text-center space-y-3">
-                <img 
-                  src={previewUrl} 
-                  alt="Preview"
-                  className="w-full max-w-xs mx-auto rounded border"
-                />
+          <div className="space-y-4 py-2">
+            {isMobile ? (
+              // En móvil usar input nativo
+              <div className="text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Toma una foto como evidencia de tu visita
+                </p>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setFotoSeleccionada(null)
-                    setPreviewUrl(null)
-                  }}
+                  className="w-full"
+                  onClick={() => document.getElementById('camera-input-mobile')?.click()}
                 >
-                  Cambiar foto
+                  <Camera className="h-4 w-4 mr-2" />
+                  Abrir Cámara
                 </Button>
+                <input
+                  type="file"
+                  id="camera-input-mobile"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileInput}
+                  className="hidden"
+                />
+              </div>
+            ) : (
+              // En escritorio usar stream
+              <div className="space-y-3">
+                <div className="relative bg-black rounded overflow-hidden" style={{ aspectRatio: '4/3' }}>
+                  {stream ? (
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                  ) : cameraLoading ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                        <p className="text-sm">Iniciando cámara...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Button onClick={startCamera}>
+                        <Camera className="h-4 w-4 mr-2" />
+                        Activar cámara
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { stopCamera(); setShowCamaraDialog(false) }} className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button onClick={capturePhoto} disabled={!stream} className="flex-1">
+                    <Camera className="h-4 w-4 mr-2" />
+                    Capturar
+                  </Button>
+                </div>
               </div>
             )}
 
-            {/* Componente de captura */}
-            {!fotoSeleccionada && (
-              <CameraCapture
-                onPhotoCapture={(file) => {
-                  setFotoSeleccionada(file)
-                  const reader = new FileReader()
-                  reader.onload = () => {
-                    setPreviewUrl(reader.result as string)
-                  }
-                  reader.readAsDataURL(file)
-                }}
-                onCancel={() => setShowEvidenciaDialog(false)}
-              />
+            {/* Fallback file input */}
+            <input
+              type="file"
+              id="camera-input-fallback"
+              accept="image/*"
+              onChange={handleFileInput}
+              className="hidden"
+            />
+
+            {uploading && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                Subiendo foto...
+              </div>
             )}
-            
-            <div className="flex gap-2 pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setShowEvidenciaDialog(false)
-                  setFotoSeleccionada(null)
-                  setPreviewUrl(null)
-                }} 
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleSubirEvidencia}
-                disabled={!fotoSeleccionada || uploading}
-                className="flex-1"
-              >
-                {uploading ? (
-                  <>
-                    <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin mr-2" />
-                    Subiendo...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Confirmar Visita
-                  </>
-                )}
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

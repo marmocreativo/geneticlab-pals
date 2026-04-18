@@ -124,7 +124,7 @@ export default function VisitasDia() {
             <div className="absolute left-4 top-0 bottom-0 w-px bg-border"></div>
             
             {visitasDelDia.map((visita) => {
-              const visitaDate = new Date(visita.fecha_visita)
+              const visitaDate = new Date(visita.fecha_visita.replace(' ', 'T'))
               const isOverdue = isPast(visitaDate) && visita.estado === 'programada'
 
               return (

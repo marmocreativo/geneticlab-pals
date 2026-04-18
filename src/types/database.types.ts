@@ -12,7 +12,7 @@ export type TipoContacto = 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'en
 
 export type TipoVisita = 'presencial' | 'telefono'
 
-export type EstadoVisita = 'programada' | 'asistio' | 'falto'
+export type EstadoVisita = 'programada' | 'asistio' | 'falto' | 'reagendada'
 
 export type CatalogoTipo = 
   | 'diagnostico'

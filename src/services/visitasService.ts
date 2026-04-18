@@ -25,6 +25,7 @@ export const visitasService = {
         institucion:instituciones(id, nombre, direccion, latitud, longitud)
       `)
       .eq('pal_id', palId)
+      .neq('estado', 'reagendada')
       .order('fecha_visita', { ascending: true })
 
     if (error) throw error
@@ -38,11 +39,11 @@ export const visitasService = {
         *,
         institucion:instituciones(id, nombre, direccion, latitud, longitud)
       `)
-      .gte('fecha_visita', `${fecha}T00:00:00`)
-      .lte('fecha_visita', `${fecha}T23:59:59`)
+      .gte('fecha_visita', `${fecha}T00:00:00-06:00`)
+      .lte('fecha_visita', `${fecha}T23:59:59-06:00`)
 
     if (palId) {
-      query = query.eq('pal_id', palId)
+      query = query.eq('pal_id', palId).neq('estado', 'reagendada')
     }
 
     const { data, error } = await query.order('fecha_visita', { ascending: true })
@@ -61,11 +62,11 @@ export const visitasService = {
       pal:users(id, nombre_completo, email),
       fotos_evidencia(id, url_storage)
     `)
-    .gte('fecha_visita', `${fechaInicio}T00:00:00`)
-    .lte('fecha_visita', `${fechaFin}T23:59:59`)
+    .gte('fecha_visita', `${fechaInicio}T00:00:00-06:00`)
+    .lte('fecha_visita', `${fechaFin}T23:59:59-06:00`)
 
   if (palId) {
-    query = query.eq('pal_id', palId)
+    query = query.eq('pal_id', palId).neq('estado', 'reagendada')
   }
 
   const { data, error } = await query.order('fecha_visita', { ascending: true })
