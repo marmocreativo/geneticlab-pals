@@ -27,11 +27,21 @@ export default function VisitasDia() {
     if (fecha) {
       fetchVisitasByFecha(fecha)
     }
-  }, [fecha])
+  }, [fecha, fetchVisitasByFecha])
 
   useEffect(() => {
     setVisitasDelDia(visitas)
   }, [visitas])
+
+  useEffect(() => {
+    const handleFocus = () => {
+      if (fecha) {
+        fetchVisitasByFecha(fecha)
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [fecha, fetchVisitasByFecha])
 
   const handleVolverCalendario = () => {
     navigate('/pal/calendario')
@@ -77,8 +87,8 @@ export default function VisitasDia() {
 
   return (
     <div className="max-w-2xl mx-auto min-h-screen">
-      {/* Header fijo */}
-      <div className="sticky top-0 bg-background/50 border-b p-4 z-10">
+      {/* Header */}
+      <div className="bg-background/50 border-b p-4">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={handleVolverCalendario}>
             <ArrowLeft className="h-4 w-4 mr-1" />
