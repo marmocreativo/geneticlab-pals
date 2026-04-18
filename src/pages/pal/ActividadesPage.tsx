@@ -526,7 +526,7 @@ export default function ActividadesPage() {
                           {/* 3. INSTITUCIÓN - Fila separada */}
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <MapPin className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{actividad.institucion?.nombre || 'Sin institución'}</span>
+                            <span className="truncate max-w-[200px]">{actividad.institucion?.nombre || 'Sin institución'}</span>
                           </div>
 
                           {/* 4. CONTACTO - Tercera importancia */}

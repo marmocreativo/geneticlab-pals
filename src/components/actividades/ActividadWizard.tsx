@@ -15,20 +15,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check, Plus } from 'lucide-react'
+import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check, Plus, Star } from 'lucide-react'
 import { format } from 'date-fns'
 import { ContactoQuickForm } from '@/components/contactos/ContactoQuickForm'
 import type { ActividadInsert } from '@/types/actividad'
 import type { Contacto } from '@/types/contacto'
 
-// Schema para paso 1
 const step1Schema = z.object({
   institucion_id: z.string().min(1, 'Selecciona una institución'),
   fecha_actividad: z.string().min(1, 'Selecciona una fecha'),
   hora_actividad: z.string().optional()
 })
 
-// Schema para paso 2
 const step2Schema = z.object({
   tipo_actividad: z.enum(['presencial', 'telefono']).refine((val) => val !== undefined, {
     message: 'Selecciona el tipo de actividad'
@@ -64,6 +62,19 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const [showAddAnother, setShowAddAnother] = useState(false)
   const [contactosLoaded, setContactosLoaded] = useState(false)
   const [showNewContactoForm, setShowNewContactoForm] = useState(false)
+  const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
+
+  const promedioVisitas = instituciones.length > 0
+    ? instituciones.reduce((acc, i) => acc + (i.visitas_count ?? 0), 0) / instituciones.length
+    : 0
+
+  const institucionesFiltradas = [...instituciones]
+    .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
+    .filter(i =>
+      busquedaInstitucion === '' ||
+      i.nombre.toLowerCase().includes(busquedaInstitucion.toLowerCase()) ||
+      i.direccion.toLowerCase().includes(busquedaInstitucion.toLowerCase())
+    )
 
   const step1Form = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -77,7 +88,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const step2Form = useForm<Step2Data>({
     resolver: zodResolver(step2Schema),
     defaultValues: {
-      tipo_actividad: 'presencial', // Valor por defecto
+      tipo_actividad: 'presencial',
       contacto_id: '',
       descripcion_actividad: '',
       temas_impartidos: '',
@@ -87,7 +98,6 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
     }
   })
 
-  // Reset wizard when dialog closes
   useEffect(() => {
     if (!open) {
       setCurrentStep(1)
@@ -95,13 +105,13 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       setShowAddAnother(false)
       setContactosLoaded(false)
       setShowNewContactoForm(false)
+      setBusquedaInstitucion('')
       step1Form.reset()
       step2Form.reset()
       setContactSearch('')
     }
-  }, [open]) 
+  }, [open])
 
-  // Cargar contactos solo una vez cuando se avanza al paso 2
   useEffect(() => {
     if (currentStep === 2 && !contactosLoaded) {
       fetchContactos()
@@ -159,11 +169,9 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   }
 
   const handleNewContactoSuccess = (contacto: Contacto) => {
-    // Seleccionar automáticamente el nuevo contacto
     step2Form.setValue('contacto_id', contacto.id)
     setShowNewContactoForm(false)
     setContactSearchOpen(false)
-    // Refrescar la lista de contactos
     fetchContactos()
   }
 
@@ -171,15 +179,11 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
     setShowNewContactoForm(false)
   }
 
-  // Filtrar contactos por búsqueda, institución y eliminar duplicados por nombre completo
   const filteredContactos = contactos
     .filter(contacto => {
-      // Filtrar por institución seleccionada
       if (step1Data?.institucion_id && contacto.institucion_id !== step1Data.institucion_id) {
         return false
       }
-      
-      // Filtrar por búsqueda
       const fullName = `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.toLowerCase()
       return fullName.includes(contactSearch.toLowerCase())
     })
@@ -189,19 +193,15 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
         const itemFullName = `${item.nombre} ${item.apellido_pat || ''} ${item.apellido_mat || ''}`.trim()
         return itemFullName === fullName
       })
-      if (!isDuplicate) {
-        unique.push(contacto)
-      }
+      if (!isDuplicate) unique.push(contacto)
       return unique
     }, [] as typeof contactos)
 
-  // Filtrar catálogos
   const entregaSobres = catalogos.filter(c => c.tipo === 'entrega_sobres' && c.activo)
   const kitRash = catalogos.filter(c => c.tipo === 'kit_rash' && c.activo)
 
   const selectedInstitucion = instituciones.find(i => i.id === step1Data?.institucion_id)
 
-  // Si se está mostrando el formulario de nuevo contacto, renderizarlo
   if (showNewContactoForm && step1Data) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -226,7 +226,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
           </DialogTitle>
         </DialogHeader>
 
-        {/* Paso 1: Institución, Fecha, Hora */}
+        {/* Paso 1 */}
         {currentStep === 1 && (
           <Form {...step1Form}>
             <form onSubmit={step1Form.handleSubmit(handleStep1Submit)} className="space-y-6">
@@ -234,8 +234,9 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
                   Información Básica
                 </h3>
-                
+
                 <div className="space-y-4">
+                  {/* Institución con buscador */}
                   <FormField
                     control={step1Form.control}
                     name="institucion_id"
@@ -245,52 +246,98 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                           <Building2 className="h-4 w-4" />
                           Institución
                         </FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar institución" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {instituciones.map(institucion => (
-                              <SelectItem key={institucion.id} value={institucion.id}>
-                                {institucion.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="space-y-3">
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar institución" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <div className="p-2 border-b">
+                                <Input
+                                  placeholder="Buscar institución..."
+                                  value={busquedaInstitucion}
+                                  onChange={e => setBusquedaInstitucion(e.target.value)}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                              {institucionesFiltradas.length === 0 ? (
+                                <div className="p-2 text-sm text-muted-foreground text-center">
+                                  No se encontraron instituciones
+                                </div>
+                              ) : (
+                                institucionesFiltradas.map(institucion => (
+                                  <SelectItem key={institucion.id} value={institucion.id}>
+                                    <div className="flex items-start gap-2 max-w-xs">
+                                      <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-sm flex items-center gap-1">
+                                          {(institucion.visitas_count ?? 0) > promedioVisitas && (
+                                            <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
+                                          )}
+                                          {institucion.nombre}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground truncate">
+                                          {institucion.direccion}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+
+                          {/* Institución seleccionada */}
+                          {field.value && (() => {
+                            const sel = instituciones.find(i => i.id === field.value)
+                            return sel ? (
+                              <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm">
+                                <Building2 className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                <div className="flex-1">
+                                  <div className="font-medium flex items-center gap-1">
+                                    {(sel.visitas_count ?? 0) > promedioVisitas && (
+                                      <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                                    )}
+                                    {sel.nombre}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">{sel.direccion}</div>
+                                </div>
+                              </div>
+                            ) : null
+                          })()}
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
                   {/* Tipo de actividad */}
-                  <div className="space-y-4">
-                    <FormField
-                      control={step2Form.control}
-                      name="tipo_actividad"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-1">
-                            <FileText className="h-4 w-4" />
-                            Tipo de Actividad
-                          </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecciona el tipo" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="presencial">Presencial</SelectItem>
-                              <SelectItem value="telefono">Telefónica</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={step2Form.control}
+                    name="tipo_actividad"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <FileText className="h-4 w-4" />
+                          Tipo de Actividad
+                        </FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona el tipo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="presencial">Presencial</SelectItem>
+                            <SelectItem value="telefono">Telefónica</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
@@ -343,12 +390,11 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
           </Form>
         )}
 
-        {/* Paso 2: Contacto y Detalles */}
+        {/* Paso 2 */}
         {currentStep === 2 && !showAddAnother && (
           <Form {...step2Form}>
             <form onSubmit={step2Form.handleSubmit(handleStep2Submit)} className="space-y-6">
-              
-              {/* Info de la institución seleccionada */}
+
               <div className="bg-muted p-4 rounded-lg">
                 <p className="font-medium">{selectedInstitucion?.nombre}</p>
                 <p className="text-sm text-muted-foreground">
@@ -356,7 +402,6 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                 </p>
               </div>
 
-              {/* Contacto con búsqueda */}
               <div className="space-y-4">
                 <FormField
                   control={step2Form.control}
@@ -370,12 +415,8 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                       <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between"
-                            >
-                              {field.value 
+                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                              {field.value
                                 ? (() => {
                                     const selected = contactos.find(c => c.id === field.value)
                                     return selected ? `${selected.nombre} ${selected.apellido_pat || ''} ${selected.apellido_mat || ''}`.trim() : 'Sin contacto'
@@ -387,36 +428,26 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput 
-                              placeholder="Buscar contacto..." 
+                            <CommandInput
+                              placeholder="Buscar contacto..."
                               value={contactSearch}
                               onValueChange={setContactSearch}
                             />
                             <CommandEmpty>No se encontraron contactos.</CommandEmpty>
                             <CommandGroup>
-                              <CommandItem
-                                onSelect={() => {
-                                  field.onChange('')
-                                  setContactSearchOpen(false)
-                                }}
-                              >
+                              <CommandItem onSelect={() => { field.onChange(''); setContactSearchOpen(false) }}>
                                 Sin contacto
                               </CommandItem>
                               {filteredContactos.map(contacto => (
                                 <CommandItem
                                   key={contacto.id}
-                                  onSelect={() => {
-                                    field.onChange(contacto.id)
-                                    setContactSearchOpen(false)
-                                  }}
+                                  onSelect={() => { field.onChange(contacto.id); setContactSearchOpen(false) }}
                                 >
                                   <div>
                                     <div className="font-medium">
                                       {`${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim()}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {contacto.tipo_contacto}
-                                    </div>
+                                    <div className="text-xs text-muted-foreground">{contacto.tipo_contacto}</div>
                                   </div>
                                 </CommandItem>
                               ))}
@@ -424,8 +455,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                           </Command>
                         </PopoverContent>
                       </Popover>
-                      
-                      {/* Botón para nuevo contacto */}
+
                       <Button
                         type="button"
                         variant="outline"
@@ -436,61 +466,46 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                         <Plus className="h-3 w-3 mr-1" />
                         Agregar Nuevo Contacto
                       </Button>
-                      
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
 
-              {/* Detalles de actividad */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
                   Detalles de la Actividad
                 </h3>
 
-                <div className="space-y-4">
-                  <FormField
-                    control={step2Form.control}
-                    name="descripcion_actividad"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Descripción de Actividad</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Describe las actividades realizadas..."
-                            className="resize-none"
-                            rows={3}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <FormField
+                  control={step2Form.control}
+                  name="descripcion_actividad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descripción de Actividad</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Describe las actividades realizadas..." className="resize-none" rows={3} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <FormField
-                    control={step2Form.control}
-                    name="temas_impartidos"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Temas Impartidos</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Lista los temas educativos compartidos..."
-                            className="resize-none"
-                            rows={3}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={step2Form.control}
+                  name="temas_impartidos"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Temas Impartidos</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Lista los temas educativos compartidos..." className="resize-none" rows={3} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              {/* Material entregado */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                   <Package className="h-4 w-4" />
@@ -513,9 +528,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                           <SelectContent>
                             <SelectItem value="none">Sin entrega</SelectItem>
                             {entregaSobres.map(item => (
-                              <SelectItem key={item.id} value={item.id}>
-                                {item.nombre}
-                              </SelectItem>
+                              <SelectItem key={item.id} value={item.id}>{item.nombre}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -539,9 +552,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                           <SelectContent>
                             <SelectItem value="none">Sin entrega</SelectItem>
                             {kitRash.map(item => (
-                              <SelectItem key={item.id} value={item.id}>
-                                {item.nombre}
-                              </SelectItem>
+                              <SelectItem key={item.id} value={item.id}>{item.nombre}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -552,27 +563,19 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                 </div>
               </div>
 
-              {/* Notas */}
-              <div className="space-y-4">
-                <FormField
-                  control={step2Form.control}
-                  name="notas"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notas Adicionales</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Observaciones adicionales..."
-                          className="resize-none"
-                          rows={3}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={step2Form.control}
+                name="notas"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notas Adicionales</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Observaciones adicionales..." className="resize-none" rows={3} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="flex justify-between gap-3 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={goBackToStep1}>
@@ -587,7 +590,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
           </Form>
         )}
 
-        {/* Paso 3: Agregar otra actividad */}
+        {/* Éxito */}
         {showAddAnother && (
           <div className="space-y-6">
             <div className="text-center space-y-4">
@@ -601,12 +604,8 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
             </div>
 
             <div className="flex justify-center gap-3 pt-4">
-              <Button variant="outline" onClick={handleFinish}>
-                Terminar
-              </Button>
-              <Button onClick={handleAddAnother}>
-                Agregar Otra Actividad
-              </Button>
+              <Button variant="outline" onClick={handleFinish}>Terminar</Button>
+              <Button onClick={handleAddAnother}>Agregar Otra Actividad</Button>
             </div>
           </div>
         )}
