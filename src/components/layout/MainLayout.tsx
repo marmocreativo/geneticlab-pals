@@ -29,7 +29,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { APP_VERSION, APP_UPDATED } from '@/lib/version'
+import { APP_VERSION } from '@/lib/version'
 import { getLastFetch } from '@/lib/lastFetch'
 
 interface NavItem {
@@ -71,27 +71,10 @@ async function forceUpdate() {
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [lastFetch, setLastFetch] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const { user, role, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-
-  useEffect(() => {
-    setLastFetch(getLastFetch())
-
-    const handleStorage = () => setLastFetch(getLastFetch())
-    window.addEventListener('storage', handleStorage)
-
-    const interval = setInterval(() => {
-      setLastFetch(getLastFetch())
-    }, 30000)
-
-    return () => {
-      window.removeEventListener('storage', handleStorage)
-      clearInterval(interval)
-    }
-  }, [])
 
   const formatLastFetch = (iso: string | null): string => {
     if (!iso) return 'Sin datos'

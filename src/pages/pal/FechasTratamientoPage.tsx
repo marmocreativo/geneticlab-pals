@@ -74,7 +74,6 @@ export default function FechasTratamientoPage() {
   const [loadingFicha, setLoadingFicha] = useState(true)
   const [openDialog, setOpenDialog] = useState(false)
   const [editingFecha, setEditingFecha] = useState<any>(null)
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
 
   const [formData, setFormData] = useState<FormData>({
@@ -190,15 +189,6 @@ export default function FechasTratamientoPage() {
     return contactosService.calcularEdad(fechaNacimiento)
   }
 
-  const toggleExpand = (fechaId: string) => {
-    const newExpanded = new Set(expandedItems)
-    if (newExpanded.has(fechaId)) {
-      newExpanded.delete(fechaId)
-    } else {
-      newExpanded.add(fechaId)
-    }
-    setExpandedItems(newExpanded)
-  }
 
   const formulario = (
     <form onSubmit={handleSubmit} className="space-y-4">
