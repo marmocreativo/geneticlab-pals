@@ -21,7 +21,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Obtener sesión inicial
     const safetyTimeout = setTimeout(() => {
       setLoading(false)
     }, 10000)
@@ -37,11 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    // Escuchar cambios de autenticación
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
@@ -52,7 +49,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    return () => subscription.unsubscribe()
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) {
+            setSession(session)
+            setUser(session.user)
+          } else {
+            setSession(null)
+            setUser(null)
+            setRole(null)
+          }
+        })
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   const fetchUserRole = async (userId: string) => {
@@ -77,11 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const ensureUserExists = async (_userId: string) => {
     try {
-      // Obtener info del auth.users
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
       if (authUser) {
-        // Crear usuario en public.users si no existe
         const { error } = await supabase
           .from('users')
           .upsert({
