@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 import { useAuth } from '@/contexts/AuthContext'
@@ -25,9 +25,12 @@ import {
   BookOpen,
   Calendar,
   Stethoscope,
-  PenTool
+  PenTool,
+  RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { APP_VERSION, APP_UPDATED } from '@/lib/version'
+import { getLastFetch } from '@/lib/lastFetch'
 
 interface NavItem {
   title: string
@@ -37,98 +40,77 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  {
-    title: 'Dashboard',
-    href: '/admin',
-    icon: LayoutDashboard,
-    roles: ['admin']
-  },
-  {
-    title: 'Agenda',
-    href: '/admin/agenda',
-    icon: Calendar,
-    roles: ['admin']
-  },
-  {
-    title: 'Actividades',
-    href: '/admin/actividades',
-    icon: PenTool,
-    roles: ['admin']
-  },
-  {
-    title: 'Pacientes',
-    href: '/admin/pacientes',
-    icon: Stethoscope,
-    roles: ['admin']
-  },
-  {
-    title: 'Usuarios',
-    href: '/admin/usuarios',
-    icon: Users,
-    roles: ['admin']
-  },
-  {
-    title: 'Catálogos',
-    href: '/admin/catalogos',
-    icon: BookOpen,
-    roles: ['admin']
-  },
-  {
-    title: 'Instituciones',
-    href: '/admin/instituciones',
-    icon: Building2,
-    roles: ['admin']
-  },
-  {
-    title: 'Configuraciones',
-    href: '/admin/configuraciones',
-    icon: Settings,
-    roles: ['admin']
-  },
-  {
-    title: 'Reportes',
-    href: '/admin/reportes',
-    icon: FileText,
-    roles: ['admin']
-  },
-  {
-    title: 'Dashboard',
-    href: '/pal',
-    icon: LayoutDashboard,
-    roles: ['pal']
-  },
-  {
-    title: 'Agenda',
-    href: '/pal/calendario',
-    icon: Calendar,
-    roles: ['pal']
-  },
-  {
-    title: 'Actividades',
-    href: '/pal/actividades',
-    icon: PenTool,
-    roles: ['pal']
-  },
-  {
-    title: 'Pacientes',
-    href: '/pal/pacientes',
-    icon: Stethoscope,
-    roles: ['pal']
-  }
+  { title: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
+  { title: 'Agenda', href: '/admin/agenda', icon: Calendar, roles: ['admin'] },
+  { title: 'Actividades', href: '/admin/actividades', icon: PenTool, roles: ['admin'] },
+  { title: 'Pacientes', href: '/admin/pacientes', icon: Stethoscope, roles: ['admin'] },
+  { title: 'Usuarios', href: '/admin/usuarios', icon: Users, roles: ['admin'] },
+  { title: 'Catálogos', href: '/admin/catalogos', icon: BookOpen, roles: ['admin'] },
+  { title: 'Instituciones', href: '/admin/instituciones', icon: Building2, roles: ['admin'] },
+  { title: 'Configuraciones', href: '/admin/configuraciones', icon: Settings, roles: ['admin'] },
+  { title: 'Reportes', href: '/admin/reportes', icon: FileText, roles: ['admin'] },
+  { title: 'Dashboard', href: '/pal', icon: LayoutDashboard, roles: ['pal'] },
+  { title: 'Agenda', href: '/pal/calendario', icon: Calendar, roles: ['pal'] },
+  { title: 'Actividades', href: '/pal/actividades', icon: PenTool, roles: ['pal'] },
+  { title: 'Pacientes', href: '/pal/pacientes', icon: Stethoscope, roles: ['pal'] },
 ]
+
+async function forceUpdate() {
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    for (const registration of registrations) {
+      await registration.unregister()
+    }
+  }
+  if ('caches' in window) {
+    const cacheNames = await caches.keys()
+    await Promise.all(cacheNames.map(name => caches.delete(name)))
+  }
+  window.location.reload()
+}
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [lastFetch, setLastFetch] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const { user, role, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+
+  useEffect(() => {
+    setLastFetch(getLastFetch())
+
+    const handleStorage = () => setLastFetch(getLastFetch())
+    window.addEventListener('storage', handleStorage)
+
+    const interval = setInterval(() => {
+      setLastFetch(getLastFetch())
+    }, 30000)
+
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      clearInterval(interval)
+    }
+  }, [])
+
+  const formatLastFetch = (iso: string | null): string => {
+    if (!iso) return 'Sin datos'
+    const d = new Date(iso)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  }
 
   const handleSignOut = async () => {
     await signOut()
     navigate('/login')
   }
 
-  const filteredNavItems = navItems.filter(item => 
+  const handleForceUpdate = async () => {
+    setRefreshing(true)
+    await forceUpdate()
+  }
+
+  const filteredNavItems = navItems.filter(item =>
     role && item.roles.includes(role)
   )
 
@@ -137,7 +119,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {filteredNavItems.map((item) => {
         const Icon = item.icon
         const isActive = location.pathname === item.href
-        
         return (
           <Link
             key={item.href}
@@ -158,12 +139,33 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </nav>
   )
 
+  const VersionInfo = () => (
+    <div className="px-3 py-2 space-y-0.5">
+      <p className="text-[10px] text-muted-foreground">v{APP_VERSION}</p>
+      <p className="text-[10px] text-muted-foreground">BD: {formatLastFetch(getLastFetch())}</p>
+    </div>
+  )
+
+  const ForceUpdateButton = () => (
+    <Button
+      variant="outline"
+      size="sm"
+      className="w-full justify-start gap-2 text-xs"
+      onClick={handleForceUpdate}
+      disabled={refreshing}
+    >
+      <RefreshCw className={cn('h-3 w-3', refreshing && 'animate-spin')} />
+      {refreshing ? 'Actualizando...' : 'Forzar actualización'}
+    </Button>
+  )
+
   return (
     <div className="h-screen flex bg-gradient-to-b from-background to-white">
+
       {/* Sidebar Desktop */}
       <aside className="hidden lg:flex w-64 flex-col border-r bg-gradient-to-b from-white to-primary/20">
         <div className="p-6">
-          <img src="/logo.svg" alt="Control PALs Logo" className="h-32 w-auto" />
+          <img src="/logo.svg" alt="Aliado Presente Logo" className="h-32 w-auto" />
           <div className="flex items-center gap-2 mt-1">
             <p className="text-xs text-muted-foreground">
               {role === 'admin' ? 'Panel Administrativo' : 'Panel PAL'}
@@ -178,7 +180,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <NavLinks />
         </div>
 
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-2">
+          <VersionInfo />
+          <ForceUpdateButton />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start gap-3">
@@ -203,6 +207,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
+
         {/* Mobile Header */}
         <div className="lg:hidden sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 bg-transparent px-4">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -211,10 +216,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            
+
             <SheetContent side="left" className="w-64 p-0 bg-gradient-to-b from-white to-primary">
               <div className="p-6">
-                <img src="/logo.svg" alt="Control PALs Logo" className="h-32 w-auto" />
+                <img src="/logo.svg" alt="Aliado Presente Logo" className="h-32 w-auto" />
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-xs text-muted-foreground">
                     {role === 'admin' ? 'Panel Administrativo' : 'Panel PAL'}
@@ -224,12 +229,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   </Badge>
                 </div>
               </div>
-              
+
               <div className="flex-1 px-4 overflow-auto">
                 <NavLinks />
               </div>
-              
-              <div className="p-4 border-t">
+
+              <div className="p-4 border-t space-y-2">
+                <VersionInfo />
+                <ForceUpdateButton />
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
                   <User className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
@@ -239,7 +246,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </div>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 mt-2"
+                  className="w-full justify-start gap-3"
                   onClick={handleSignOut}
                 >
                   <LogOut className="h-4 w-4" />
@@ -248,9 +255,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               </div>
             </SheetContent>
           </Sheet>
-          
-          <div className="flex-1">
-            <h1 className="text-lg font-semibold">Control PALs</h1>
+
+          {/* Título mobile */}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold leading-tight">Aliado Presente v.{APP_VERSION}</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">
+              Datos actualizados: {formatLastFetch(getLastFetch())}
+            </p>
           </div>
 
           <DropdownMenu>
@@ -287,7 +298,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           {filteredNavItems.slice(0, 4).map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.href
-            
             return (
               <Link
                 key={item.href}
@@ -306,6 +316,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           })}
         </div>
       </nav>
+
       <PWAInstallPrompt />
     </div>
   )

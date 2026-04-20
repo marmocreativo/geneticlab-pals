@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { updateLastFetch } from '@/lib/lastFetch'
 import type { Visita, VisitaInsert, VisitaUpdate } from '@/types/visita'
 
 export const visitasService = {
@@ -14,6 +15,7 @@ export const visitasService = {
       .order('fecha_visita', { ascending: true })
 
     if (error) throw error
+    updateLastFetch()
     return data as Visita[]
   },
 
@@ -29,6 +31,7 @@ export const visitasService = {
       .order('fecha_visita', { ascending: true })
 
     if (error) throw error
+    updateLastFetch()
     return data as Visita[]
   },
 
@@ -49,6 +52,7 @@ export const visitasService = {
     const { data, error } = await query.order('fecha_visita', { ascending: true })
 
     if (error) throw error
+    updateLastFetch()
     return data as Visita[]
   },
 
@@ -72,6 +76,7 @@ export const visitasService = {
   const { data, error } = await query.order('fecha_visita', { ascending: true })
 
   if (error) throw error
+  updateLastFetch()
   return data as Visita[]
 },
 
@@ -87,6 +92,7 @@ export const visitasService = {
       .single()
 
     if (error) throw error
+    updateLastFetch()
     return data as Visita
   },
 

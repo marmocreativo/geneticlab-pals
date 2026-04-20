@@ -11,15 +11,15 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [
-        "favicon.ico", 
-        "apple-touch-icon.png", 
+        "favicon.ico",
+        "apple-touch-icon.png",
         "pwa-192x192.png",
         "pwa-512x512.png",
         "icons/*.png"
       ],
       manifest: {
-        name: "Control PALs",
-        short_name: "Control PALs",
+        name: "Aliado Presente",
+        short_name: "Aliado Presente",
         description: "Sistema de gestión para trabajadores PAL",
         theme_color: "#567F93",
         background_color: "#f1f1f1",
@@ -36,7 +36,7 @@ export default defineConfig({
           },
           {
             src: "pwa-512x512.png",
-            sizes: "512x512", 
+            sizes: "512x512",
             type: "image/png"
           },
           {
@@ -51,44 +51,84 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+
+        // App shell: NetworkFirst para siempre servir la versión más nueva
+        // Si no hay red, cae al cache como fallback
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/, /\.map$/], // Movido aquí
+        navigateFallbackDenylist: [/^\/api/, /\.map$/],
+
         runtimeCaching: [
-          // NUNCA cachear las llamadas a la API de Supabase - datos siempre frescos
+          // App shell JS/CSS: NetworkFirst — siempre intenta la red primero
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
-            handler: "NetworkOnly",
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
-            handler: "NetworkOnly",
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/realtime\/.*/i,
-            handler: "NetworkOnly",
-          },
-          // Solo cachear storage/imágenes temporalmente (para fotos de evidencia)
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
-            handler: "StaleWhileRevalidate",
+            urlPattern: /\.(?:js|css)$/i,
+            handler: 'NetworkFirst',
             options: {
-              cacheName: "supabase-storage-cache",
+              cacheName: 'app-shell',
+              networkTimeoutSeconds: 5,
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 2 // Solo 2 horas para imágenes
+                maxAgeSeconds: 60 * 60 * 24 // 1 día máximo
               },
               cacheableResponse: {
                 statuses: [0, 200]
               }
             }
           },
+
+          // HTML: NetworkFirst — siempre sirve el index.html más nuevo
+          {
+            urlPattern: /\.html$/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 5,
+                maxAgeSeconds: 60 * 60 * 24
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+
+          // Supabase REST/Auth/Realtime: NUNCA cachear
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/realtime\/.*/i,
+            handler: 'NetworkOnly',
+          },
+
+          // Supabase Storage: cache corto para fotos de evidencia
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'supabase-storage-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 2 // 2 horas
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+
           // Google Maps
           {
             urlPattern: /^https:\/\/maps\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
+            handler: 'CacheFirst',
             options: {
-              cacheName: "google-maps-cache",
+              cacheName: 'google-maps-cache',
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 * 30
@@ -97,21 +137,22 @@ export default defineConfig({
           },
           {
             urlPattern: /^https:\/\/maps\.gstatic\.com\/.*/i,
-            handler: "CacheFirst",
+            handler: 'CacheFirst',
             options: {
-              cacheName: "google-maps-tiles",
+              cacheName: 'google-maps-tiles',
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 30
               }
             }
           },
+
           // Google Fonts
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
+            handler: 'CacheFirst',
             options: {
-              cacheName: "google-fonts-stylesheets",
+              cacheName: 'google-fonts-stylesheets',
               expiration: {
                 maxEntries: 10,
                 maxAgeSeconds: 60 * 60 * 24 * 365
@@ -120,9 +161,9 @@ export default defineConfig({
           },
           {
             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: "CacheFirst",
+            handler: 'CacheFirst',
             options: {
-              cacheName: "google-fonts-webfonts",
+              cacheName: 'google-fonts-webfonts',
               expiration: {
                 maxEntries: 30,
                 maxAgeSeconds: 60 * 60 * 24 * 365
@@ -133,7 +174,7 @@ export default defineConfig({
       },
       devOptions: {
         enabled: false,
-        type: "module"
+        type: 'module'
       }
     })
   ],

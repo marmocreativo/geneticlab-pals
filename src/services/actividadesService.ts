@@ -1,5 +1,6 @@
 // services/actividadesService.ts
 import { supabase } from '@/lib/supabase'
+import { updateLastFetch } from '@/lib/lastFetch'
 import type { Actividad, ActividadInsert, ActividadUpdate } from '@/types/actividad'
 
 export const actividadesService = {
@@ -38,6 +39,7 @@ export const actividadesService = {
       .order('created_at', { ascending: false })
 
     if (error) throw error
+    updateLastFetch()
     return data as Actividad[]
   },
 
@@ -85,6 +87,7 @@ export const actividadesService = {
     const { data, error } = await query.order('fecha_actividad', { ascending: false })
 
     if (error) throw error
+    updateLastFetch()
     return data as Actividad[]
   },
 
@@ -129,6 +132,7 @@ export const actividadesService = {
     const { data, error } = await query.order('fecha_actividad', { ascending: false })
 
     if (error) throw error
+    updateLastFetch()
     return data as Actividad[]
   },
 
@@ -173,6 +177,7 @@ export const actividadesService = {
     const { data, error } = await query.order('hora_actividad', { ascending: true, nullsFirst: false })
 
     if (error) throw error
+    updateLastFetch()
     return data as Actividad[]
   },
 
@@ -211,6 +216,7 @@ export const actividadesService = {
       .single()
 
     if (error) throw error
+    updateLastFetch()
     return data as Actividad
   },
 

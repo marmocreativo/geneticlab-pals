@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { updateLastFetch } from '@/lib/lastFetch'
 import type { FechasTratamiento, FechasTratamientoInsert, FechasTratamientoUpdate } from '@/types/ficha'
 
 export const fechasTratamientoService = {
@@ -10,6 +11,7 @@ export const fechasTratamientoService = {
       .order('fecha_programada', { ascending: true })
 
     if (error) throw error
+    updateLastFetch()
     return data as FechasTratamiento[]
   },
 
