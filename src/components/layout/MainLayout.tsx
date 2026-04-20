@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 import { useAuth } from '@/contexts/AuthContext'
