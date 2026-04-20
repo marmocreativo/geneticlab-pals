@@ -55,7 +55,7 @@ function calcularFechasSugeridas(
   periodicidad: PeriodicidadFicha,
   limite: number = 10
 ): Date[] {
-  const inicio = new Date(fechaInicio)
+  const inicio = new Date(fechaInicio + 'T00:00:00')
   const intervalo = diasDePeriodicidad(periodicidad)
   const fechas: Date[] = []
   for (let i = 1; i <= limite; i++) {
@@ -121,7 +121,7 @@ export default function FechasTratamientoPage() {
   }, [ficha?.fecha_inicio_tratamiento, ficha?.periodicidad])
 
   const fechasRegistradas = useMemo((): Date[] => {
-    return fechas.map(f => new Date(f.fecha_programada))
+    return fechas.map(f => new Date(f.fecha_programada + 'T00:00:00'))
   }, [fechas])
 
   const resetForm = () => {
@@ -210,14 +210,14 @@ export default function FechasTratamientoPage() {
             locale={es}
             modifiers={{
               inicio: ficha?.fecha_inicio_tratamiento
-                ? [new Date(ficha.fecha_inicio_tratamiento)]
+                ? [new Date(ficha.fecha_inicio_tratamiento + 'T00:00:00')]
                 : [],
               sugerida: fechasSugeridas.filter(
                 s => !fechasRegistradas.some(r => isSameDay(r, s))
               ),
               registrada: fechasRegistradas,
               fin: ficha?.fecha_final_tratamiento
-                ? [new Date(ficha.fecha_final_tratamiento)]
+                ? [new Date(ficha.fecha_final_tratamiento + 'T00:00:00')]
                 : [],
             }}
             modifiersClassNames={{
@@ -259,7 +259,7 @@ export default function FechasTratamientoPage() {
 
         {formData.fecha_programada && (
           <p className="text-sm text-center text-muted-foreground">
-            Seleccionado: <strong>{format(new Date(formData.fecha_programada), "d 'de' MMMM, yyyy", { locale: es })}</strong>
+            Seleccionado: <strong>{format(new Date(formData.fecha_programada + 'T00:00:00'), "d 'de' MMMM, yyyy", { locale: es })}</strong>
           </p>
         )}
       </div>
@@ -384,7 +384,7 @@ export default function FechasTratamientoPage() {
               <p className="text-muted-foreground">Inicio</p>
               <p className="font-medium">
                 {ficha.fecha_inicio_tratamiento
-                  ? format(new Date(ficha.fecha_inicio_tratamiento), 'd MMM yyyy', { locale: es })
+                  ? format(new Date(ficha.fecha_inicio_tratamiento + 'T00:00:00'), 'd MMM yyyy', { locale: es })
                   : '—'}
               </p>
             </div>
@@ -400,7 +400,7 @@ export default function FechasTratamientoPage() {
               <p className="text-muted-foreground">Fin</p>
               <p className="font-medium">
                 {ficha.fecha_final_tratamiento
-                  ? format(new Date(ficha.fecha_final_tratamiento), 'd MMM yyyy', { locale: es })
+                  ? format(new Date(ficha.fecha_final_tratamiento + 'T00:00:00'), 'd MMM yyyy', { locale: es })
                   : '—'}
               </p>
             </div>
