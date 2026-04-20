@@ -22,7 +22,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Obtener sesión inicial
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false)
+    }, 10000)
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(safetyTimeout)
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
@@ -35,7 +40,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Escuchar cambios de autenticación
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
+
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
@@ -51,28 +58,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserRole = async (userId: string) => {
     try {
-      
-      
-      // Usar service_role para bypass RLS temporalmente
       const { data, error } = await supabase
         .from('users')
         .select('role, nombre_completo, activo')
         .eq('id', userId)
         .single()
 
-      if (error) {
-        console.error('Error al obtener rol:', error)
-        // Si falla, intentar crear el registro
+      if (error || !data) {
         await ensureUserExists(userId)
-        return
-      }
-      
-      if (data) {
+      } else {
         setRole(data.role)
+        setLoading(false)
       }
     } catch (error) {
       console.error('❌ Error al obtener rol:', error)
-    } finally {
       setLoading(false)
     }
   }

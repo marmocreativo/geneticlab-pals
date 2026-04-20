@@ -145,8 +145,8 @@ export default function ActividadesPage() {
   const formatDateRange = () => {
     if (!fechaInicio || !fechaFin) return 'Seleccionar período'
     
-    const inicio = new Date(fechaInicio)
-    const fin = new Date(fechaFin)
+    const inicio = new Date(fechaInicio + 'T00:00:00')
+    const fin = new Date(fechaFin + 'T00:00:00')
     
     return `${format(inicio, 'd MMM', { locale: es })} - ${format(fin, 'd MMM yyyy', { locale: es })}`
   }
@@ -507,7 +507,7 @@ export default function ActividadesPage() {
                           <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {format(new Date(actividad.fecha_actividad), 'd MMM yyyy', { locale: es })}
+                              {format(new Date(actividad.fecha_actividad + 'T00:00:00'), 'd MMM yyyy', { locale: es })}
                             </div>
                             {actividad.hora_actividad && (
                               <div className="flex items-center gap-1">

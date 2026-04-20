@@ -163,7 +163,7 @@ export default function FechasTratamientoPage() {
 
   const handleEdit = (fecha: any) => {
     setEditingFecha(fecha)
-    setSelectedDate(new Date(fecha.fecha_programada))
+    setSelectedDate(new Date(fecha.fecha_programada + 'T00:00:00'))
     setFormData({
       ficha_id: fecha.ficha_id,
       fecha_programada: fecha.fecha_programada,
@@ -503,7 +503,7 @@ export default function FechasTratamientoPage() {
                       return (
                         <TableRow key={fecha.id}>
                           <TableCell className="font-medium">
-                            {new Date(fecha.fecha_programada).toLocaleDateString('es-MX')}
+                            {new Date(fecha.fecha_programada + 'T00:00:00').toLocaleDateString('es-MX')}
                           </TableCell>
                           <TableCell>
                             <Badge variant={config.variant}>{config.label}</Badge>
@@ -566,11 +566,11 @@ export default function FechasTratamientoPage() {
                               {/* Hoja de calendario */}
                               <div className="bg-white border border-border rounded-lg shadow-sm overflow-hidden flex-shrink-0">
                                 <div className="bg-primary text-primary-foreground text-[10px] font-medium text-center py-0.5 px-2">
-                                  {format(new Date(fecha.fecha_programada), 'MMM', { locale: es }).toUpperCase()}
+                                  {format(new Date(fecha.fecha_programada + 'T00:00:00'), 'MMM', { locale: es }).toUpperCase()}
                                 </div>
                                 <div className="px-2 py-1 text-center">
                                   <div className="text-base font-bold leading-none">
-                                    {format(new Date(fecha.fecha_programada), 'd')}
+                                    {format(new Date(fecha.fecha_programada + 'T00:00:00'), 'd')}
                                   </div>
                                 </div>
                               </div>
@@ -578,7 +578,7 @@ export default function FechasTratamientoPage() {
                               {/* Info */}
                               <div className="space-y-1 flex-1">
                                 <p className="text-sm font-medium">
-                                  {format(new Date(fecha.fecha_programada), "d 'de' MMMM, yyyy", { locale: es })}
+                                  {format(new Date(fecha.fecha_programada + 'T00:00:00'), "d 'de' MMMM, yyyy", { locale: es })}
                                 </p>
                                 <Badge variant={config.variant} className="text-xs">{config.label}</Badge>
                                 {fecha.notas && (
