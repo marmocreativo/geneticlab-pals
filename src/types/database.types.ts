@@ -14,6 +14,10 @@ export type TipoVisita = 'presencial' | 'telefono'
 
 export type EstadoVisita = 'programada' | 'asistio' | 'falto' | 'reagendada'
 
+export type StatusFicha = 'en_tx' | 'fuera_tx'
+
+export type PeriodicidadFicha = 'semanal' | 'cada_2_semanas' | 'cada_3_semanas' | 'cada_4_semanas'
+
 export type CatalogoTipo = 
   | 'diagnostico'
   | 'terapia'
@@ -199,8 +203,15 @@ export interface Database {
           folio: string
           institucion_id: string
           paciente_id: string
+          doctor_id: string | null
           diagnostico: string | null
           terapia: string | null
+          dosis: string | null
+          fecha_inicio_tratamiento: string | null
+          numero_pm: string | null
+          status: StatusFicha
+          periodicidad: PeriodicidadFicha | null
+          fecha_final_tratamiento: string | null
           created_at: string
           updated_at: string
         }
@@ -209,8 +220,15 @@ export interface Database {
           folio?: string
           institucion_id: string
           paciente_id: string
+          doctor_id?: string | null
           diagnostico?: string | null
           terapia?: string | null
+          dosis?: string | null
+          fecha_inicio_tratamiento?: string | null
+          numero_pm?: string | null
+          status?: StatusFicha
+          periodicidad?: PeriodicidadFicha | null
+          fecha_final_tratamiento?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -219,8 +237,15 @@ export interface Database {
           folio?: string
           institucion_id?: string
           paciente_id?: string
+          doctor_id?: string | null
           diagnostico?: string | null
           terapia?: string | null
+          dosis?: string | null
+          fecha_inicio_tratamiento?: string | null
+          numero_pm?: string | null
+          status?: StatusFicha
+          periodicidad?: PeriodicidadFicha | null
+          fecha_final_tratamiento?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -1,207 +1,298 @@
-// pages/pal/VisitasAgenda.tsx
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, LayoutGrid, LayoutList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useVisitas } from '@/hooks/useVisitas'
-import { 
-  format, 
-  startOfMonth, 
-  endOfMonth, 
-  eachDayOfInterval, 
-  isSameMonth, 
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
   isToday,
   addMonths,
   subMonths,
+  addWeeks,
+  subWeeks,
   startOfWeek,
-  endOfWeek
+  endOfWeek,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 
+type Vista = 'mensual' | 'semanal'
+
+const VISTA_KEY = 'agenda_vista_preferida'
+
 export default function VisitasAgenda() {
   const navigate = useNavigate()
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
+  const [currentDate, setCurrentDate] = useState<Date>(new Date())
+  const [vista, setVista] = useState<Vista>(() => {
+    return (localStorage.getItem(VISTA_KEY) as Vista) ?? 'mensual'
+  })
   const { visitas, loading, fetchVisitasByMes } = useVisitas()
 
-  // Obtener rango del calendario
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(currentMonth)
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 })
+  const monthStart = startOfMonth(currentDate)
+  const monthEnd = endOfMonth(currentDate)
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
 
+  const calendarDays = vista === 'mensual'
+    ? eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+    : eachDayOfInterval({ start: weekStart, end: weekEnd })
 
-  // Cargar datos cuando cambia el mes
   useEffect(() => {
-    const year = currentMonth.getFullYear()
-    const month = currentMonth.getMonth() + 1 // getMonth() retorna 0-11, necesitamos 1-12
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth() + 1
     fetchVisitasByMes(year, month)
-    }, [currentMonth])
+  }, [currentDate])
 
-  // DEBUG: Log las visitas cada vez que cambian
-  useEffect(() => {
-    console.log('📋 VISITAS ACTUALES:', visitas)
-    console.log('📋 CANTIDAD DE VISITAS:', visitas.length)
-    if (visitas.length > 0) {
-      console.log('📋 FECHAS DE VISITAS:')
-      visitas.forEach((visita, index) => {
-        console.log(`   ${index}: ${format(new Date(visita.fecha_visita), 'yyyy-MM-dd HH:mm')} - ${visita.institucion?.nombre}`)
-      })
-    }
-  }, [visitas])
+  const handleVistaChange = (v: Vista) => {
+    setVista(v)
+    localStorage.setItem(VISTA_KEY, v)
+  }
 
-  // Obtener cantidad de visitas de un día específico
+  const handlePrev = () => {
+    setCurrentDate(prev =>
+      vista === 'mensual' ? subMonths(prev, 1) : subWeeks(prev, 1)
+    )
+  }
+
+  const handleNext = () => {
+    setCurrentDate(prev =>
+      vista === 'mensual' ? addMonths(prev, 1) : addWeeks(prev, 1)
+    )
+  }
+
+  const handleToday = () => setCurrentDate(new Date())
+
   const getVisitasDelDia = (day: Date) => {
     const dayString = format(day, 'yyyy-MM-dd')
-    const visitasDelDia = visitas.filter(visita => {
-      const visitaDate = format(new Date(visita.fecha_visita), 'yyyy-MM-dd')
-      return visitaDate === dayString
-    })
-    
-    // DEBUG: Solo logear si hay visitas o si es día 9 (para test)
-    if (visitasDelDia.length > 0 || dayString.endsWith('-09')) {
-      console.log(`🗓️ DÍA ${dayString}:`, {
-        visitasEncontradas: visitasDelDia.length,
-        visitasDelDia: visitasDelDia.map(v => format(new Date(v.fecha_visita), 'yyyy-MM-dd HH:mm'))
-      })
-    }
-    
-    return visitasDelDia
+    return visitas.filter(v => format(new Date(v.fecha_visita), 'yyyy-MM-dd') === dayString)
   }
 
-  // Navegar al mes anterior
-  const handlePreviousMonth = () => {
-    setCurrentMonth(prev => subMonths(prev, 1))
+  const estadoBadgeVariant = (estado: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    if (estado === 'asistio') return 'default'
+    if (estado === 'falto') return 'destructive'
+    return 'secondary'
   }
 
-  // Navegar al mes siguiente
-  const handleNextMonth = () => {
-    setCurrentMonth(prev => addMonths(prev, 1))
-  }
-
-  // Ir al día actual
-  const handleToday = () => {
-    setCurrentMonth(new Date())
-  }
-
-  // Navegar a la vista del día
-  const handleDayClick = (day: Date) => {
-    const fechaString = format(day, 'yyyy-MM-dd')
-    navigate(`/pal/visitas-dia/${fechaString}`)
-  }
+  const labelNavegacion = vista === 'mensual'
+    ? format(currentDate, 'MMMM yyyy', { locale: es })
+    : `${format(weekStart, 'd MMM', { locale: es })} - ${format(weekEnd, 'd MMM yyyy', { locale: es })}`
 
   const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      {/* Header con controles de navegación */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 space-y-4">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />
           <h1 className="text-2xl font-bold">Agenda</h1>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
+        <div className="flex items-center gap-1 border rounded-md p-1">
+          <Button
+            variant={vista === 'mensual' ? 'default' : 'ghost'}
             size="sm"
-            onClick={handlePreviousMonth}
-            className="h-8 w-8 p-0"
+            className="h-7 px-2"
+            onClick={() => handleVistaChange('mensual')}
           >
-            <ChevronLeft className="h-4 w-4" />
+            <LayoutGrid className="h-4 w-4" />
           </Button>
-
-          <Button 
-            variant="ghost" 
-            onClick={handleToday}
-            className="min-w-[120px] text-sm font-medium"
-          >
-            {format(currentMonth, 'MMMM yyyy', { locale: es })}
-          </Button>
-
-          <Button 
-            variant="outline" 
+          <Button
+            variant={vista === 'semanal' ? 'default' : 'ghost'}
             size="sm"
-            onClick={handleNextMonth}
-            className="h-8 w-8 p-0"
+            className="h-7 px-2"
+            onClick={() => handleVistaChange('semanal')}
           >
-            <ChevronRight className="h-4 w-4" />
+            <LayoutList className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Calendario */}
-      <Card className="p-4">
-        {/* Días de la semana */}
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {diasSemana.map((dia) => (
-            <div key={dia} className="p-2 text-center text-sm font-medium text-muted-foreground">
-              {dia}
+      {/* Navegación */}
+      <div className="flex items-center justify-between">
+        <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={handlePrev}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" onClick={handleToday} className="text-sm font-medium capitalize">
+          {labelNavegacion}
+        </Button>
+        <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={handleNext}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Vista Mensual */}
+      {vista === 'mensual' && (
+        <Card className="p-4">
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {diasSemana.map(dia => (
+              <div key={dia} className="p-2 text-center text-xs font-medium text-muted-foreground">
+                {dia}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.map(day => {
+              const visitasDelDia = getVisitasDelDia(day)
+              const isCurrentMonth = isSameMonth(day, currentDate)
+              const isCurrentDay = isToday(day)
+              const hasVisitas = visitasDelDia.length > 0
+
+              return (
+                <Button
+                  key={day.toISOString()}
+                  variant="ghost"
+                  onClick={() => navigate(`/pal/visitas-dia/${format(day, 'yyyy-MM-dd')}`)}
+                  className={cn(
+                    'h-16 w-full p-2 flex flex-col items-center justify-center',
+                    'border border-transparent hover:border-border',
+                    !isCurrentMonth && 'text-muted-foreground opacity-50',
+                    isCurrentDay && 'bg-primary text-primary-foreground hover:bg-primary/90',
+                    hasVisitas && isCurrentMonth && !isCurrentDay && 'bg-blue-50 border-blue-200'
+                  )}
+                >
+                  <span className="text-sm font-medium">{format(day, 'd')}</span>
+                  {hasVisitas && (
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'text-xs h-5 min-w-[20px] px-1.5 mt-1',
+                        isCurrentDay && 'bg-primary-foreground text-primary'
+                      )}
+                    >
+                      {visitasDelDia.length}
+                    </Badge>
+                  )}
+                </Button>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Vista Semanal — scroll horizontal con touch */}
+      {vista === 'semanal' && (
+        <div
+          className="overflow-x-auto"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="min-w-[1200px] w-full">
+            {/* Cabecera días */}
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {calendarDays.map(day => (
+                <div
+                  key={day.toISOString()}
+                  className={cn(
+                    'text-center p-2 rounded-md',
+                    isToday(day) && 'bg-primary text-primary-foreground'
+                  )}
+                >
+                  <p className={cn(
+                    'text-xs font-medium',
+                    isToday(day) ? 'text-primary-foreground' : 'text-muted-foreground'
+                  )}>
+                    {format(day, 'EEE', { locale: es }).toUpperCase()}
+                  </p>
+                  <p className={cn(
+                    'text-sm font-bold',
+                    isToday(day) && 'text-primary-foreground'
+                  )}>
+                    {format(day, 'd')}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Días del calendario */}
-        <div className="grid grid-cols-7 gap-1">
-          {calendarDays.map((day) => {
-            const visitasDelDia = getVisitasDelDia(day)
-            const isCurrentMonth = isSameMonth(day, currentMonth)
-            const isCurrentDay = isToday(day)
-            const hasVisitas = visitasDelDia.length > 0
-
-            return (
-              <Button
-                key={day.toISOString()}
-                variant="ghost"
-                onClick={() => handleDayClick(day)}
-                className={cn(
-                  "h-16 w-full p-2 flex flex-col items-center justify-center relative",
-                  "border border-transparent hover:border-border",
-                  !isCurrentMonth && "text-muted-foreground opacity-50",
-                  isCurrentDay && "bg-primary text-primary-foreground hover:bg-primary/90",
-                  hasVisitas && isCurrentMonth && !isCurrentDay && "bg-blue-50 border-blue-200"
-                )}
-              >
-                <span className="text-sm font-medium">
-                  {format(day, 'd')}
-                </span>
-                
-                {hasVisitas && (
-                  <Badge 
-                    variant="secondary" 
+            {/* Columnas de visitas */}
+            <div className="grid grid-cols-7 gap-2">
+              {calendarDays.map(day => {
+                const visitasDelDia = getVisitasDelDia(day)
+                return (
+                  <div
+                    key={day.toISOString()}
                     className={cn(
-                      "text-xs h-5 min-w-[20px] px-1.5 mt-1",
-                      isCurrentDay && "bg-primary-foreground text-primary"
+                      'min-h-[360px] rounded-md border p-2 space-y-2',
+                      isToday(day) && 'border-primary/30 bg-primary/5'
                     )}
                   >
-                    {visitasDelDia.length}
-                  </Badge>
-                )}
-              </Button>
-            )
-          })}
+                    {visitasDelDia.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center pt-4">—</p>
+                    ) : (
+                      visitasDelDia.map(visita => (
+                        <button
+                          key={visita.id}
+                          onClick={() => navigate(`/pal/visitas/${visita.id}`)}
+                          className={cn(
+                            'w-full text-left rounded p-3 text-xs leading-snug',
+                            'border hover:shadow-sm transition-shadow',
+                            visita.estado === 'asistio' && 'bg-green-50 border-green-200',
+                            visita.estado === 'falto' && 'bg-red-50 border-red-200',
+                            visita.estado === 'programada' && 'bg-blue-50 border-blue-200',
+                          )}
+                        >
+                          <p className="font-medium truncate">{visita.institucion?.nombre}</p>
+                          <p className="text-muted-foreground text-[11px] mt-0.5">
+                            {format(new Date(visita.fecha_visita), 'HH:mm')}
+                          </p>
+                          <Badge
+                            variant={estadoBadgeVariant(visita.estado)}
+                            className="text-[9px] px-1 py-0 h-4 mt-1"
+                          >
+                            {visita.estado}
+                          </Badge>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
-      </Card>
+      )}
 
       {/* Indicadores */}
-      <div className="flex items-center justify-center gap-6 mt-4 text-xs text-muted-foreground">
+      <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-primary"></div>
+          <div className="w-3 h-3 rounded bg-primary" />
           <span>Hoy</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-blue-50 border border-blue-200"></div>
-          <span>Con visitas</span>
-        </div>
+        {vista === 'mensual' && (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-blue-50 border border-blue-200" />
+            <span>Con visitas</span>
+          </div>
+        )}
+        {vista === 'semanal' && (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-blue-50 border border-blue-200" />
+              <span>Programada</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-green-50 border border-green-200" />
+              <span>Asistió</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-red-50 border border-red-200" />
+              <span>Faltó</span>
+            </div>
+          </>
+        )}
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <span className="ml-2 text-sm text-muted-foreground">Cargando visitas...</span>
+        <div className="flex items-center justify-center py-4">
+          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="ml-2 text-sm text-muted-foreground">Cargando...</span>
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 export interface FichaPaciente {
-  fechas_tratamiento: any
+  fechas_tratamiento?: FechasTratamiento[]
   id: string
   folio: string
   institucion_id: string
@@ -9,6 +9,10 @@ export interface FichaPaciente {
   terapia?: string
   dosis?: string
   fecha_inicio_tratamiento?: string
+  numero_pm?: string
+  status: 'en_tx' | 'fuera_tx'
+  periodicidad?: 'semanal' | 'cada_2_semanas' | 'cada_3_semanas' | 'cada_4_semanas'
+  fecha_final_tratamiento?: string
   created_at: string
   updated_at: string
   institucion?: {
@@ -39,6 +43,10 @@ export interface FichaPacienteInsert {
   terapia?: string
   dosis: string
   fecha_inicio_tratamiento: string
+  numero_pm?: string
+  status?: 'en_tx' | 'fuera_tx'
+  periodicidad?: 'semanal' | 'cada_2_semanas' | 'cada_3_semanas' | 'cada_4_semanas'
+  fecha_final_tratamiento?: string
 }
 
 export interface FichaPacienteUpdate {
@@ -49,13 +57,19 @@ export interface FichaPacienteUpdate {
   terapia?: string
   dosis?: string
   fecha_inicio_tratamiento?: string
+  numero_pm?: string
+  status?: 'en_tx' | 'fuera_tx'
+  periodicidad?: 'semanal' | 'cada_2_semanas' | 'cada_3_semanas' | 'cada_4_semanas'
+  fecha_final_tratamiento?: string
 }
 
 export interface FechasTratamiento {
   id: string
   ficha_id: string
   fecha_programada: string
+  // @deprecated usar `estado` en su lugar. Se mantiene por compatibilidad con datos anteriores.
   asistencia: boolean
+  estado: 'pendiente' | 'asistio' | 'falto'
   notas?: string
   created_at: string
 }
@@ -63,12 +77,16 @@ export interface FechasTratamiento {
 export interface FechasTratamientoInsert {
   ficha_id: string
   fecha_programada: string
+  // @deprecated usar `estado` en su lugar. Se mantiene por compatibilidad con datos anteriores.
   asistencia?: boolean
+  estado?: 'pendiente' | 'asistio' | 'falto'
   notas?: string
 }
 
 export interface FechasTratamientoUpdate {
   fecha_programada?: string
+  // @deprecated usar `estado` en su lugar. Se mantiene por compatibilidad con datos anteriores.
   asistencia?: boolean
+  estado?: 'pendiente' | 'asistio' | 'falto'
   notas?: string
 }

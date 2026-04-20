@@ -117,6 +117,7 @@ export const fichasService = {
           id,
           fecha_programada,
           asistencia,
+          estado,
           notas
         )
       `)

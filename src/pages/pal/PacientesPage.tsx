@@ -1,26 +1,40 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import FichaForm from '@/components/pacientes/FichaForm'
-import { Search, Filter, ChevronDown, ChevronUp, Building, Calendar, Phone, FileText, Pencil, Check, X, Stethoscope, Plus } from 'lucide-react'
+import {
+  ChevronLeft, ChevronRight, Check, X, Calendar,
+  Pencil, Plus, Stethoscope, Building, Star
+} from 'lucide-react'
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
 import { useContactos } from '@/hooks/useContactos'
 import { useAuth } from '@/contexts/AuthContext'
 import { contactosService } from '@/services/contactosService'
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { FichaPaciente, FichaPacienteUpdate } from '@/types/ficha'
 import type { ContactoInsert, Contacto } from '@/types/contacto'
+import type { PeriodicidadFicha } from '@/types/database.types'
+
+const PERIODICIDAD_OPTIONS: { value: PeriodicidadFicha; label: string }[] = [
+  { value: 'semanal', label: 'Semanal' },
+  { value: 'cada_2_semanas', label: 'Cada 2 semanas' },
+  { value: 'cada_3_semanas', label: 'Cada 3 semanas' },
+  { value: 'cada_4_semanas', label: 'Cada 4 semanas' },
+]
+
+const STATUS_LABELS: Record<string, string> = {
+  en_tx: 'En Tx',
+  fuera_tx: 'Fuera Tx',
+}
 
 interface EditFormState {
   doctor_id: string
@@ -28,22 +42,77 @@ interface EditFormState {
   terapia: string
   dosis: string
   fecha_inicio_tratamiento: string
+  fecha_final_tratamiento: string
+  numero_pm: string
+  status: 'en_tx' | 'fuera_tx'
+  periodicidad: PeriodicidadFicha | ''
+}
+
+function IconoFecha({ estado }: { estado?: string }) {
+  if (estado === 'asistio') return <Check className="h-4 w-4 text-green-600" />
+  if (estado === 'falto') return <X className="h-4 w-4 text-red-500" />
+  return <Calendar className="h-4 w-4 text-muted-foreground" />
+}
+
+function TablaDates({ ficha }: { ficha: FichaPaciente }) {
+  const celdas: ({ fecha: string; estado?: string; esInicio?: boolean })[] = []
+
+  if (ficha.fecha_inicio_tratamiento) {
+    celdas.push({ fecha: ficha.fecha_inicio_tratamiento, estado: 'asistio', esInicio: true })
+  } else {
+    celdas.push({ fecha: '' })
+  }
+
+  const registradas = [...(ficha.fechas_tratamiento ?? [])]
+    .sort((a, b) => new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime())
+    .slice(0, 4)
+
+  for (let i = 0; i < 4; i++) {
+    const f = registradas[i]
+    if (f) {
+      celdas.push({ fecha: f.fecha_programada, estado: f.estado })
+    } else {
+      celdas.push({ fecha: '' })
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-5 gap-1 mt-3">
+      {celdas.map((c, i) => (
+        <div
+          key={i}
+          className="flex flex-col items-center justify-center border rounded p-1 min-h-[48px] bg-muted/30"
+        >
+          {c.fecha ? (
+            <>
+              <IconoFecha estado={c.estado} />
+              <span className="text-[10px] text-muted-foreground mt-1 text-center leading-tight">
+                {format(new Date(c.fecha), 'd MMM', { locale: es })}
+              </span>
+              {c.esInicio && (
+                <span className="text-[9px] text-primary font-medium">inicio</span>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground text-sm">—</span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export default function PacientesPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { fichas, loading, fetchFichas, buscarFichas, updateFicha } = useFichas()
+  const { fichas, loading, fetchFichas, updateFicha } = useFichas()
   const { instituciones } = useInstituciones()
   const { formatearNombreCompleto, createContacto } = useContactos()
 
-  const [searchTerm, setSearchTerm] = useState('')
+  const [mesActual, setMesActual] = useState(new Date())
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('all')
-  const [fechaInicio, setFechaInicio] = useState<string>('')
-  const [fechaFin, setFechaFin] = useState<string>('')
+  const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
   const [filteredFichas, setFilteredFichas] = useState<FichaPaciente[]>([])
-  const [showFilters, setShowFilters] = useState(false)
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
   const [editingFicha, setEditingFicha] = useState<FichaPaciente | null>(null)
   const [editForm, setEditForm] = useState<EditFormState>({
@@ -52,10 +121,13 @@ export default function PacientesPage() {
     terapia: '',
     dosis: '',
     fecha_inicio_tratamiento: '',
+    fecha_final_tratamiento: '',
+    numero_pm: '',
+    status: 'en_tx',
+    periodicidad: '',
   })
-  const [editErrors, setEditErrors] = useState<Partial<EditFormState>>({})
+  const [editErrors, setEditErrors] = useState<Partial<Pick<EditFormState, 'dosis' | 'fecha_inicio_tratamiento'>>>({})
   const [saving, setSaving] = useState(false)
-
   const [medicosEdit, setMedicosEdit] = useState<Contacto[]>([])
   const [loadingMedicos, setLoadingMedicos] = useState(false)
   const [createNewMedico, setCreateNewMedico] = useState(false)
@@ -69,65 +141,41 @@ export default function PacientesPage() {
   })
 
   useEffect(() => {
-    const now = new Date()
-    setFechaInicio(format(startOfMonth(subMonths(now, 1)), 'yyyy-MM-dd'))
-    setFechaFin(format(endOfMonth(now), 'yyyy-MM-dd'))
-  }, [])
+    const inicio = format(startOfMonth(mesActual), 'yyyy-MM-dd')
+    const fin = format(endOfMonth(mesActual), 'yyyy-MM-dd')
 
-  useEffect(() => {
-    let result = fichas
-    if (selectedInstitucion && selectedInstitucion !== 'all') {
-      result = result.filter(ficha => ficha.institucion_id === selectedInstitucion)
+    let result = fichas.filter(ficha => {
+      if (!ficha.fecha_inicio_tratamiento) return false
+      return ficha.fecha_inicio_tratamiento >= inicio && ficha.fecha_inicio_tratamiento <= fin
+    })
+
+    if (selectedInstitucion !== 'all') {
+      result = result.filter(f => f.institucion_id === selectedInstitucion)
     }
-    if (fechaInicio) {
-      result = result.filter(ficha => new Date(ficha.created_at) >= new Date(fechaInicio))
-    }
-    if (fechaFin) {
-      result = result.filter(ficha => new Date(ficha.created_at) <= new Date(fechaFin))
-    }
+
     setFilteredFichas(result)
-  }, [fichas, selectedInstitucion, fechaInicio, fechaFin])
+  }, [fichas, mesActual, selectedInstitucion])
 
-  const handleSearch = async () => {
-    if (searchTerm.trim()) {
-      await buscarFichas(searchTerm)
-    } else {
-      await fetchFichas()
-    }
-  }
+  const stats = useMemo(() => ({
+    iniciaronEsteMes: filteredFichas.length,
+    enTratamiento: filteredFichas.filter(f => f.status === 'en_tx').length,
+  }), [filteredFichas])
 
-  const clearFilters = () => {
-    const now = new Date()
-    setSearchTerm('')
-    setSelectedInstitucion('all')
-    setFechaInicio(format(startOfMonth(subMonths(now, 1)), 'yyyy-MM-dd'))
-    setFechaFin(format(endOfMonth(now), 'yyyy-MM-dd'))
-    fetchFichas()
-  }
+  const promedioVisitas = instituciones.length > 0
+    ? instituciones.reduce((acc, i) => acc + (i.visitas_count ?? 0), 0) / instituciones.length
+    : 0
+
+  const institucionesFiltradas = [...instituciones]
+    .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
+    .filter(i =>
+      busquedaInstitucion === '' ||
+      i.nombre.toLowerCase().includes(busquedaInstitucion.toLowerCase()) ||
+      i.direccion.toLowerCase().includes(busquedaInstitucion.toLowerCase())
+    )
 
   const formatearNombre = (contacto: any) => {
     if (!contacto) return 'Sin datos'
     return [contacto.nombre, contacto.apellido_pat, contacto.apellido_mat].filter(Boolean).join(' ')
-  }
-
-  const calcularEdad = (fechaNacimiento: string) => {
-    if (!fechaNacimiento) return null
-    return contactosService.calcularEdad(fechaNacimiento)
-  }
-
-  const formatDateRange = () => {
-    if (!fechaInicio || !fechaFin) return 'Seleccionar período'
-    return `${format(new Date(fechaInicio), 'd MMM', { locale: es })} - ${format(new Date(fechaFin), 'd MMM yyyy', { locale: es })}`
-  }
-
-  const toggleExpand = (fichaId: string) => {
-    const newExpanded = new Set(expandedItems)
-    if (newExpanded.has(fichaId)) {
-      newExpanded.delete(fichaId)
-    } else {
-      newExpanded.add(fichaId)
-    }
-    setExpandedItems(newExpanded)
   }
 
   const handleOpenEdit = async (ficha: FichaPaciente) => {
@@ -138,6 +186,10 @@ export default function PacientesPage() {
       terapia: ficha.terapia || '',
       dosis: ficha.dosis || '',
       fecha_inicio_tratamiento: ficha.fecha_inicio_tratamiento || '',
+      fecha_final_tratamiento: ficha.fecha_final_tratamiento || '',
+      numero_pm: ficha.numero_pm || '',
+      status: ficha.status || 'en_tx',
+      periodicidad: ficha.periodicidad || '',
     })
     setEditErrors({})
     setCreateNewMedico(false)
@@ -149,7 +201,6 @@ export default function PacientesPage() {
       telefono: '',
       pal_id: user?.id || ''
     })
-
     setLoadingMedicos(true)
     try {
       const data = await contactosService.getContactosByInstitucion(ficha.institucion_id)
@@ -163,22 +214,18 @@ export default function PacientesPage() {
 
   const handleCloseEdit = () => {
     setEditingFicha(null)
-    setEditForm({ doctor_id: '', diagnostico: '', terapia: '', dosis: '', fecha_inicio_tratamiento: '' })
+    setEditForm({
+      doctor_id: '', diagnostico: '', terapia: '', dosis: '',
+      fecha_inicio_tratamiento: '', fecha_final_tratamiento: '',
+      numero_pm: '', status: 'en_tx', periodicidad: '',
+    })
     setEditErrors({})
     setMedicosEdit([])
     setCreateNewMedico(false)
-    setNuevoMedicoData({
-      tipo_contacto: 'medico',
-      nombre: '',
-      apellido_pat: '',
-      apellido_mat: '',
-      telefono: '',
-      pal_id: user?.id || ''
-    })
   }
 
   const validateEdit = (): boolean => {
-    const errors: Partial<EditFormState> = {}
+    const errors: typeof editErrors = {}
     if (!editForm.dosis.trim()) errors.dosis = 'Requerido'
     if (!editForm.fecha_inicio_tratamiento) errors.fecha_inicio_tratamiento = 'Requerido'
     setEditErrors(errors)
@@ -190,7 +237,6 @@ export default function PacientesPage() {
     setSaving(true)
     try {
       let doctorId = editForm.doctor_id || undefined
-
       if (createNewMedico && nuevoMedicoData.nombre.trim()) {
         const nuevo = await createContacto({
           ...nuevoMedicoData,
@@ -198,13 +244,16 @@ export default function PacientesPage() {
         })
         doctorId = nuevo.id
       }
-
       const updates: FichaPacienteUpdate = {
         doctor_id: doctorId,
         diagnostico: editForm.diagnostico || undefined,
         terapia: editForm.terapia || undefined,
         dosis: editForm.dosis,
         fecha_inicio_tratamiento: editForm.fecha_inicio_tratamiento,
+        fecha_final_tratamiento: editForm.fecha_final_tratamiento || undefined,
+        numero_pm: editForm.numero_pm || undefined,
+        status: editForm.status,
+        periodicidad: editForm.periodicidad || undefined,
       }
       await updateFicha(editingFicha.id, updates)
       handleCloseEdit()
@@ -217,394 +266,189 @@ export default function PacientesPage() {
 
   const fieldEdit = (key: keyof EditFormState, value: string) => {
     setEditForm(prev => ({ ...prev, [key]: value }))
-    if (editErrors[key]) setEditErrors(prev => ({ ...prev, [key]: undefined }))
+    if (key === 'dosis' || key === 'fecha_inicio_tratamiento') {
+      setEditErrors(prev => ({ ...prev, [key]: undefined }))
+    }
   }
 
-  const thisMonthCount = filteredFichas.filter(ficha =>
-    new Date(ficha.created_at).getMonth() === new Date().getMonth()
-  ).length
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Header Desktop */}
-      <div className="hidden md:flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+
+      {/* Header */}
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold">Censo de Pacientes</h1>
-          <p className="text-muted-foreground">Gestión de fichas y seguimiento de pacientes</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Censo de Pacientes</h1>
+          <p className="text-muted-foreground text-sm mt-1">Gestión de fichas y seguimiento</p>
         </div>
-        <FichaForm onSuccess={fetchFichas} />
-      </div>
-
-      {/* Header Mobile */}
-      <div className="md:hidden">
-        <h1 className="text-3xl font-bold">Censo de Pacientes</h1>
-        <p className="text-muted-foreground mt-1">Registro y seguimiento de pacientes registrados</p>
-      </div>
-
-      {/* Estadísticas */}
-      <div className="grid gap-4 grid-cols-3">
-        <Card>
-          <CardContent className="p-4 py-0 text-center">
-            <p className="text-sm text-muted-foreground">Total Pacientes</p>
-            <p className="text-3xl font-bold">{filteredFichas.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 py-0 text-center">
-            <p className="text-sm text-muted-foreground">Fichas Activas</p>
-            <p className="text-3xl font-bold">{filteredFichas.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 py-0 text-center">
-            <p className="text-sm text-muted-foreground">Este Mes</p>
-            <p className="text-3xl font-bold">{thisMonthCount}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Botón nueva ficha Desktop */}
-      <div className="hidden md:flex justify-end">
-        <FichaForm onSuccess={fetchFichas} />
-      </div>
-
-      {/* Botones Mobile */}
-      <div className="md:hidden flex gap-3">
-        <Button
-          variant="outline"
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex-[2] justify-between"
-        >
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            <span className="truncate">{formatDateRange()}</span>
-          </div>
-          {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </Button>
-        <div className="flex-1">
+        {/* Botón desktop alineado a la derecha */}
+        <div className="hidden md:block">
           <FichaForm onSuccess={fetchFichas} />
         </div>
       </div>
 
-      {/* Filtros Desktop */}
-      <div className="hidden md:block">
-        <Card>
-          <CardContent className="p-6">
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Buscar por folio</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar folio..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    />
-                  </div>
-                  <Button onClick={handleSearch} variant="outline">
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+      {/* Botón nueva ficha mobile - ancho completo */}
+      <div className="md:hidden w-full">
+        <FichaForm onSuccess={fetchFichas} />
+      </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Institución</label>
-                <Select value={selectedInstitucion} onValueChange={setSelectedInstitucion}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todas las instituciones" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las instituciones</SelectItem>
-                    {instituciones.map(inst => (
-                      <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* Filtros */}
+      <div className="flex flex-col md:flex-row gap-3">
+        {/* Navegación mes */}
+        <div className="flex items-center gap-2 border rounded-md px-3 py-2 justify-center md:justify-start">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => setMesActual(prev => subMonths(prev, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium min-w-[130px] text-center">
+            {format(mesActual, 'MMMM yyyy', { locale: es })}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => setMesActual(prev => addMonths(prev, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Fecha desde</label>
-                <Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">&nbsp;</label>
-                <Button variant="outline" onClick={clearFilters} className="w-full">
-                  Limpiar Filtros
-                </Button>
-              </div>
+        {/* Select institución con buscador y favoritos */}
+        <Select value={selectedInstitucion} onValueChange={setSelectedInstitucion}>
+          <SelectTrigger className="w-full md:w-64">
+            <SelectValue placeholder="Todas las instituciones" />
+          </SelectTrigger>
+          <SelectContent className="max-h-64 overflow-y-auto">
+            <div className="p-2 border-b">
+              <Input
+                placeholder="Buscar institución..."
+                value={busquedaInstitucion}
+                onChange={e => setBusquedaInstitucion(e.target.value)}
+                className="h-8 text-sm"
+              />
             </div>
+            <SelectItem value="all">Todas las instituciones</SelectItem>
+            {institucionesFiltradas.map((inst) => (
+              <SelectItem key={inst.id} value={inst.id}>
+                <div className="flex items-start gap-2">
+                  <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm flex items-center gap-1 truncate max-w-[200px]">
+                      {(inst.visitas_count ?? 0) > promedioVisitas && (
+                        <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
+                      )}
+                      {inst.nombre}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                      {inst.direccion}
+                    </div>
+                  </div>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-xs text-muted-foreground">Iniciaron este mes</p>
+            <p className="text-3xl font-bold">{stats.iniciaronEsteMes}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-xs text-muted-foreground">En Tratamiento</p>
+            <p className="text-3xl font-bold">{stats.enTratamiento}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filtros Mobile colapsables */}
-      <div className="md:hidden">
-        <Collapsible open={showFilters} onOpenChange={setShowFilters}>
-          <CollapsibleContent>
-            <Card>
-              <CardContent className="p-4 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Buscar por folio</label>
-                  <Input
-                    placeholder="Buscar folio..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  />
+      {/* Lista de fichas */}
+      {loading ? (
+        <Card>
+          <CardContent className="p-6 text-center text-muted-foreground">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            Cargando pacientes...
+          </CardContent>
+        </Card>
+      ) : filteredFichas.length === 0 ? (
+        <Card>
+          <CardContent className="p-6 text-center text-muted-foreground">
+            <p className="font-medium">No hay fichas para este período</p>
+            <p className="text-sm mt-1">Prueba cambiando el mes o la institución</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredFichas.map(ficha => (
+            <Card key={ficha.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4 space-y-3">
+
+                {/* Fila superior: folio + status */}
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground font-mono">Folio: {ficha.numero_pm }</span>
+                  <Badge
+                    variant={ficha.status === 'en_tx' ? 'default' : 'outline'}
+                    className="text-[10px] px-1.5 py-0"
+                  >
+                    {STATUS_LABELS[ficha.status] ?? ficha.status}
+                  </Badge>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Institución</label>
-                  <Select value={selectedInstitucion} onValueChange={setSelectedInstitucion}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      {instituciones.map(inst => (
-                        <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Fecha desde</label>
-                    <Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
+
+                {/* Nombre paciente */}
+                <p className="font-semibold text-base leading-tight">
+                  {formatearNombre(ficha.paciente)}
+                </p>
+
+                {/* Médico */}
+                {ficha.doctor && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Stethoscope className="h-3 w-3 flex-shrink-0" />
+                    <span>{formatearNombre(ficha.doctor)}</span>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Fecha hasta</label>
-                    <Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
-                  </div>
+                )}
+
+                {/* Institución */}
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Building className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{ficha.institucion?.nombre}</span>
                 </div>
-                <div className="flex justify-between items-center pt-4 border-t">
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>Limpiar Filtros</Button>
-                  <span className="text-sm text-muted-foreground">
-                    {loading ? 'Cargando...' : `${filteredFichas.length} pacientes`}
-                  </span>
+
+                {/* Mini tabla de fechas */}
+                <TablaDates ficha={ficha} />
+
+                {/* Botones */}
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                    onClick={() => handleOpenEdit(ficha)}
+                  >
+                    <Pencil className="h-3 w-3 mr-1" />
+                    Editar ficha
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                    onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)}
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Ver fechas
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-
-      {/* Tabla Desktop */}
-      <div className="hidden md:block">
-        <Card>
-          <CardContent className="p-6">
-            <div className="mb-4 flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Fichas de Pacientes</h2>
-              <span className="text-sm text-muted-foreground">
-                {loading ? 'Cargando...' : `${filteredFichas.length} pacientes encontrados`}
-              </span>
-            </div>
-
-            {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Cargando fichas...</div>
-            ) : filteredFichas.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No se encontraron fichas</div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Folio</TableHead>
-                      <TableHead>Paciente</TableHead>
-                      <TableHead>Edad</TableHead>
-                      <TableHead>Doctor</TableHead>
-                      <TableHead>Institución</TableHead>
-                      <TableHead>Diagnóstico</TableHead>
-                      <TableHead>Terapia</TableHead>
-                      <TableHead>Dosis</TableHead>
-                      <TableHead>Inicio Trat.</TableHead>
-                      <TableHead>Registro</TableHead>
-                      <TableHead>Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredFichas.map((ficha) => {
-                      const edad = ficha.paciente?.fecha_nacimiento
-                        ? calcularEdad(ficha.paciente.fecha_nacimiento)
-                        : null
-                      return (
-                        <TableRow key={ficha.id}>
-                          <TableCell className="font-medium">{ficha.folio}</TableCell>
-                          <TableCell>
-                            <p className="font-medium">{formatearNombre(ficha.paciente)}</p>
-                            {ficha.paciente?.telefono && (
-                              <p className="text-sm text-muted-foreground">{ficha.paciente.telefono}</p>
-                            )}
-                          </TableCell>
-                          <TableCell>{edad ? `${edad} años` : '-'}</TableCell>
-                          <TableCell>
-                            {ficha.doctor ? (
-                              <span className="text-sm">{formatearNombre(ficha.doctor)}</span>
-                            ) : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{ficha.institucion?.nombre}</Badge>
-                          </TableCell>
-                          <TableCell>{ficha.diagnostico || '-'}</TableCell>
-                          <TableCell>{ficha.terapia || '-'}</TableCell>
-                          <TableCell>{ficha.dosis || '-'}</TableCell>
-                          <TableCell>
-                            {ficha.fecha_inicio_tratamiento
-                              ? new Date(ficha.fecha_inicio_tratamiento).toLocaleDateString('es-MX')
-                              : '-'}
-                          </TableCell>
-                          <TableCell>{new Date(ficha.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(ficha)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)}
-                              >
-                                Ver fechas
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Cards Mobile */}
-      <div className="md:hidden space-y-3">
-        {loading ? (
-          <Card>
-            <CardContent className="p-6 text-center text-muted-foreground">
-              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-              Cargando pacientes...
-            </CardContent>
-          </Card>
-        ) : filteredFichas.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-center text-muted-foreground">
-              <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <h3 className="font-medium mb-1">No hay pacientes</h3>
-              <p className="text-sm">No se encontraron fichas para los filtros seleccionados</p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredFichas.map(ficha => {
-            const edad = ficha.paciente?.fecha_nacimiento
-              ? calcularEdad(ficha.paciente.fecha_nacimiento)
-              : null
-
-            return (
-              <Collapsible key={ficha.id}>
-                <Card className="hover:shadow-md transition-shadow">
-                  <CollapsibleTrigger className="w-full" onClick={() => toggleExpand(ficha.id)}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1 text-left space-y-2">
-                          <div>
-                            <h3 className="font-semibold text-base leading-tight">
-                              {formatearNombre(ficha.paciente)}
-                            </h3>
-                            {edad && <p className="text-sm text-muted-foreground">{edad} años</p>}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Building className="h-3 w-3 text-muted-foreground" />
-                            <Badge variant="secondary" className="text-xs">{ficha.institucion?.nombre}</Badge>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <FileText className="h-3 w-3" />
-                            <span>Folio: {ficha.folio}</span>
-                          </div>
-                        </div>
-                        <div className="flex-shrink-0">
-                          {expandedItems.has(ficha.id)
-                            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                            : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </CollapsibleTrigger>
-
-                  <CollapsibleContent>
-                    <CardContent className="pt-0 px-4 pb-4">
-                      <div className="border-t pt-4 space-y-3">
-                        {ficha.paciente?.telefono && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-3 w-3 text-muted-foreground" />
-                            <span>{ficha.paciente.telefono}</span>
-                          </div>
-                        )}
-                        {ficha.doctor && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Stethoscope className="h-3 w-3 text-muted-foreground" />
-                            <span>{formatearNombre(ficha.doctor)}</span>
-                          </div>
-                        )}
-                        {ficha.diagnostico && (
-                          <div>
-                            <span className="text-sm font-medium">Diagnóstico:</span>
-                            <p className="text-sm text-muted-foreground mt-1">{ficha.diagnostico}</p>
-                          </div>
-                        )}
-                        {ficha.terapia && (
-                          <div>
-                            <span className="text-sm font-medium">Terapia:</span>
-                            <p className="text-sm text-muted-foreground mt-1">{ficha.terapia}</p>
-                          </div>
-                        )}
-                        {ficha.dosis && (
-                          <div>
-                            <span className="text-sm font-medium">Dosis:</span>
-                            <p className="text-sm text-muted-foreground mt-1">{ficha.dosis}</p>
-                          </div>
-                        )}
-                        {ficha.fecha_inicio_tratamiento && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            <span>Inicio: {new Date(ficha.fecha_inicio_tratamiento).toLocaleDateString('es-MX')}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>Registrado: {new Date(ficha.created_at).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleOpenEdit(ficha)}
-                          >
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Editar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)}
-                          >
-                            Ver fechas
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            )
-          })
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Dialog de edición */}
       <Dialog open={!!editingFicha} onOpenChange={(open) => { if (!open) handleCloseEdit() }}>
@@ -617,7 +461,6 @@ export default function PacientesPage() {
             {/* Doctor */}
             <div className="space-y-2">
               <Label>Doctor</Label>
-
               {!createNewMedico && (
                 <Select
                   value={editForm.doctor_id || 'none'}
@@ -637,7 +480,6 @@ export default function PacientesPage() {
                   </SelectContent>
                 </Select>
               )}
-
               <Button
                 variant={createNewMedico ? 'default' : 'outline'}
                 size="sm"
@@ -650,7 +492,6 @@ export default function PacientesPage() {
                   ? <><X className="h-3 w-3 mr-1" /> Cancelar nuevo</>
                   : <><Plus className="h-3 w-3 mr-1" /> Nuevo médico</>}
               </Button>
-
               {createNewMedico && (
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div className="space-y-1">
@@ -689,7 +530,29 @@ export default function PacientesPage() {
               )}
             </div>
 
-            {/* Dosis e Inicio */}
+            {/* Status y Número PM */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Status</Label>
+                <Select value={editForm.status} onValueChange={(v) => fieldEdit('status', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en_tx">En Tx</SelectItem>
+                    <SelectItem value="fuera_tx">Fuera Tx</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Núm. PM</Label>
+                <Input
+                  value={editForm.numero_pm}
+                  onChange={(e) => fieldEdit('numero_pm', e.target.value)}
+                  placeholder="ID en CRM externo"
+                />
+              </div>
+            </div>
+
+            {/* Dosis y Periodicidad */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Dosis <span className="text-destructive">*</span></Label>
@@ -702,6 +565,27 @@ export default function PacientesPage() {
                 {editErrors.dosis && <p className="text-xs text-destructive">{editErrors.dosis}</p>}
               </div>
               <div className="space-y-1">
+                <Label>Periodicidad</Label>
+                <Select
+                  value={editForm.periodicidad || 'none'}
+                  onValueChange={(v) => fieldEdit('periodicidad', v === 'none' ? '' : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin especificar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin especificar</SelectItem>
+                    {PERIODICIDAD_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Fechas */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
                 <Label>Inicio de Tratamiento <span className="text-destructive">*</span></Label>
                 <Input
                   type="date"
@@ -712,6 +596,14 @@ export default function PacientesPage() {
                 {editErrors.fecha_inicio_tratamiento && (
                   <p className="text-xs text-destructive">{editErrors.fecha_inicio_tratamiento}</p>
                 )}
+              </div>
+              <div className="space-y-1">
+                <Label>Fin de Tratamiento</Label>
+                <Input
+                  type="date"
+                  value={editForm.fecha_final_tratamiento}
+                  onChange={(e) => fieldEdit('fecha_final_tratamiento', e.target.value)}
+                />
               </div>
             </div>
 

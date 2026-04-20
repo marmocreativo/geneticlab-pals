@@ -8,13 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Plus, X, Check, ChevronsUpDown } from 'lucide-react'
+import { Plus, X, Check, ChevronsUpDown, Building, Star } from 'lucide-react'
 import { useInstituciones } from '@/hooks/useInstituciones'
 import { useContactos } from '@/hooks/useContactos'
 import { useFichas } from '@/hooks/useFichas'
 import { useAuth } from '@/contexts/AuthContext'
 import { contactosService } from '@/services/contactosService'
 import type { ContactoInsert, Contacto } from '@/types/contacto'
+import type { PeriodicidadFicha } from '@/types/database.types'
 import { cn } from '@/lib/utils'
 
 interface FichaFormProps {
@@ -22,6 +23,13 @@ interface FichaFormProps {
 }
 
 type Step = 'institucion' | 'paciente' | 'medico' | 'ficha'
+
+const PERIODICIDAD_OPTIONS: { value: PeriodicidadFicha; label: string }[] = [
+  { value: 'semanal', label: 'Semanal' },
+  { value: 'cada_2_semanas', label: 'Cada 2 semanas' },
+  { value: 'cada_3_semanas', label: 'Cada 3 semanas' },
+  { value: 'cada_4_semanas', label: 'Cada 4 semanas' },
+]
 
 export default function FichaForm({ onSuccess }: FichaFormProps) {
   const { user } = useAuth()
@@ -32,6 +40,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<Step>('institucion')
+  const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
 
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('')
   const [pacientesInstitucion, setPacientesInstitucion] = useState<Contacto[]>([])
@@ -71,8 +80,15 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     terapia: '',
     dosis: '',
     fecha_inicio_tratamiento: '',
+    fecha_final_tratamiento: '',
+    numero_pm: '',
+    status: 'en_tx' as 'en_tx' | 'fuera_tx',
+    periodicidad: '' as PeriodicidadFicha | '',
   })
-  const [fichaErrors, setFichaErrors] = useState<{ dosis?: string; fecha_inicio_tratamiento?: string }>({})
+  const [fichaErrors, setFichaErrors] = useState<{
+    dosis?: string
+    fecha_inicio_tratamiento?: string
+  }>({})
 
   useEffect(() => {
     const loadContactos = async () => {
@@ -102,9 +118,26 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     loadContactos()
   }, [selectedInstitucion])
 
+  const promedioVisitas = instituciones.length > 0
+    ? instituciones.reduce((acc, i) => acc + (i.visitas_count ?? 0), 0) / instituciones.length
+    : 0
+
+  const institucionesFiltradas = [...instituciones]
+    .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
+    .filter(i =>
+      busquedaInstitucion === '' ||
+      i.nombre.toLowerCase().includes(busquedaInstitucion.toLowerCase()) ||
+      i.direccion.toLowerCase().includes(busquedaInstitucion.toLowerCase())
+    )
+
+  const selectedInstitucionData = instituciones.find(i => i.id === selectedInstitucion)
+  const selectedPacienteData = pacientesInstitucion.find(c => c.id === selectedPaciente)
+  const selectedMedicoData = medicosInstitucion.find(m => m.id === selectedMedico)
+
   const resetForm = () => {
     setStep('institucion')
     setSelectedInstitucion('')
+    setBusquedaInstitucion('')
     setPacientesInstitucion([])
     setMedicosInstitucion([])
     setSelectedPaciente('')
@@ -113,7 +146,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     setCreateNewMedico(false)
     setPacienteData({ tipo_contacto: 'paciente', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', fecha_nacimiento: '', pal_id: user?.id || '' })
     setMedicoData({ tipo_contacto: 'medico', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', pal_id: user?.id || '' })
-    setFichaData({ diagnostico: '', terapia: '', dosis: '', fecha_inicio_tratamiento: '' })
+    setFichaData({ diagnostico: '', terapia: '', dosis: '', fecha_inicio_tratamiento: '', fecha_final_tratamiento: '', numero_pm: '', status: 'en_tx', periodicidad: '' })
     setFichaErrors({})
   }
 
@@ -150,6 +183,10 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
         terapia: fichaData.terapia || undefined,
         dosis: fichaData.dosis,
         fecha_inicio_tratamiento: fichaData.fecha_inicio_tratamiento,
+        fecha_final_tratamiento: fichaData.fecha_final_tratamiento || undefined,
+        numero_pm: fichaData.numero_pm || undefined,
+        status: fichaData.status,
+        periodicidad: fichaData.periodicidad || undefined,
       })
 
       setOpen(false)
@@ -163,10 +200,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
   }
 
   const formatNombre = (c: Contacto) => contactosService.formatearNombreCompleto(c)
-
-  const selectedInstitucionData = instituciones.find(i => i.id === selectedInstitucion)
-  const selectedPacienteData = pacientesInstitucion.find(c => c.id === selectedPaciente)
-  const selectedMedicoData = medicosInstitucion.find(m => m.id === selectedMedico)
 
   const resumen = (
     <div className="text-sm text-muted-foreground space-y-1">
@@ -210,20 +243,66 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
 
         {/* PASO 1 - Institución */}
         {step === 'institucion' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="space-y-1">
               <Label>Institución <span className="text-destructive">*</span></Label>
               <Select value={selectedInstitucion} onValueChange={setSelectedInstitucion}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar institución" />
                 </SelectTrigger>
-                <SelectContent>
-                  {instituciones.map(inst => (
-                    <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
-                  ))}
+                <SelectContent className="max-h-64 overflow-y-auto">
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="Buscar institución..."
+                      value={busquedaInstitucion}
+                      onChange={e => setBusquedaInstitucion(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  {institucionesFiltradas.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      No se encontraron instituciones
+                    </div>
+                  ) : (
+                    institucionesFiltradas.map((inst) => (
+                      <SelectItem key={inst.id} value={inst.id}>
+                        <div className="flex items-start gap-2">
+                          <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm flex items-center gap-1 truncate max-w-[300px]">
+                              {(inst.visitas_count ?? 0) > promedioVisitas && (
+                                <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
+                              )}
+                              {inst.nombre}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              {inst.direccion}
+                            </div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+
+              {/* Preview institución seleccionada */}
+              {selectedInstitucionData && (
+                <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm mt-2">
+                  <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-medium flex items-center gap-1">
+                      {(selectedInstitucionData.visitas_count ?? 0) > promedioVisitas && (
+                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                      )}
+                      {selectedInstitucionData.nombre}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{selectedInstitucionData.direccion}</div>
+                  </div>
+                </div>
+              )}
             </div>
+
             <div className="flex justify-end">
               <Button onClick={() => setStep('paciente')} disabled={!selectedInstitucion}>
                 Continuar
@@ -470,7 +549,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep('paciente')}>Atrás</Button>
-              {/* Médico es opcional, se puede omitir */}
               <Button onClick={() => setStep('ficha')}>
                 {selectedMedico || createNewMedico ? 'Continuar' : 'Omitir'}
               </Button>
@@ -493,7 +571,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                       setFichaData(prev => ({ ...prev, dosis: e.target.value }))
                       if (fichaErrors.dosis) setFichaErrors(prev => ({ ...prev, dosis: undefined }))
                     }}
-                    placeholder="Ej. 100mg cada 8h"
+                    placeholder="Ej. 100mg"
                     className={fichaErrors.dosis ? 'border-destructive' : ''}
                   />
                   {fichaErrors.dosis && <p className="text-xs text-destructive">{fichaErrors.dosis}</p>}
@@ -515,6 +593,60 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Fin de Tratamiento</Label>
+                  <Input
+                    type="date"
+                    value={fichaData.fecha_final_tratamiento}
+                    onChange={(e) => setFichaData(prev => ({ ...prev, fecha_final_tratamiento: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Periodicidad</Label>
+                  <Select
+                    value={fichaData.periodicidad || 'none'}
+                    onValueChange={(v) => setFichaData(prev => ({ ...prev, periodicidad: v === 'none' ? '' : v as PeriodicidadFicha }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin especificar</SelectItem>
+                      {PERIODICIDAD_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Status</Label>
+                  <Select
+                    value={fichaData.status}
+                    onValueChange={(v) => setFichaData(prev => ({ ...prev, status: v as 'en_tx' | 'fuera_tx' }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en_tx">En Tx</SelectItem>
+                      <SelectItem value="fuera_tx">Fuera Tx</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Número PM</Label>
+                  <Input
+                    value={fichaData.numero_pm}
+                    onChange={(e) => setFichaData(prev => ({ ...prev, numero_pm: e.target.value }))}
+                    placeholder="ID en CRM externo"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <Label>Diagnóstico</Label>
                 <Textarea
@@ -526,7 +658,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
               </div>
 
               <div className="space-y-1">
-                <Label>Terapia</Label>
+                <Label>Terapia (Opcional)</Label>
                 <Textarea
                   value={fichaData.terapia}
                   onChange={(e) => setFichaData(prev => ({ ...prev, terapia: e.target.value }))}
