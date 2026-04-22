@@ -144,9 +144,7 @@ export default function AdminActividadesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
-                  <TableHead>PAL</TableHead>
-                  <TableHead>Institución</TableHead>
-                  <TableHead>Contacto</TableHead>
+                  <TableHead>PAL / Institución / Contacto</TableHead>
                   <TableHead>Actividad</TableHead>
                   <TableHead>Temas</TableHead>
                   <TableHead>Acciones</TableHead>
@@ -163,43 +161,39 @@ export default function AdminActividadesPage() {
                     </TableCell>
 
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{actividad.pal?.nombre_completo || 'N/A'}</span>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{actividad.institucion?.nombre || 'N/A'}</span>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-medium text-sm">
-                          {actividad.contacto ? formatearNombreContacto(actividad.contacto) : 'N/A'}
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-1 text-sm font-medium">
+                          <User className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate">{actividad.pal?.nombre_completo || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{actividad.institucion?.nombre || 'N/A'}</span>
                         </div>
                         {actividad.contacto && (
-                          <Badge variant="outline" className="text-xs">
-                            {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
-                          </Badge>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <span className="truncate">{formatearNombreContacto(actividad.contacto)}</span>
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 flex-shrink-0">
+                              {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
+                            </Badge>
+                          </div>
                         )}
                       </div>
                     </TableCell>
 
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="text-sm">{actividad.descripcion_actividad || 'Sin descripción'}</div>
+                        <div className="text-sm truncate max-w-48" title={actividad.descripcion_actividad || ''}>
+                          {actividad.descripcion_actividad || 'Sin descripción'}
+                        </div>
                         {actividad.entrega_sobres && (
                           <Badge variant="secondary" className="text-xs">
-                            {actividad.entrega_sobres.nombre}
+                            Entrega de sobres <b>{actividad.entrega_sobres.nombre}</b>
                           </Badge>
                         )}
                         {actividad.entrega_kit_rash && (
                           <Badge variant="secondary" className="text-xs">
-                            {actividad.entrega_kit_rash.nombre}
+                            Entrega de Kit RASH<b>{actividad.entrega_kit_rash.nombre}</b>
                           </Badge>
                         )}
                       </div>

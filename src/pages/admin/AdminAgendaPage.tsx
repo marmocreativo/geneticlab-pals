@@ -16,6 +16,8 @@ import {
   MapPin,
   Clock,
   Loader2,
+  Navigation,
+  Camera,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
@@ -245,6 +247,7 @@ export default function AdminAgendaPage() {
         </CardContent>
       </Card>
 
+      {/* Navegación de semanas */}
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
@@ -260,7 +263,7 @@ export default function AdminAgendaPage() {
           Semana {currentWeekIndex + 1} de {weeks.length}
           {currentWeekDays.length > 0 && (
             <span className="text-muted-foreground ml-2">
-              ({format(currentWeekDays[0], 'd MMM', { locale: es })} -{' '}
+              ({format(currentWeekDays[0], 'd MMM', { locale: es })} —{' '}
               {format(currentWeekDays[currentWeekDays.length - 1], 'd MMM', { locale: es })})
             </span>
           )}
@@ -277,6 +280,7 @@ export default function AdminAgendaPage() {
         </Button>
       </div>
 
+      {/* Tabla */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -289,25 +293,34 @@ export default function AdminAgendaPage() {
               No se encontraron usuarios
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse min-w-[600px]">
+            // Wrapper con scroll horizontal en móvil
+            <div className="overflow-x-auto rounded-lg">
+              <table className="w-full border-collapse" style={{ minWidth: `${160 + currentWeekDays.length * 140}px` }}>
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-3 font-medium text-sm bg-muted sticky left-0 z-10 min-w-[160px]">
+                    {/* Columna PAL — fondo sólido */}
+                    <th className="text-left p-3 font-medium text-sm bg-muted border-r sticky left-0 z-20 w-40">
                       PAL
                     </th>
                     {currentWeekDays.map((day) => (
                       <th
                         key={day.toISOString()}
                         className={cn(
-                          'text-center p-2 font-medium text-sm min-w-[140px] border-l',
-                          isToday(day) && 'bg-primary/5'
+                          'text-center p-2 font-medium text-sm border-l',
+                          isToday(day) ? 'bg-primary/8' : 'bg-muted/40'
                         )}
+                        style={{ minWidth: 140 }}
                       >
-                        <div className={cn('text-xs text-muted-foreground', isToday(day) && 'text-primary font-semibold')}>
+                        <div className={cn(
+                          'text-xs',
+                          isToday(day) ? 'text-primary font-semibold' : 'text-muted-foreground'
+                        )}>
                           {format(day, 'EEE', { locale: es })}
                         </div>
-                        <div className={cn('text-base', isToday(day) && 'text-primary font-bold')}>
+                        <div className={cn(
+                          'text-base',
+                          isToday(day) && 'text-primary font-bold'
+                        )}>
                           {format(day, 'd')}
                         </div>
                       </th>
@@ -315,24 +328,40 @@ export default function AdminAgendaPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayUsers.map((user) => (
-                    <tr key={user.id} className="border-b last:border-b-0">
-                      <td className="p-3 bg-muted/50 sticky left-0 z-10">
-                        <div className="text-sm font-medium truncate max-w-[150px]">
+                  {displayUsers.map((user, userIdx) => (
+                    <tr
+                      key={user.id}
+                      className={cn('border-b last:border-b-0', userIdx % 2 === 0 ? '' : 'bg-muted/20')}
+                    >
+                      {/* Columna nombre PAL — fondo sólido para que no se vea encimado al hacer scroll */}
+                      <td
+                        className={cn(
+                          'p-3 border-r sticky left-0 z-10 w-40',
+                          userIdx % 2 === 0 ? 'bg-muted' : 'bg-muted/80'
+                        )}
+                      >
+                        <div className="text-sm font-medium leading-tight">
                           {user.nombre_completo}
                         </div>
                       </td>
+
                       {currentWeekDays.map((day) => {
                         const dayVisitas = getVisitasForUserDay(user.id, day)
                         return (
                           <td
                             key={day.toISOString()}
-                            className={cn('p-1.5 border-l align-top', isToday(day) && 'bg-primary/5')}
+                            className={cn(
+                              'p-1.5 border-l align-top',
+                              isToday(day) && 'bg-primary/5'
+                            )}
+                            style={{ minWidth: 140 }}
                           >
                             {dayVisitas.length > 0 ? (
                               <div className="space-y-1">
                                 {dayVisitas
-                                  .sort((a, b) => new Date(a.fecha_visita).getTime() - new Date(b.fecha_visita).getTime())
+                                  .sort((a, b) =>
+                                    new Date(a.fecha_visita).getTime() - new Date(b.fecha_visita).getTime()
+                                  )
                                   .map((v) => (
                                     <button
                                       key={v.id}
@@ -342,19 +371,76 @@ export default function AdminAgendaPage() {
                                         ESTADO_COLORS[v.estado] || 'bg-gray-50 border-gray-200'
                                       )}
                                     >
-                                      <div className="flex items-center gap-1 font-medium truncate">
-                                        <MapPin className="h-3 w-3 flex-shrink-0" />
-                                        <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1 mt-0.5 text-[10px] opacity-75">
-                                        <Clock className="h-2.5 w-2.5" />
-                                        {format(new Date(v.fecha_visita), 'HH:mm')}
-                                      </div>
+                                      {v.estado === 'asistio' ? (
+                                        <div className="flex gap-1.5">
+                                          {/* Columna 1 — foto */}
+                                          <div className="flex-shrink-0 w-14">
+                                            {v.fotos_evidencia && v.fotos_evidencia.length > 0 ? (
+                                              <img
+                                                src={v.fotos_evidencia[0].url_storage}
+                                                alt="Evidencia"
+                                                className="w-14 h-14 object-cover rounded"
+                                              />
+                                            ) : (
+                                              <div className="w-14 h-14 rounded bg-muted flex items-center justify-center">
+                                                <Camera className="h-4 w-4 text-muted-foreground/40" />
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Columna 2 — datos */}
+                                          <div className="flex-1 min-w-0 space-y-1">
+                                            <div className="flex items-center gap-1 font-medium truncate text-xs">
+                                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                                              <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[10px] opacity-75">
+                                              <Clock className="h-2.5 w-2.5" />
+                                              {format(new Date(v.fecha_visita), 'HH:mm')}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              <span className={cn(
+                                                'text-[10px] px-1 py-0.5 rounded border font-medium',
+                                                v.validacion_gps
+                                                  ? 'bg-green-50 text-green-700 border-green-200'
+                                                  : 'bg-red-50 text-red-700 border-red-200'
+                                              )}>
+                                                {v.validacion_gps ? 'En rango' : 'Muy lejos'}
+                                              </span>
+                                              <span className={cn(
+                                                'text-[10px] px-1 py-0.5 rounded border font-medium',
+                                                v.gps_dispositivo
+                                                  ? 'bg-green-50 text-green-700 border-green-200'
+                                                  : 'bg-red-50 text-red-700 border-red-200'
+                                              )}>
+                                                GPS. {v.gps_dispositivo ? 'encendido' : 'apagado'}
+                                              </span>
+                                              <span className="text-[10px] px-1 py-0.5 rounded border font-medium bg-muted text-muted-foreground border-muted-foreground/20">
+                                                {v.distancia_metros != null ? `${v.distancia_metros}m` : 'Sin dist.'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        // Vista normal para programada / falto
+                                        <>
+                                          <div className="flex items-center gap-1 font-medium truncate">
+                                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                                            <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1 mt-0.5 text-[10px] opacity-75">
+                                            <Clock className="h-2.5 w-2.5" />
+                                            {format(new Date(v.fecha_visita), 'HH:mm')}
+                                          </div>
+                                        </>
+                                      )}
                                     </button>
                                   ))}
                               </div>
                             ) : (
-                              <div className="text-center text-muted-foreground text-xs py-2">-</div>
+                              <div className="text-center text-muted-foreground/40 text-xs py-3">
+                                —
+                              </div>
                             )}
                           </td>
                         )
@@ -368,18 +454,27 @@ export default function AdminAgendaPage() {
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+      {/* Leyenda */}
+      <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-yellow-200 border border-yellow-300" />
           Programada
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-green-200 border border-green-300" />
-          Asistio
+          Asistió
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-red-200 border border-red-300" />
-          Falto
+          Faltó
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Navigation className="h-3 w-3" />
+          GPS validado
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Navigation className="h-3 w-3 opacity-50" />
+          GPS fuera de rango
         </div>
       </div>
     </div>

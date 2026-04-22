@@ -100,7 +100,7 @@ export function PWAInstallPrompt() {
             
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm mb-1">
-                Instalar Control PALs
+                Instalar Aliado Presente
               </h3>
               <p className="text-xs text-muted-foreground mb-3">
                 Instala la app en tu dispositivo para un acceso más rápido y trabajar sin conexión.

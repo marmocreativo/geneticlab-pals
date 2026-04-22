@@ -38,12 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
         fetchUserRole(session.user.id)
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setRole(null)
         setLoading(false)
       }
@@ -74,6 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserRole = async (userId: string) => {
     try {
+      const cachedRole = localStorage.getItem(`role-${userId}`)
+      if (cachedRole) {
+        setRole(cachedRole as UserRole)
+        setLoading(false)
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('role, nombre_completo, activo')
@@ -81,9 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error || !data) {
-        await ensureUserExists(userId)
+        if (!cachedRole) await ensureUserExists(userId)
       } else {
         setRole(data.role)
+        localStorage.setItem(`role-${userId}`, data.role)
         setLoading(false)
       }
     } catch (error) {
@@ -129,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    if (user) localStorage.removeItem(`role-${user.id}`)
     setRole(null)
   }
 

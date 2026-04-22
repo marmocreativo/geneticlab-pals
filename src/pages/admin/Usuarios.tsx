@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUsers } from '@/hooks/useUsers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,7 @@ import { toast } from 'sonner'
 import type { UserProfile } from '@/hooks/useUsers'
 
 export default function Usuarios() {
+  const navigate = useNavigate()
   const { users, loading, toggleUserStatus, fetchUsers, deleteUserComplete } = useUsers()
   const [searchTerm, setSearchTerm] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -38,7 +40,8 @@ export default function Usuarios() {
     fetchUsers()
   }
 
-  const handleEdit = (user: UserProfile) => {
+  const handleEdit = (user: UserProfile, e: React.MouseEvent) => {
+    e.stopPropagation()
     setEditingUser(user)
     setDialogOpen(true)
   }
@@ -140,7 +143,11 @@ export default function Usuarios() {
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow
+                      key={user.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => navigate(`/admin/usuarios/${user.id}`)}
+                    >
                       <TableCell className="font-medium">{user.nombre_completo}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
@@ -161,13 +168,20 @@ export default function Usuarios() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleEdit(user, e)}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleToggleStatus(user.id, user.activo)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleToggleStatus(user.id, user.activo)
+                            }}
                           >
                             {user.activo
                               ? <UserX className="h-4 w-4 text-destructive" />
@@ -176,7 +190,10 @@ export default function Usuarios() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setDeletingUser(user)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeletingUser(user)
+                            }}
                             disabled={user.role === 'admin'}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -192,7 +209,6 @@ export default function Usuarios() {
         </CardContent>
       </Card>
 
-      {/* Confirmación de borrado */}
       <AlertDialog open={!!deletingUser} onOpenChange={(open) => { if (!open) setDeletingUser(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>

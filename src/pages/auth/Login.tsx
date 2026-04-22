@@ -37,7 +37,7 @@ export default function Login() {
       <Card className="w-full max-w-md ">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-3">
-          <img src="/logo.svg" alt="Control PALs Logo" className="h-32 w-auto" />
+          <img src="/logo.svg" alt="Aliado Presente Logo" className="h-32 w-auto" />
         </div>
           <CardTitle className="text-xl font-bold">Acceso a usuarios</CardTitle>
           <CardDescription>

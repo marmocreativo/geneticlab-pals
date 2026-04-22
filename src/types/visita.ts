@@ -7,6 +7,8 @@ export interface Visita {
   latitud_registro?: number
   longitud_registro?: number
   distancia_metros?: number
+  gps_dispositivo?: boolean
+  fecha_hora_registro?: string
   estado: 'programada' | 'asistio' | 'falto' | 'reagendada'
   // tipo_visita removido - todas las visitas son presenciales
   created_at: string
@@ -39,6 +41,8 @@ export interface VisitaInsert {
   latitud_registro?: number
   longitud_registro?: number
   distancia_metros?: number
+  gps_dispositivo?: boolean
+  fecha_hora_registro?: string
   notas_reagendado?: string
   reagendado_de?: string
 }
@@ -51,6 +55,8 @@ export interface VisitaUpdate {
   latitud_registro?: number
   longitud_registro?: number
   distancia_metros?: number
+  gps_dispositivo?: boolean
+  fecha_hora_registro?: string
   notas_reagendado?: string
   reagendado_de?: string
 }

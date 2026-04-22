@@ -5,8 +5,8 @@ import type { Actividad, ActividadInsert, ActividadUpdate } from '@/types/activi
 
 export const actividadesService = {
   // Obtener todas las actividades para admin
-  async getAllActividades() {
-    const { data, error } = await supabase
+  async getAllActividades(fechaInicio?: string, fechaFin?: string) {
+    let query = supabase
       .from('actividades')
       .select(`
       *,
@@ -36,7 +36,11 @@ export const actividadesService = {
         nombre
       )
     `)
-      .order('created_at', { ascending: false })
+
+    if (fechaInicio) query = query.gte('fecha_actividad', fechaInicio)
+    if (fechaFin) query = query.lte('fecha_actividad', fechaFin)
+
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) throw error
     updateLastFetch()
@@ -335,7 +339,7 @@ export const actividadesService = {
   async getEstadisticasActividades(palId?: string, fechaInicio?: string, fechaFin?: string) {
     const actividades = palId 
       ? await this.getActividadesByPal(palId, fechaInicio, fechaFin)
-      : await this.getAllActividades()
+      : await this.getAllActividades(fechaInicio, fechaFin)
     
     const stats = {
       total: actividades.length,

@@ -17,7 +17,7 @@ import {
   Wifi,
   Camera
 } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -55,6 +55,17 @@ const iconoUsuario = L.divIcon({
 interface UbicacionUsuario {
   lat: number
   lng: number
+}
+
+// Componente interno para ajustar zoom automáticamente
+function FitBounds({ puntos }: { puntos: [number, number][] }) {
+  const map = useMap()
+  useEffect(() => {
+    if (puntos.length < 2) return
+    const bounds = L.latLngBounds(puntos)
+    map.fitBounds(bounds, { padding: [40, 40] })
+  }, [puntos, map])
+  return null
 }
 
 const VisitaDetailsPage: React.FC = () => {
@@ -129,7 +140,9 @@ const VisitaDetailsPage: React.FC = () => {
       if (visitaData.latitud_registro && visitaData.longitud_registro) {
         setUbicacionValidada({ lat: visitaData.latitud_registro, lng: visitaData.longitud_registro })
       }
-      if (visitaData.updated_at) {
+      if (visitaData.fecha_hora_registro) {
+        setHoraValidacion(visitaData.fecha_hora_registro)
+      } else if (visitaData.updated_at) {
         setHoraValidacion(visitaData.updated_at)
       }
     } catch (error) {
@@ -200,12 +213,6 @@ const VisitaDetailsPage: React.FC = () => {
 
         try {
           const resultado = await validarGPS(visita.id, latitude, longitude, distanciaPermitida)
-
-          if (!resultado.validacionExitosa) {
-            toast.error(`Estás muy lejos (${resultado.distanciaCalculada}m). Máximo permitido: ${distanciaPermitida}m`)
-            setValidandoGPS(false)
-            return
-          }
 
           // Guardar ubicación y hora de validación
           setUbicacionValidada({ lat: latitude, lng: longitude })
@@ -376,6 +383,11 @@ const VisitaDetailsPage: React.FC = () => {
 
   const distanciaPermitida = getConfiguracionNumber('distancia_validacion_gps') || 100
 
+  const puntosMapa: [number, number][] = []
+  if (visita.institucion) puntosMapa.push([visita.institucion.latitud, visita.institucion.longitud])
+  if (ubicacionUsuario && visita.estado === 'programada') puntosMapa.push([ubicacionUsuario.lat, ubicacionUsuario.lng])
+  if (ubicacionValidada && visita.estado === 'asistio') puntosMapa.push([ubicacionValidada.lat, ubicacionValidada.lng])
+
   return (
     <div className="max-w-lg mx-auto min-h-screen flex flex-col">
 
@@ -460,7 +472,7 @@ const VisitaDetailsPage: React.FC = () => {
               <div className="relative">
                 <MapContainer
                   center={[visita.institucion.latitud, visita.institucion.longitud]}
-                  zoom={16}
+                  zoom={15}
                   style={{ height: '240px', width: '100%' }}
                   zoomControl={false}
                   key={visita.estado} // re-montar al cambiar estado
@@ -469,6 +481,7 @@ const VisitaDetailsPage: React.FC = () => {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
                   />
+                  <FitBounds puntos={puntosMapa} />
 
                   {/* Hospital */}
                   <Marker
@@ -516,7 +529,11 @@ const VisitaDetailsPage: React.FC = () => {
                       ) : (
                         <Navigation className="h-4 w-4 mr-2" />
                       )}
-                      {validandoGPS ? 'Validando...' : 'Validar y subir foto'}
+                      {validandoGPS
+                        ? 'Validando...'
+                        : visita.gps_dispositivo
+                          ? 'Validar con fotografía'
+                          : 'Validar ubicación'}
                     </Button>
                   </div>
                 )}

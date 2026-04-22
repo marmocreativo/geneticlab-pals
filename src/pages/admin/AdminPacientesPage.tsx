@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
-import { format } from 'date-fns'
-import { User, MapPin, Filter, Eye, FileText, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { User, MapPin, Filter, FileText, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -11,388 +11,353 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
 import type { FichaPaciente } from '@/types/ficha'
+import { cn } from '@/lib/utils'
+
+const COLUMNAS_FECHA = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10']
 
 export default function AdminFichasPacientesPage() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroInstitucion, setFiltroInstitucion] = useState<string>('todos')
-  const [filtroEstado, setFiltroEstado] = useState<string>('todos')
   const [selectedFicha, setSelectedFicha] = useState<FichaPaciente | null>(null)
-  const [showDetail, setShowDetail] = useState(false)
 
   const { fichas, loading } = useFichas()
   const { instituciones } = useInstituciones()
 
-  // Procesar fechas de tratamiento para generar columnas dinámicas
-  const { fichasConFechas, todasLasFechas } = useMemo(() => {
-    const fechasSet = new Set<string>()
-    
-    // Las fechas ya vienen en la respuesta del servicio
-    fichas.forEach(ficha => {
-      ficha.fechas_tratamiento?.forEach((fecha: any) => {
-        fechasSet.add(fecha.fecha_programada)
-      })
-    })
-    
-    const fechasOrdenadas = Array.from(fechasSet).sort()
-    
-    return {
-      fichasConFechas: fichas,
-      todasLasFechas: fechasOrdenadas
-    }
-  }, [fichas])
-
-  const fichasFiltradas = fichasConFechas.filter(ficha => {
-    // Filtro de búsqueda
-    if (busqueda) {
-      const nombrePaciente = `${ficha.paciente?.nombre} ${ficha.paciente?.apellido_pat} ${ficha.paciente?.apellido_mat}`.toLowerCase()
-      const folio = ficha.folio.toLowerCase()
-      const busquedaLower = busqueda.toLowerCase()
-      
-      if (!nombrePaciente.includes(busquedaLower) && !folio.includes(busquedaLower)) {
-        return false
+  const fichasFiltradas = useMemo(() => {
+    return fichas.filter(ficha => {
+      if (busqueda) {
+        const nombrePaciente = `${ficha.paciente?.nombre} ${ficha.paciente?.apellido_pat} ${ficha.paciente?.apellido_mat}`.toLowerCase()
+        const folio = ficha.folio.toLowerCase()
+        const busquedaLower = busqueda.toLowerCase()
+        if (!nombrePaciente.includes(busquedaLower) && !folio.includes(busquedaLower)) return false
       }
-    }
-    
-    // Filtro por institución
-    if (filtroInstitucion !== 'todos' && ficha.institucion_id !== filtroInstitucion) {
-      return false
-    }
-    
-    return true
-  })
+      if (filtroInstitucion !== 'todos' && ficha.institucion_id !== filtroInstitucion) return false
+      return true
+    })
+  }, [fichas, busqueda, filtroInstitucion])
 
   const calcularEdad = (fechaNacimiento?: string) => {
-    if (!fechaNacimiento) return 'N/A'
+    if (!fechaNacimiento) return '—'
     const hoy = new Date()
     const nacimiento = new Date(fechaNacimiento)
     let edad = hoy.getFullYear() - nacimiento.getFullYear()
-    const diferenciaMeses = hoy.getMonth() - nacimiento.getMonth()
-    if (diferenciaMeses < 0 || (diferenciaMeses === 0 && hoy.getDate() < nacimiento.getDate())) {
-      edad--
-    }
-    return `${edad} años`
+    const dm = hoy.getMonth() - nacimiento.getMonth()
+    if (dm < 0 || (dm === 0 && hoy.getDate() < nacimiento.getDate())) edad--
+    return `${edad}a`
   }
 
-  const getEstadoFecha = (ficha: any, fecha: string) => {
-    const fechaTratamiento = ficha.fechas_tratamiento?.find(
-      (ft: any) => ft.fecha_programada === fecha
-    )
-    
-    if (!fechaTratamiento) return null
-    
-    // Si marcó asistencia explícitamente
-    if (fechaTratamiento.asistencia === true) {
-      return { tipo: 'asistio', icono: CheckCircle, color: 'text-green-600' }
-    }
-    
-    // Si marcó que no asistió explícitamente  
-    if (fechaTratamiento.asistencia === false) {
-      return { tipo: 'falto', icono: XCircle, color: 'text-red-600' }
-    }
-    
-    // Si no hay registro de asistencia (null) y la fecha ya pasó
-    const fechaProgramada = new Date(fecha + 'T00:00:00')
-    const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0)
-    
-    if (fechaProgramada < hoy) {
-      return { tipo: 'pendiente', icono: XCircle, color: 'text-red-600' }
-    }
-    
-    // Fecha futura programada
-    return { tipo: 'programada', icono: Clock, color: 'text-yellow-600' }
+  const formatearNombre = (persona: any) => {
+    if (!persona) return 'N/A'
+    return [persona.nombre, persona.apellido_pat, persona.apellido_mat].filter(Boolean).join(' ')
   }
 
-  const handleViewFicha = (ficha: FichaPaciente) => {
-    setSelectedFicha(ficha)
-    setShowDetail(true)
+  const getCeldaFecha = (ficha: FichaPaciente, index: number) => {
+    const fechasOrdenadas = [...(ficha.fechas_tratamiento || [])]
+      .sort((a: any, b: any) => a.fecha_programada.localeCompare(b.fecha_programada))
+    return fechasOrdenadas[index] || null
   }
 
-  const formatearNombrePaciente = (paciente: any) => {
-    if (!paciente) return 'N/A'
-    return [paciente.nombre, paciente.apellido_pat, paciente.apellido_mat]
-      .filter(Boolean)
-      .join(' ')
+  const getIconoFecha = (ft: any) => {
+    if (!ft) return null
+    const pasada = new Date(ft.fecha_programada + 'T00:00:00') < new Date()
+    if (ft.asistencia === true) return { icono: CheckCircle, color: 'text-green-600' }
+    if (ft.asistencia === false) return { icono: XCircle, color: 'text-red-500' }
+    if (pasada) return { icono: XCircle, color: 'text-red-300' }
+    return { icono: Clock, color: 'text-yellow-500' }
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Fichas de Pacientes</h1>
-          <p className="text-muted-foreground">
-            Administra las fichas y fechas de tratamiento de todos los pacientes
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Fichas de Pacientes</h1>
+        <p className="text-sm text-muted-foreground">
+          Administra las fichas y fechas de tratamiento
+        </p>
       </div>
 
-      {/* Filtros minimalistas */}
+      {/* Filtros */}
       <Card>
-        <CardContent className="py-2">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filtros:</span>
-            </div>
-            
+        <CardContent className="py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Filter className="w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Buscar folio o paciente..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-[250px]"
+              className="w-56 h-8 text-sm"
             />
-
             <Select value={filtroInstitucion} onValueChange={setFiltroInstitucion}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-48 h-8 text-sm">
                 <SelectValue placeholder="Institución" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas las instituciones</SelectItem>
-                {instituciones.map((institucion) => (
-                  <SelectItem key={institucion.id} value={institucion.id}>
-                    {institucion.nombre}
-                  </SelectItem>
+                {instituciones.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>{i.nombre}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
-            <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="activos">Activos</SelectItem>
-                <SelectItem value="completados">Completados</SelectItem>
-                <SelectItem value="vencidos">Con faltas</SelectItem>
-              </SelectContent>
-            </Select>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {fichasFiltradas.length} fichas
+            </span>
           </div>
         </CardContent>
       </Card>
 
+      {/* Tabla */}
       <Card>
-        <CardContent className="p-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold">Fichas de Tratamiento ({fichasFiltradas.length})</h2>
-          </div>
-
+        <CardContent className="p-0">
           {loading ? (
-            <div className="text-center py-8">Cargando fichas...</div>
+            <div className="text-center py-12 text-sm text-muted-foreground">
+              Cargando fichas...
+            </div>
+          ) : fichasFiltradas.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">
+                {busqueda ? 'Sin resultados para esa búsqueda' : 'No hay fichas registradas'}
+              </p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[200px]">Paciente</TableHead>
-                    <TableHead className="min-w-[120px]">Folio</TableHead>
-                    <TableHead className="min-w-[150px]">Institución</TableHead>
-                    <TableHead className="min-w-[80px]">Edad</TableHead>
-                    <TableHead className="min-w-[120px]">Diagnóstico</TableHead>
-                    {todasLasFechas.map((fecha) => (
-                      <TableHead key={fecha} className="min-w-[100px] text-center">
-                        {format(new Date(fecha), "dd/MM/yy")}
+                    <TableHead className="sticky left-0 z-10 bg-muted border-r min-w-[220px]">
+                      Paciente
+                    </TableHead>
+                    <TableHead className="min-w-[56px]">Edad</TableHead>
+                    <TableHead className="min-w-[140px]">Diagnóstico</TableHead>
+                    <TableHead className="min-w-[120px]">Dosis</TableHead>
+                    <TableHead className="min-w-[120px]">Terapia</TableHead>
+                    {COLUMNAS_FECHA.map((label) => (
+                      <TableHead key={label} className="min-w-[72px] text-center text-xs font-medium">
+                        {label}
                       </TableHead>
                     ))}
-                    <TableHead className="min-w-[80px]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {fichasFiltradas.map((ficha) => (
-                    <TableRow key={ficha.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-muted-foreground" />
-                          <div className="space-y-1">
-                            <div className="font-medium">
-                              {formatearNombrePaciente(ficha.paciente)}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {ficha.paciente?.telefono || 'Sin teléfono'}
-                            </div>
+                  {fichasFiltradas.map((ficha, fichaIdx) => (
+                    <TableRow
+                      key={ficha.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setSelectedFicha(ficha)}
+                    >
+                      {/* Columna fija — paciente */}
+                      <TableCell
+                        className={cn(
+                          'sticky left-0 z-10 border-r',
+                          fichaIdx % 2 === 0 ? 'bg-background' : 'bg-muted/20'
+                        )}
+                      >
+                        <div className="space-y-0.5">
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 font-mono">
+                            {ficha.folio}
+                          </Badge>
+                          <div className="font-medium text-sm leading-tight">
+                            {formatearNombre(ficha.paciente)}
                           </div>
+                          {ficha.institucion && (
+                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
+                              <span className="truncate max-w-[170px]">{ficha.institucion.nombre}</span>
+                            </div>
+                          )}
+                          {ficha.doctor && (
+                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <User className="w-2.5 h-2.5 flex-shrink-0" />
+                              <span className="truncate max-w-[170px]">{formatearNombre(ficha.doctor)}</span>
+                            </div>
+                          )}
                         </div>
                       </TableCell>
-                      
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {ficha.folio}
-                        </Badge>
+
+                      <TableCell className="text-sm">
+                        {calcularEdad(ficha.paciente?.fecha_nacimiento)}
                       </TableCell>
 
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm">{ficha.institucion?.nombre}</span>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <span className="text-sm">
-                          {calcularEdad(ficha.paciente?.fecha_nacimiento)}
+                        <span
+                          className="text-sm line-clamp-2"
+                          title={ficha.diagnostico || ''}
+                        >
+                          {ficha.diagnostico || '—'}
                         </span>
                       </TableCell>
 
                       <TableCell>
-                        <span className="text-sm">{ficha.diagnostico || 'No especificado'}</span>
+                        <span className="text-sm">{(ficha as any).dosis || '—'}</span>
                       </TableCell>
 
-                      {todasLasFechas.map((fecha) => {
-                        const estado = getEstadoFecha(ficha, fecha)
+                      <TableCell>
+                        <span className="text-sm truncate max-w-[110px] block" title={ficha.terapia || ''}>
+                          {ficha.terapia || '—'}
+                        </span>
+                      </TableCell>
+
+                      {/* F1 - F10 */}
+                      {COLUMNAS_FECHA.map((_, i) => {
+                        const ft = getCeldaFecha(ficha, i)
+                        const estado = getIconoFecha(ft)
+
+                        if (!ft || !estado) {
+                          return (
+                            <TableCell key={i} className="text-center">
+                              <span className="text-muted-foreground/20 text-xs">—</span>
+                            </TableCell>
+                          )
+                        }
+
+                        const Icono = estado.icono
+
                         return (
-                          <TableCell key={fecha} className="text-center">
-                            {estado ? (
-                              <estado.icono className={`w-5 h-5 mx-auto ${estado.color}`} />
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                          <TableCell key={i} className="text-center">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <Icono className={cn('w-4 h-4', estado.color)} />
+                              <span className="text-[10px] text-muted-foreground">
+                                {format(parseISO(ft.fecha_programada), 'dd/MM')}
+                              </span>
+                            </div>
                           </TableCell>
                         )
                       })}
-
-                      <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleViewFicha(ficha)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
           )}
-
-          {fichasFiltradas.length === 0 && !loading && (
-            <div className="text-center py-8">
-              <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                {busqueda ? 'No se encontraron fichas con ese criterio de búsqueda' : 'No hay fichas registradas'}
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Dialog de detalle de ficha */}
-      <Dialog open={showDetail} onOpenChange={setShowDetail}>
-        <DialogContent 
-          className="overflow-y-auto" 
-          style={{ 
-            maxWidth: '90vw', 
-            maxHeight: '90vh', 
-            width: '90vw',
-            height: '90vh'
-          }}
-        >
+      {/* Dialog detalle */}
+      <Dialog open={!!selectedFicha} onOpenChange={(open) => { if (!open) setSelectedFicha(null) }}>
+        <DialogContent className="overflow-y-auto max-w-2xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Detalle de Ficha de Paciente</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Ficha {selectedFicha?.folio}
+            </DialogTitle>
           </DialogHeader>
 
           {selectedFicha && (
-            <div className="space-y-6">
-              {/* Información del paciente */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-3">Información del Paciente</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
-                        <p className="text-sm">{formatearNombrePaciente(selectedFicha.paciente)}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Edad</label>
-                        <p className="text-sm">{calcularEdad(selectedFicha.paciente?.fecha_nacimiento)}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Teléfono</label>
-                        <p className="text-sm">{selectedFicha.paciente?.telefono || 'No disponible'}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Fecha de Nacimiento</label>
-                        <p className="text-sm">
-                          {selectedFicha.paciente?.fecha_nacimiento 
-                            ? new Date(selectedFicha.paciente.fecha_nacimiento).toLocaleDateString()
-                            : 'No disponible'
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="space-y-4 py-2">
 
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-3">Información de la Ficha</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Folio</label>
-                        <p className="text-sm font-mono">{selectedFicha.folio}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Institución</label>
-                        <p className="text-sm">{selectedFicha.institucion?.nombre}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Fecha de Registro</label>
-                        <p className="text-sm">{new Date(selectedFicha.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Paciente + Ficha */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Paciente</p>
+                  <p className="font-semibold">{formatearNombre(selectedFicha.paciente)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {calcularEdad(selectedFicha.paciente?.fecha_nacimiento)}
+                    {selectedFicha.paciente?.fecha_nacimiento && (
+                      <span className="ml-2">
+                        · {format(parseISO(selectedFicha.paciente.fecha_nacimiento), "d 'de' MMMM yyyy", { locale: es })}
+                      </span>
+                    )}
+                  </p>
+                  {selectedFicha.paciente?.telefono && (
+                    <p className="text-sm text-muted-foreground">{selectedFicha.paciente.telefono}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ficha</p>
+                  <Badge variant="outline" className="font-mono">{selectedFicha.folio}</Badge>
+                  <p className="text-sm">{selectedFicha.institucion?.nombre}</p>
+                  {selectedFicha.doctor && (
+                    <p className="text-sm text-muted-foreground">
+                      Dr. {formatearNombre(selectedFicha.doctor)}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Registrada el {format(parseISO(selectedFicha.created_at), "d 'de' MMMM yyyy", { locale: es })}
+                  </p>
+                </div>
               </div>
 
-              {/* Diagnóstico y Terapia */}
-              <div className="grid gap-4 md:grid-cols-2">
+              {/* Tratamiento */}
+              <div className="border-t pt-4 grid gap-3 sm:grid-cols-2">
                 {selectedFicha.diagnostico && (
-                  <Card>
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold mb-3">Diagnóstico</h3>
-                      <p className="text-sm">{selectedFicha.diagnostico}</p>
-                    </CardContent>
-                  </Card>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Diagnóstico</p>
+                    <p className="text-sm">{selectedFicha.diagnostico}</p>
+                  </div>
                 )}
-
                 {selectedFicha.terapia && (
-                  <Card>
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold mb-3">Terapia</h3>
-                      <p className="text-sm">{selectedFicha.terapia}</p>
-                    </CardContent>
-                  </Card>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Terapia</p>
+                    <p className="text-sm">{selectedFicha.terapia}</p>
+                  </div>
+                )}
+                {(selectedFicha as any).dosis && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Dosis</p>
+                    <p className="text-sm">{(selectedFicha as any).dosis}</p>
+                  </div>
+                )}
+                {selectedFicha.fecha_inicio_tratamiento && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Inicio de tratamiento</p>
+                    <p className="text-sm">
+                      {format(parseISO(selectedFicha.fecha_inicio_tratamiento), "d 'de' MMMM yyyy", { locale: es })}
+                    </p>
+                  </div>
                 )}
               </div>
 
-              {/* Fechas de tratamiento */}
-              {selectedFicha.fechas_tratamiento && selectedFicha.fechas_tratamiento.length > 0 && (
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-3">Cronograma de Tratamiento</h3>
-                    <div className="space-y-3">
-                      {selectedFicha.fechas_tratamiento.map((fecha: any) => (
-                        <div key={fecha.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="text-sm font-medium">
-                              {new Date(fecha.fecha_programada).toLocaleDateString()}
+              {/* Cronograma */}
+              {(selectedFicha.fechas_tratamiento?.length ?? 0) > 0 && (
+                <div className="border-t pt-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                    Cronograma de tratamiento
+                  </p>
+                  <div className="divide-y">
+                    {[...(selectedFicha.fechas_tratamiento ?? [])]
+                      .sort((a: any, b: any) => a.fecha_programada.localeCompare(b.fecha_programada))
+                      .map((ft: any, i: number) => {
+                        const pasada = new Date(ft.fecha_programada + 'T00:00:00') < new Date()
+                        return (
+                          <div key={ft.id} className="flex items-center justify-between py-2">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-muted-foreground w-6">F{i + 1}</span>
+                              <span className="text-sm">
+                                {format(parseISO(ft.fecha_programada), "d 'de' MMMM yyyy", { locale: es })}
+                              </span>
                             </div>
-                            <Badge variant={fecha.asistencia ? 'default' : 'secondary'}>
-                              {fecha.asistencia ? 'Asistió' : 'No asistió'}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              {ft.notas && (
+                                <span className="text-xs text-muted-foreground truncate max-w-32" title={ft.notas}>
+                                  {ft.notas}
+                                </span>
+                              )}
+                              {ft.asistencia === true && (
+                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                  Asistió
+                                </Badge>
+                              )}
+                              {ft.asistencia === false && (
+                                <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                                  No asistió
+                                </Badge>
+                              )}
+                              {ft.asistencia === null && pasada && (
+                                <Badge variant="outline" className="text-xs bg-red-50 text-red-300 border-red-100">
+                                  Sin registro
+                                </Badge>
+                              )}
+                              {ft.asistencia === null && !pasada && (
+                                <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                                  Programada
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                          {fecha.notas && (
-                            <div className="text-sm text-muted-foreground max-w-xs truncate">
-                              {fecha.notas}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                        )
+                      })}
+                  </div>
+                </div>
               )}
             </div>
           )}

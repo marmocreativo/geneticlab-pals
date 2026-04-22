@@ -156,11 +156,15 @@ export const visitasService = {
     const validacion = distancia <= distanciaPermitida
 
     // Actualizar la visita con los datos de validación
+    // validacion_gps refleja si estuvo dentro del rango
+    // gps_dispositivo siempre true porque el dispositivo respondió
     const visitaActualizada = await this.updateVisita(visitaId, {
       validacion_gps: validacion,
+      gps_dispositivo: true,
       latitud_registro: latitud,
       longitud_registro: longitud,
-      distancia_metros: distancia
+      distancia_metros: distancia,
+      fecha_hora_registro: new Date().toISOString()
     })
 
     // CAMBIO PRINCIPAL: Siempre devolver el resultado, no lanzar error

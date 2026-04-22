@@ -23,6 +23,8 @@ import AdminVisitasPage from '@/pages/admin/AdminVisitasPage'
 import AdminActividadesPage from '@/pages/admin/AdminActividadesPage'
 import AdminPacientesPage from '@/pages/admin/AdminPacientesPage'
 import AdminVisitaDetailPage from '@/pages/admin/AdminVisitaDetailPage'
+import AdminUsuarioDetailPage from '@/pages/admin/AdminUsuarioDetailPage'
+import AdminInstitucionDetailPage from '@/pages/admin/AdminInstitucionDetailPage'
 import OfflineFallback from "@/pages/OfflineFallback"
 import { Toaster } from 'sonner'
 
@@ -66,6 +68,8 @@ function App() {
                   <Route path="/admin/actividades" element={<AdminActividadesPage />} />
                   <Route path="/admin/pacientes" element={<AdminPacientesPage />} />
                   <Route path="/admin/usuarios" element={<Usuarios />} />
+                  <Route path="/admin/usuarios/:userId" element={<AdminUsuarioDetailPage />} />
+                  <Route path="/admin/instituciones/:institucionId" element={<AdminInstitucionDetailPage />} />
                   <Route path="/admin/catalogos" element={<CatalogosPage />} />
                   <Route path="/admin/instituciones" element={<InstitucionesPage />} />
                   <Route path="/admin/configuraciones" element={<ConfiguracionesPage />} />
