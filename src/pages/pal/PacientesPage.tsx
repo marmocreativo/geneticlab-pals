@@ -405,9 +405,9 @@ export default function PacientesPage() {
                   )}
 
                   {/* Institución */}
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Building className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate block">{ficha.institucion?.nombre}</span>
+                    <span className="max-w-[180px] truncate">{ficha.institucion?.nombre}</span>
                   </div>
 
                   {/* Fecha inicio */}
