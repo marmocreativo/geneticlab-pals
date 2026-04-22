@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  LayoutDashboard, Users, Building2, Calendar, Activity,
+  Users, Building2, Calendar, Activity,
   AlertTriangle, Database, Clock, Wifi
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,9 +12,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import { useUsers } from '@/hooks/useUsers'
-import { useInstituciones } from '@/hooks/useInstituciones'
-import { useVisitas } from '@/hooks/useVisitas'
-import { useActividades } from '@/hooks/useActividades'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   eachWeekOfInterval, endOfWeek, parseISO, differenceInDays
@@ -27,7 +24,6 @@ import type { Actividad } from '@/types/actividad'
 
 export default function Dashboard() {
   const { users } = useUsers()
-  const { instituciones } = useInstituciones()
 
   const hoy = new Date()
   const [fechaInicio, setFechaInicio] = useState(format(startOfMonth(hoy), 'yyyy-MM-dd'))

@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
-  ArrowLeft, Building2, MapPin, Calendar,
+  ArrowLeft, MapPin, Calendar,
   Users, Activity, Navigation, CheckCircle, XCircle
 } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -30,14 +30,6 @@ interface Institucion {
   created_at: string
   catalogos?: { nombre: string } | null
 }
-
-// Marcador de registro de visita con opacidad según densidad
-const iconoRegistro = (opacity: number) => L.divIcon({
-  className: '',
-  html: `<div style="background:#e8308a;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);opacity:${opacity}"></div>`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-})
 
 const iconoHospital = L.divIcon({
   className: '',

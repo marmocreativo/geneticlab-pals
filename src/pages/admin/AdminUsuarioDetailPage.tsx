@@ -4,7 +4,7 @@ import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   ArrowLeft, User, Mail, Phone, Calendar,
-  Building2, Activity, Users, MapPin
+  Building2, Activity, MapPin
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
