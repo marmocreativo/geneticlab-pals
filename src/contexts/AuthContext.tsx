@@ -134,10 +134,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-    if (user) localStorage.removeItem(`role-${user.id}`)
-    setRole(null)
+    try {
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.warn('Error al cerrar sesión en Supabase:', error)
+    } finally {
+      if (user) localStorage.removeItem(`role-${user.id}`)
+      localStorage.removeItem('control-pals-auth')
+      setRole(null)
+      setUser(null)
+      setSession(null)
+    }
   }
 
   return (

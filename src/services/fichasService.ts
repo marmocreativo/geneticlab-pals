@@ -13,7 +13,12 @@ const SELECT_FICHA = `
     apellido_pat,
     apellido_mat,
     telefono,
-    fecha_nacimiento
+    fecha_nacimiento,
+    pal_id,
+    pal:users!pal_id (
+      id,
+      nombre_completo
+    )
   ),
   doctor:contactos!doctor_id (
     id,

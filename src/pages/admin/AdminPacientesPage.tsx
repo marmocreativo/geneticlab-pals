@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
+import { useUsers } from '@/hooks/useUsers'
 import type { FichaPaciente } from '@/types/ficha'
 import { cn } from '@/lib/utils'
 
@@ -18,23 +19,30 @@ const COLUMNAS_FECHA = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10']
 export default function AdminFichasPacientesPage() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroInstitucion, setFiltroInstitucion] = useState<string>('todos')
+  const [filtroPal, setFiltroPal] = useState<string>('todos')
   const [selectedFicha, setSelectedFicha] = useState<FichaPaciente | null>(null)
 
   const { fichas, loading } = useFichas()
   const { instituciones } = useInstituciones()
+  const { users } = useUsers()
+
+  const pals = useMemo(() => users.filter(u => u.role === 'pal' && u.activo), [users])
 
   const fichasFiltradas = useMemo(() => {
     return fichas.filter(ficha => {
       if (busqueda) {
         const nombrePaciente = `${ficha.paciente?.nombre} ${ficha.paciente?.apellido_pat} ${ficha.paciente?.apellido_mat}`.toLowerCase()
         const folio = ficha.folio.toLowerCase()
-        const busquedaLower = busqueda.toLowerCase()
-        if (!nombrePaciente.includes(busquedaLower) && !folio.includes(busquedaLower)) return false
+        if (!nombrePaciente.includes(busqueda.toLowerCase()) && !folio.includes(busqueda.toLowerCase())) return false
       }
       if (filtroInstitucion !== 'todos' && ficha.institucion_id !== filtroInstitucion) return false
+      if (filtroPal !== 'todos') {
+        const palId = (ficha.paciente as any)?.pal_id
+        if (palId !== filtroPal) return false
+      }
       return true
     })
-  }, [fichas, busqueda, filtroInstitucion])
+  }, [fichas, busqueda, filtroInstitucion, filtroPal])
 
   const calcularEdad = (fechaNacimiento?: string) => {
     if (!fechaNacimiento) return '—'
@@ -84,7 +92,7 @@ export default function AdminFichasPacientesPage() {
               placeholder="Buscar folio o paciente..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-56 h-8 text-sm"
+              className="w-48 h-8 text-sm"
             />
             <Select value={filtroInstitucion} onValueChange={setFiltroInstitucion}>
               <SelectTrigger className="w-48 h-8 text-sm">
@@ -94,6 +102,17 @@ export default function AdminFichasPacientesPage() {
                 <SelectItem value="todos">Todas las instituciones</SelectItem>
                 {instituciones.map((i) => (
                   <SelectItem key={i.id} value={i.id}>{i.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filtroPal} onValueChange={setFiltroPal}>
+              <SelectTrigger className="w-44 h-8 text-sm">
+                <SelectValue placeholder="PAL" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los PALs</SelectItem>
+                {pals.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.nombre_completo}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -130,6 +149,7 @@ export default function AdminFichasPacientesPage() {
                     <TableHead className="min-w-[140px]">Diagnóstico</TableHead>
                     <TableHead className="min-w-[120px]">Dosis</TableHead>
                     <TableHead className="min-w-[120px]">Terapia</TableHead>
+                    <TableHead className="min-w-[110px]">Inicio</TableHead>
                     {COLUMNAS_FECHA.map((label) => (
                       <TableHead key={label} className="min-w-[72px] text-center text-xs font-medium">
                         {label}
@@ -164,10 +184,12 @@ export default function AdminFichasPacientesPage() {
                               <span className="truncate max-w-[170px]">{ficha.institucion.nombre}</span>
                             </div>
                           )}
-                          {ficha.doctor && (
+                          {(ficha.paciente as any)?.pal && (
                             <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                               <User className="w-2.5 h-2.5 flex-shrink-0" />
-                              <span className="truncate max-w-[170px]">{formatearNombre(ficha.doctor)}</span>
+                              <span className="truncate max-w-[170px]">
+                                {(ficha.paciente as any).pal.nombre_completo}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -178,10 +200,7 @@ export default function AdminFichasPacientesPage() {
                       </TableCell>
 
                       <TableCell>
-                        <span
-                          className="text-sm line-clamp-2"
-                          title={ficha.diagnostico || ''}
-                        >
+                        <span className="text-sm line-clamp-2" title={ficha.diagnostico || ''}>
                           {ficha.diagnostico || '—'}
                         </span>
                       </TableCell>
@@ -193,6 +212,14 @@ export default function AdminFichasPacientesPage() {
                       <TableCell>
                         <span className="text-sm truncate max-w-[110px] block" title={ficha.terapia || ''}>
                           {ficha.terapia || '—'}
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {ficha.fecha_inicio_tratamiento
+                            ? format(parseISO(ficha.fecha_inicio_tratamiento), 'dd/MM/yy')
+                            : '—'}
                         </span>
                       </TableCell>
 
@@ -259,6 +286,12 @@ export default function AdminFichasPacientesPage() {
                   </p>
                   {selectedFicha.paciente?.telefono && (
                     <p className="text-sm text-muted-foreground">{selectedFicha.paciente.telefono}</p>
+                  )}
+                  {(selectedFicha.paciente as any)?.pal && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <User className="w-3 h-3" />
+                      PAL: {(selectedFicha.paciente as any).pal.nombre_completo}
+                    </p>
                   )}
                 </div>
 

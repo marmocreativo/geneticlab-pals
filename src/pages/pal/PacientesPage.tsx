@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,7 @@ import { useInstituciones } from '@/hooks/useInstituciones'
 import { useContactos } from '@/hooks/useContactos'
 import { useAuth } from '@/contexts/AuthContext'
 import { contactosService } from '@/services/contactosService'
-import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
+import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { FichaPaciente, FichaPacienteUpdate } from '@/types/ficha'
 import type { ContactoInsert, Contacto } from '@/types/contacto'
@@ -35,6 +35,8 @@ const STATUS_LABELS: Record<string, string> = {
   en_tx: 'En Tx',
   fuera_tx: 'Fuera Tx',
 }
+
+const PAGE_SIZE = 12
 
 interface EditFormState {
   doctor_id: string
@@ -109,10 +111,9 @@ export default function PacientesPage() {
   const { instituciones } = useInstituciones()
   const { formatearNombreCompleto, createContacto } = useContactos()
 
-  const [mesActual, setMesActual] = useState(new Date())
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('all')
   const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
-  const [filteredFichas, setFilteredFichas] = useState<FichaPaciente[]>([])
+  const [pagina, setPagina] = useState(1)
 
   const [editingFicha, setEditingFicha] = useState<FichaPaciente | null>(null)
   const [editForm, setEditForm] = useState<EditFormState>({
@@ -140,26 +141,38 @@ export default function PacientesPage() {
     pal_id: user?.id || ''
   })
 
-  useEffect(() => {
-    const inicio = format(startOfMonth(mesActual), 'yyyy-MM-dd')
-    const fin = format(endOfMonth(mesActual), 'yyyy-MM-dd')
-
-    let result = fichas.filter(ficha => {
-      if (!ficha.fecha_inicio_tratamiento) return false
-      return ficha.fecha_inicio_tratamiento >= inicio && ficha.fecha_inicio_tratamiento <= fin
-    })
+  // Fichas filtradas y ordenadas
+  const fichasFiltradas = useMemo(() => {
+    let result = [...fichas]
 
     if (selectedInstitucion !== 'all') {
       result = result.filter(f => f.institucion_id === selectedInstitucion)
     }
 
-    setFilteredFichas(result)
-  }, [fichas, mesActual, selectedInstitucion])
+    // Ordenar por fecha_inicio_tratamiento descendente
+    result.sort((a, b) => {
+      const fechaA = a.fecha_inicio_tratamiento ?? ''
+      const fechaB = b.fecha_inicio_tratamiento ?? ''
+      return fechaB.localeCompare(fechaA)
+    })
+
+    return result
+  }, [fichas, selectedInstitucion])
+
+  // Paginación
+  const totalPaginas = Math.ceil(fichasFiltradas.length / PAGE_SIZE)
+  const fichasPagina = fichasFiltradas.slice((pagina - 1) * PAGE_SIZE, pagina * PAGE_SIZE)
+
+  // Reset pagina al cambiar filtro
+  const handleInstitucionChange = (val: string) => {
+    setSelectedInstitucion(val)
+    setPagina(1)
+  }
 
   const stats = useMemo(() => ({
-    iniciaronEsteMes: filteredFichas.length,
-    enTratamiento: filteredFichas.filter(f => f.status === 'en_tx').length,
-  }), [filteredFichas])
+    total: fichasFiltradas.length,
+    enTratamiento: fichasFiltradas.filter(f => f.status === 'en_tx').length,
+  }), [fichasFiltradas])
 
   const promedioVisitas = instituciones.length > 0
     ? instituciones.reduce((acc, i) => acc + (i.visitas_count ?? 0), 0) / instituciones.length
@@ -280,44 +293,18 @@ export default function PacientesPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Censo de Pacientes</h1>
           <p className="text-muted-foreground text-sm mt-1">Gestión de fichas y seguimiento</p>
         </div>
-        {/* Botón desktop alineado a la derecha */}
         <div className="hidden md:block">
           <FichaForm onSuccess={fetchFichas} />
         </div>
       </div>
 
-      {/* Botón nueva ficha mobile - ancho completo */}
       <div className="md:hidden w-full">
         <FichaForm onSuccess={fetchFichas} />
       </div>
 
-      {/* Filtros */}
+      {/* Filtro institución */}
       <div className="flex flex-col md:flex-row gap-3">
-        {/* Navegación mes */}
-        <div className="flex items-center gap-2 border rounded-md px-3 py-2 justify-center md:justify-start">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={() => setMesActual(prev => subMonths(prev, 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium min-w-[130px] text-center">
-            {format(mesActual, 'MMMM yyyy', { locale: es })}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={() => setMesActual(prev => addMonths(prev, 1))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Select institución con buscador y favoritos */}
-        <Select value={selectedInstitucion} onValueChange={setSelectedInstitucion}>
+        <Select value={selectedInstitucion} onValueChange={handleInstitucionChange}>
           <SelectTrigger className="w-full md:w-64">
             <SelectValue placeholder="Todas las instituciones" />
           </SelectTrigger>
@@ -357,8 +344,8 @@ export default function PacientesPage() {
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Iniciaron este mes</p>
-            <p className="text-3xl font-bold">{stats.iniciaronEsteMes}</p>
+            <p className="text-xs text-muted-foreground">Total pacientes</p>
+            <p className="text-3xl font-bold">{stats.total}</p>
           </CardContent>
         </Card>
         <Card>
@@ -377,77 +364,118 @@ export default function PacientesPage() {
             Cargando pacientes...
           </CardContent>
         </Card>
-      ) : filteredFichas.length === 0 ? (
+      ) : fichasFiltradas.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
-            <p className="font-medium">No hay fichas para este período</p>
-            <p className="text-sm mt-1">Prueba cambiando el mes o la institución</p>
+            <p className="font-medium">No hay fichas registradas</p>
+            <p className="text-sm mt-1">Crea la primera ficha con el botón de arriba</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredFichas.map(ficha => (
-            <Card key={ficha.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4 space-y-3">
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {fichasPagina.map(ficha => (
+              <Card key={ficha.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4 space-y-3">
 
-                {/* Fila superior: folio + status */}
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-muted-foreground font-mono">Folio: {ficha.numero_pm }</span>
-                  <Badge
-                    variant={ficha.status === 'en_tx' ? 'default' : 'outline'}
-                    className="text-[10px] px-1.5 py-0"
-                  >
-                    {STATUS_LABELS[ficha.status] ?? ficha.status}
-                  </Badge>
-                </div>
-
-                {/* Nombre paciente */}
-                <p className="font-semibold text-base leading-tight">
-                  {formatearNombre(ficha.paciente)}
-                </p>
-
-                {/* Médico */}
-                {ficha.doctor && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Stethoscope className="h-3 w-3 flex-shrink-0" />
-                    <span>{formatearNombre(ficha.doctor)}</span>
+                  {/* Fila superior: folio + status */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      Folio: {ficha.numero_pm}
+                    </span>
+                    <Badge
+                      variant={ficha.status === 'en_tx' ? 'default' : 'outline'}
+                      className="text-[10px] px-1.5 py-0"
+                    >
+                      {STATUS_LABELS[ficha.status] ?? ficha.status}
+                    </Badge>
                   </div>
-                )}
 
-                {/* Institución */}
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Building className="h-3 w-3 flex-shrink-0" />
-                  <span className="truncate">{ficha.institucion?.nombre}</span>
-                </div>
+                  {/* Nombre paciente */}
+                  <p className="font-semibold text-base leading-tight">
+                    {formatearNombre(ficha.paciente)}
+                  </p>
 
-                {/* Mini tabla de fechas */}
-                <TablaDates ficha={ficha} />
+                  {/* Médico */}
+                  {ficha.doctor && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Stethoscope className="h-3 w-3 flex-shrink-0" />
+                      <span>{formatearNombre(ficha.doctor)}</span>
+                    </div>
+                  )}
 
-                {/* Botones */}
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => handleOpenEdit(ficha)}
-                  >
-                    <Pencil className="h-3 w-3 mr-1" />
-                    Editar ficha
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)}
-                  >
-                    <Calendar className="h-3 w-3 mr-1" />
-                    Ver fechas
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  {/* Institución */}
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Building className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{ficha.institucion?.nombre}</span>
+                  </div>
+
+                  {/* Fecha inicio */}
+                  {ficha.fecha_inicio_tratamiento && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                      <span>
+                        Inicio: {format(new Date(ficha.fecha_inicio_tratamiento + 'T12:00:00'), "d 'de' MMMM yyyy", { locale: es })}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Mini tabla de fechas */}
+                  <TablaDates ficha={ficha} />
+
+                  {/* Botones */}
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => handleOpenEdit(ficha)}
+                    >
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Editar ficha
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)}
+                    >
+                      <Calendar className="h-3 w-3 mr-1" />
+                      Ver fechas
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Paginación */}
+          {totalPaginas > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPagina(p => Math.max(1, p - 1))}
+                disabled={pagina === 1}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Página {pagina} de {totalPaginas} · {fichasFiltradas.length} fichas
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                disabled={pagina === totalPaginas}
+              >
+                Siguiente
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Dialog de edición */}
@@ -458,7 +486,6 @@ export default function PacientesPage() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Doctor */}
             <div className="space-y-2">
               <Label>Doctor</Label>
               {!createNewMedico && (
@@ -530,7 +557,6 @@ export default function PacientesPage() {
               )}
             </div>
 
-            {/* Status y Número PM */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Status</Label>
@@ -552,7 +578,6 @@ export default function PacientesPage() {
               </div>
             </div>
 
-            {/* Dosis y Periodicidad */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Dosis <span className="text-destructive">*</span></Label>
@@ -583,7 +608,6 @@ export default function PacientesPage() {
               </div>
             </div>
 
-            {/* Fechas */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Inicio de Tratamiento <span className="text-destructive">*</span></Label>
