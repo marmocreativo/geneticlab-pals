@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Building, Star } from 'lucide-react'
 import { format } from 'date-fns'
+import { useCatalogos } from '@/hooks/useCatalogos'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -46,13 +47,27 @@ interface VisitaFormProps {
 }
 
 export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaFormProps) {
+
+  const { catalogos: sectores } = useCatalogos('sector')
   const [loading, setLoading] = useState(false)
   const [showNewInstitucionForm, setShowNewInstitucionForm] = useState(false)
   const [busqueda, setBusqueda] = useState('')
+  const [estadoFiltro, setEstadoFiltro] = useState('')
+  const [ciudadFiltro, setCiudadFiltro] = useState('')
+  const [sectorFiltro, setSectorFiltro] = useState('')
+  const [busquedaActiva, setBusquedaActiva] = useState<{
+    nombre: string
+    estado: string
+    ciudad: string
+    sector: string
+  }>({ nombre: '', estado: '', ciudad: '', sector: '' })
+  const [mostrarAvanzada, setMostrarAvanzada] = useState(false)
 
   const { createVisita } = useVisitas()
   const { instituciones, fetchInstituciones } = useInstituciones()
   const { user } = useAuth()
+
+  const estadosUnicos = [...new Set(instituciones.map(i => i.estado).filter(Boolean))].sort()
 
   const form = useForm<VisitaFormData>({
     resolver: zodResolver(visitaSchema),
@@ -70,11 +85,25 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
 
   const institucionesFiltradas = [...instituciones]
     .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
-    .filter(i =>
-      busqueda === '' ||
-      i.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-      i.direccion.toLowerCase().includes(busqueda.toLowerCase())
-    )
+    .filter(i => {
+      const matchNombre = busquedaActiva.nombre === '' ||
+        i.nombre.toLowerCase().includes(busquedaActiva.nombre.toLowerCase()) ||
+        i.direccion.toLowerCase().includes(busquedaActiva.nombre.toLowerCase())
+      const matchEstado = busquedaActiva.estado === '' || i.estado === busquedaActiva.estado
+      const matchCiudad = busquedaActiva.ciudad === '' ||
+        i.ciudad?.toLowerCase().includes(busquedaActiva.ciudad.toLowerCase())
+      const matchSector = busquedaActiva.sector === '' || i.sector_id === busquedaActiva.sector
+      return matchNombre && matchEstado && matchCiudad && matchSector
+    })
+  
+    const handleBuscar = () => {
+      setBusquedaActiva({
+        nombre: busqueda,
+        estado: estadoFiltro,
+        ciudad: ciudadFiltro,
+        sector: sectorFiltro
+      })
+    }
 
   const handleSubmit = async (data: VisitaFormData) => {
     if (!user?.id) return
@@ -167,13 +196,65 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <div className="p-2 border-b">
-                      <Input
-                        placeholder="Buscar institución..."
-                        value={busqueda}
-                        onChange={e => setBusqueda(e.target.value)}
-                        className="h-8 text-sm"
-                      />
+                    <div className="p-2 border-b space-y-2">
+                      {/* Fila principal: nombre + estado + botón */}
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Buscar por nombre..."
+                          value={busqueda}
+                          onChange={e => setBusqueda(e.target.value)}
+                          onKeyDown={e => {
+                            e.stopPropagation()
+                            if (e.key === 'Enter') handleBuscar()
+                          }}
+                          className="h-8 text-sm flex-1"
+                        />
+                        <select
+                          value={estadoFiltro}
+                          onChange={e => setEstadoFiltro(e.target.value)}
+                          className="h-8 text-sm border rounded px-2 bg-background"
+                        >
+                          <option value="">Estado</option>
+                          {estadosUnicos.map(estado => (
+                            <option key={estado} value={estado}>{estado}</option>
+                          ))}
+                        </select>
+                        <Button type="button" size="sm" className="h-8 px-3" onClick={handleBuscar}>
+                          Buscar
+                        </Button>
+                      </div>
+
+                      {/* Toggle búsqueda avanzada */}
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground w-full py-2 border rounded flex items-center justify-center gap-1"
+                        onClick={() => setMostrarAvanzada(v => !v)}
+                      >
+                        {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
+                      </button>
+
+                      {/* Campos avanzados */}
+                      {mostrarAvanzada && (
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Ciudad..."
+                            value={ciudadFiltro}
+                            onChange={e => setCiudadFiltro(e.target.value)}
+                            onKeyDown={e => e.stopPropagation()}
+                            className="h-8 text-sm flex-1"
+                          />
+                          <select
+                            value={sectorFiltro}
+                            onChange={e => setSectorFiltro(e.target.value)}
+                            className="h-8 text-sm border rounded px-2 bg-background"
+                          >
+                            <option value="">Sector</option>
+                            {sectores.map(s => (
+                              <option key={s.id} value={s.id}>{s.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                     {institucionesFiltradas.length === 0 ? (
                       <div className="p-2 text-sm text-muted-foreground text-center">

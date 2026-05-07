@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { logError, parseError } from '@/lib/errorHandler'
 import type { Institucion } from '@/types/institucion'
 
 export function useInstituciones() {
@@ -33,7 +34,9 @@ export function useInstituciones() {
       setInstituciones(institucionesWithCounts)
     } catch (err) {
       console.error('Error fetching instituciones:', err)
-      toast.error('Error al cargar instituciones')
+      const errorMessage = parseError(err)
+      await logError('useInstituciones.fetchInstituciones', err)
+      toast.error(`Error al cargar instituciones: ${errorMessage}`)
     } finally {
       setLoading(false)
     }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fechasTratamientoService } from '@/services/fechasTratamientoService'
+import { logError, parseError } from '@/lib/errorHandler'
 import type { FechasTratamiento, FechasTratamientoInsert, FechasTratamientoUpdate } from '@/types/ficha'
 import { toast } from 'sonner'
 
@@ -16,8 +17,9 @@ export function useFechasTratamiento() {
       setFechas(data)
     } catch (err) {
       console.error('Error fetching fechas:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      toast.error('Error al cargar las fechas de tratamiento')
+      const errorMessage = parseError(err)
+      await logError('useFechasTratamiento.fetchFechasByFicha', err)
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -33,7 +35,8 @@ export function useFechasTratamiento() {
       return newFecha
     } catch (err) {
       console.error('Error creating fecha:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useFechasTratamiento.createFecha', err)
       toast.error(`Error al crear la fecha: ${errorMessage}`)
       throw err
     }
@@ -51,7 +54,8 @@ export function useFechasTratamiento() {
       return updatedFecha
     } catch (err) {
       console.error('Error updating fecha:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useFechasTratamiento.updateFecha', err)
       toast.error(`Error al actualizar la fecha: ${errorMessage}`)
       throw err
     }
@@ -64,7 +68,8 @@ export function useFechasTratamiento() {
       toast.success('Fecha de tratamiento eliminada exitosamente')
     } catch (err) {
       console.error('Error deleting fecha:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useFechasTratamiento.deleteFecha', err)
       toast.error(`Error al eliminar la fecha: ${errorMessage}`)
       throw err
     }

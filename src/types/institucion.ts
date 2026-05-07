@@ -6,6 +6,9 @@ export interface Institucion {
   latitud: number;
   longitud: number;
   sector_id?: string;
+  estado?: string
+  ciudad?: string
+  municipio?: string
   google_place_id?: string;
   photo_reference?: string;
   contactos_count?: number
@@ -33,6 +36,9 @@ export interface CreateInstitucionInput {
   latitud: number;
   longitud: number;
   sector_id?: string;
+  estado?: string
+  ciudad?: string
+  municipio?: string
   google_place_id?: string;
   photo_reference?: string;
   contactos_count?: number

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { contactosService } from '@/services/contactosService'
+import { logError, parseError } from '@/lib/errorHandler'
 import type { Contacto, ContactoInsert, ContactoUpdate } from '@/types/contacto'
 import { toast } from 'sonner'
 
@@ -16,7 +17,9 @@ export function useContactos() {
       setContactos(data)
     } catch (err) {
       console.error('Error fetching contactos:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
+      const errorMessage = parseError(err)
+      await logError('useContactos.fetchContactos', err)
+      setError(errorMessage)
       toast.error('Error al cargar los contactos')
     } finally {
       setLoading(false)
@@ -31,8 +34,10 @@ export function useContactos() {
       setContactos(data)
     } catch (err) {
       console.error('Error fetching contactos by tipo:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      toast.error('Error al cargar los contactos')
+      const errorMessage = parseError(err)
+      await logError('useContactos.fetchContactosByTipo', err)
+      setError(errorMessage)
+      toast.error('Error al cargar los contactos por tipo')
     } finally {
       setLoading(false)
     }
@@ -46,7 +51,8 @@ export function useContactos() {
       return newContacto
     } catch (err) {
       console.error('Error creating contacto:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useContactos.createContacto', err)
       toast.error(`Error al crear el contacto: ${errorMessage}`)
       throw err
     }
@@ -62,8 +68,9 @@ export function useContactos() {
       return updatedContacto
     } catch (err) {
       console.error('Error updating contacto:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`Error al actualizar el contacto: ${errorMessage}`)
+      const errorMessage = parseError(err)
+      await logError('useContactos.updateContacto', err)
+      toast.error(`Error al actualizar contacto: ${errorMessage}`)
       throw err
     }
   }
@@ -75,8 +82,9 @@ export function useContactos() {
       toast.success('Contacto eliminado exitosamente')
     } catch (err) {
       console.error('Error deleting contacto:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`Error al eliminar el contacto: ${errorMessage}`)
+      const errorMessage = parseError(err)
+      await logError('useContactos.deleteContacto', err)
+      toast.error(`Error al borrar contacto: ${errorMessage}`)
       throw err
     }
   }
@@ -89,7 +97,9 @@ export function useContactos() {
       setContactos(data)
     } catch (err) {
       console.error('Error searching contactos:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
+      const errorMessage = parseError(err)
+      await logError('useContactos.buscarContactos', err)
+      setError(errorMessage)
       toast.error('Error al buscar contactos')
     } finally {
       setLoading(false)
@@ -102,7 +112,8 @@ export function useContactos() {
       return contacto
     } catch (err) {
       console.error('Error fetching contacto by id:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useContactos.getContactoById', err)
       toast.error(`Error al obtener el contacto: ${errorMessage}`)
       throw err
     }

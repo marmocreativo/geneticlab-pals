@@ -13,6 +13,7 @@ import { useInstituciones } from '@/hooks/useInstituciones'
 import { useContactos } from '@/hooks/useContactos'
 import { useFichas } from '@/hooks/useFichas'
 import { useAuth } from '@/contexts/AuthContext'
+import { useCatalogos } from '@/hooks/useCatalogos'
 import { contactosService } from '@/services/contactosService'
 import type { ContactoInsert, Contacto } from '@/types/contacto'
 import type { PeriodicidadFicha } from '@/types/database.types'
@@ -36,16 +37,30 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
   const { instituciones } = useInstituciones()
   const { createContacto } = useContactos()
   const { createFicha } = useFichas()
+  const { catalogos: sectores } = useCatalogos('sector')
+
+  const estadosUnicos = [...new Set(instituciones.map(i => i.estado).filter(Boolean))].sort()
 
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<Step>('institucion')
   const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
+  const [estadoFiltro, setEstadoFiltro] = useState('')
+  const [ciudadFiltro, setCiudadFiltro] = useState('')
+  const [sectorFiltro, setSectorFiltro] = useState('')
+  const [busquedaActiva, setBusquedaActiva] = useState<{
+    nombre: string
+    estado: string
+    ciudad: string
+    sector: string
+  }>({ nombre: '', estado: '', ciudad: '', sector: '' })
+  const [mostrarAvanzada, setMostrarAvanzada] = useState(false)
 
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('')
   const [pacientesInstitucion, setPacientesInstitucion] = useState<Contacto[]>([])
   const [medicosInstitucion, setMedicosInstitucion] = useState<Contacto[]>([])
   const [loadingContactos, setLoadingContactos] = useState(false)
+  
 
   // Paciente
   const [selectedPaciente, setSelectedPaciente] = useState<string>('')
@@ -90,6 +105,15 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     fecha_inicio_tratamiento?: string
   }>({})
 
+  const handleBuscar = () => {
+    setBusquedaActiva({
+      nombre: busquedaInstitucion,
+      estado: estadoFiltro,
+      ciudad: ciudadFiltro,
+      sector: sectorFiltro
+    })
+  }
+
   useEffect(() => {
     const loadContactos = async () => {
       if (!selectedInstitucion) return
@@ -124,11 +148,16 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
 
   const institucionesFiltradas = [...instituciones]
     .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
-    .filter(i =>
-      busquedaInstitucion === '' ||
-      i.nombre.toLowerCase().includes(busquedaInstitucion.toLowerCase()) ||
-      i.direccion.toLowerCase().includes(busquedaInstitucion.toLowerCase())
-    )
+    .filter(i => {
+      const matchNombre = busquedaActiva.nombre === '' ||
+        i.nombre.toLowerCase().includes(busquedaActiva.nombre.toLowerCase()) ||
+        i.direccion.toLowerCase().includes(busquedaActiva.nombre.toLowerCase())
+      const matchEstado = busquedaActiva.estado === '' || i.estado === busquedaActiva.estado
+      const matchCiudad = busquedaActiva.ciudad === '' ||
+        i.ciudad?.toLowerCase().includes(busquedaActiva.ciudad.toLowerCase())
+      const matchSector = busquedaActiva.sector === '' || i.sector_id === busquedaActiva.sector
+      return matchNombre && matchEstado && matchCiudad && matchSector
+    })
 
   const selectedInstitucionData = instituciones.find(i => i.id === selectedInstitucion)
   const selectedPacienteData = pacientesInstitucion.find(c => c.id === selectedPaciente)
@@ -144,6 +173,11 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     setCreateNewPaciente(false)
     setSelectedMedico('')
     setCreateNewMedico(false)
+    setEstadoFiltro('')
+    setCiudadFiltro('')
+    setSectorFiltro('')
+    setBusquedaActiva({ nombre: '', estado: '', ciudad: '', sector: '' })
+    setMostrarAvanzada(false)
     setPacienteData({ tipo_contacto: 'paciente', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', fecha_nacimiento: '', pal_id: user?.id || '' })
     setMedicoData({ tipo_contacto: 'medico', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', pal_id: user?.id || '' })
     setFichaData({ diagnostico: '', terapia: '', dosis: '', fecha_inicio_tratamiento: '', fecha_final_tratamiento: '', numero_pm: '', status: 'en_tx', periodicidad: '' })
@@ -251,13 +285,62 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                   <SelectValue placeholder="Seleccionar institución" />
                 </SelectTrigger>
                 <SelectContent className="max-h-64 overflow-y-auto">
-                  <div className="p-2 border-b">
-                    <Input
-                      placeholder="Buscar institución..."
-                      value={busquedaInstitucion}
-                      onChange={e => setBusquedaInstitucion(e.target.value)}
-                      className="h-8 text-sm"
-                    />
+                  <div className="p-2 border-b space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Buscar por nombre..."
+                        value={busquedaInstitucion}
+                        onChange={e => setBusquedaInstitucion(e.target.value)}
+                        onKeyDown={e => {
+                          e.stopPropagation()
+                          if (e.key === 'Enter') handleBuscar()
+                        }}
+                        className="h-8 text-sm flex-1"
+                      />
+                      <select
+                        value={estadoFiltro}
+                        onChange={e => setEstadoFiltro(e.target.value)}
+                        className="h-8 text-sm border rounded px-2 bg-background"
+                      >
+                        <option value="">Estado</option>
+                        {estadosUnicos.map(estado => (
+                          <option key={estado} value={estado}>{estado}</option>
+                        ))}
+                      </select>
+                      <Button type="button" size="sm" className="h-8 px-3" onClick={handleBuscar}>
+                        Buscar
+                      </Button>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-foreground w-full py-2 border rounded flex items-center justify-center gap-1"
+                      onClick={() => setMostrarAvanzada(v => !v)}
+                    >
+                      {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
+                    </button>
+
+                    {mostrarAvanzada && (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Ciudad..."
+                          value={ciudadFiltro}
+                          onChange={e => setCiudadFiltro(e.target.value)}
+                          onKeyDown={e => e.stopPropagation()}
+                          className="h-8 text-sm flex-1"
+                        />
+                        <select
+                          value={sectorFiltro}
+                          onChange={e => setSectorFiltro(e.target.value)}
+                          className="h-8 text-sm border rounded px-2 bg-background"
+                        >
+                          <option value="">Sector</option>
+                          {sectores.map(s => (
+                            <option key={s.id} value={s.id}>{s.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   {institucionesFiltradas.length === 0 ? (
                     <div className="p-2 text-sm text-muted-foreground text-center">

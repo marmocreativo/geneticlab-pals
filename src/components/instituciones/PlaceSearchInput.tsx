@@ -57,7 +57,6 @@ export function PlaceSearchInput({ onPlaceSelect }: PlaceSearchInputProps) {
     autocompleteService.current.getPlacePredictions(
       {
         input: texto,
-        types: ['hospital'],
         componentRestrictions: { country: 'mx' },
       },
       (predictions, status) => {

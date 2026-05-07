@@ -1,6 +1,7 @@
 // hooks/useActividades.ts
 import { useState, useCallback } from 'react'
 import { actividadesService } from '@/services/actividadesService'
+import { logError, parseError } from '@/lib/errorHandler'
 import type { Actividad, ActividadInsert, ActividadUpdate } from '@/types/actividad'
 import { toast } from 'sonner'
 
@@ -17,7 +18,9 @@ export function useActividades() {
       setActividades(data)
     } catch (err) {
       console.error('Error fetching all actividades:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
+      const errorMessage = parseError(err)
+      await logError('useActividades.fetchAllActividades', err)
+      setError(errorMessage)
       toast.error('Error al cargar las actividades')
     } finally {
       setLoading(false)
@@ -32,8 +35,10 @@ export function useActividades() {
       setActividades(data)
     } catch (err) {
       console.error('Error fetching actividades por institucion:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      toast.error('Error al cargar las actividades')
+      const errorMessage = parseError(err)
+      await logError('useActividades.fetchActividadesByInstitucion', err)
+      setError(errorMessage)
+      toast.error('Error al cargar las actividades por institución')
     } finally {
       setLoading(false)
     }
@@ -47,8 +52,10 @@ export function useActividades() {
       setActividades(data)
     } catch (err) {
       console.error('Error fetching actividades por fecha:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      toast.error('Error al cargar las actividades')
+      const errorMessage = parseError(err)
+      await logError('useActividades.fetchActividadesByFecha', err)
+      setError(errorMessage)
+      toast.error('Error al cargar las actividades por fecha')
     } finally {
       setLoading(false)
     }
@@ -62,8 +69,10 @@ export function useActividades() {
       setActividades(data)
     } catch (err) {
       console.error('Error fetching actividades por PAL:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      toast.error('Error al cargar las actividades del PAL')
+      const errorMessage = parseError(err)
+      await logError('useActividades.fetchActividadesByPal', err)
+      setError(errorMessage)
+      toast.error('Error al cargar las actividades por pal')
     } finally {
       setLoading(false)
     }
@@ -77,8 +86,9 @@ export function useActividades() {
       return newActividad
     } catch (err) {
       console.error('Error creating actividad:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`Error al registrar la actividad: ${errorMessage}`)
+      const errorMessage = parseError(err)
+      await logError('useActividades.createActividad', err)
+      toast.error(`Error al crear la actividad: ${errorMessage}`)
       throw err
     }
   }, [])
@@ -93,7 +103,8 @@ export function useActividades() {
       return updatedActividad
     } catch (err) {
       console.error('Error updating actividad:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useActividades.updateActividad', err)
       toast.error(`Error al actualizar la actividad: ${errorMessage}`)
       throw err
     }
@@ -106,8 +117,9 @@ export function useActividades() {
       toast.success('Actividad eliminada exitosamente')
     } catch (err) {
       console.error('Error deleting actividad:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`Error al eliminar la actividad: ${errorMessage}`)
+      const errorMessage = parseError(err)
+      await logError('useActividades.deleteActividad', err)
+      toast.error(`Error al borrar la actividad: ${errorMessage}`)
       throw err
     }
   }, [])
@@ -118,7 +130,8 @@ export function useActividades() {
       return actividad
     } catch (err) {
       console.error('Error fetching actividad by id:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useActividades.getActividadById', err)
       toast.error(`Error al obtener la actividad: ${errorMessage}`)
       throw err
     }

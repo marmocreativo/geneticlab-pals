@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { visitasService } from '@/services/visitasService'
 import type { Visita, VisitaInsert, VisitaUpdate } from '@/types/visita'
+import { logError, parseError } from '@/lib/errorHandler'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { format } from 'date-fns'
@@ -29,8 +30,9 @@ export function useVisitas() {
       setVisitas(data)
     } catch (err) {
       console.error('Error fetching visitas:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      toast.error('Error al cargar las visitas')
+      const errorMessage = parseError(err)
+      await logError('useVisitas.fetchVisitas', err)
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -47,8 +49,9 @@ export function useVisitas() {
       setVisitas(data)
     } catch (err) {
       console.error('Error fetching visitas by fecha:', err)
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      toast.error('Error al cargar las visitas del día')
+      const errorMessage = parseError(err)
+      await logError('useVisitas.fetchVisitas', err)
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -75,8 +78,9 @@ const fetchVisitasByMes = async (year: number, month: number) => {
     console.log(`✅ Cargadas ${data.length} visitas del mes`)
   } catch (err) {
     console.error('Error fetching visitas by mes:', err)
-    setError(err instanceof Error ? err.message : 'Error desconocido')
-    toast.error('Error al cargar las visitas del mes')
+    const errorMessage = parseError(err)
+    await logError('useVisitas.fetchVisitas', err)
+    setError(errorMessage)
   } finally {
     setLoading(false)
   }
@@ -90,7 +94,8 @@ const fetchVisitasByMes = async (year: number, month: number) => {
       return newVisita
     } catch (err) {
       console.error('Error creating visita:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useVisitas.createVisita', err)
       toast.error(`Error al crear la visita: ${errorMessage}`)
       throw err
     }
@@ -106,7 +111,8 @@ const fetchVisitasByMes = async (year: number, month: number) => {
       return updatedVisita
     } catch (err) {
       console.error('Error updating visita:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useVisitas.updateVisita', err)
       toast.error(`Error al actualizar la visita: ${errorMessage}`)
       throw err
     }
@@ -119,7 +125,8 @@ const fetchVisitasByMes = async (year: number, month: number) => {
       toast.success('Visita eliminada exitosamente')
     } catch (err) {
       console.error('Error deleting visita:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useVisitas.deleteVisita', err)
       toast.error(`Error al eliminar la visita: ${errorMessage}`)
       throw err
     }
@@ -149,8 +156,9 @@ const fetchVisitasByMes = async (year: number, month: number) => {
 
       return resultado
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`❌ Error al validar ubicación: ${errorMessage}`)
+      const errorMessage = parseError(err)
+      await logError('useVisitas.validarGPS', err)
+      toast.error(`Error al validar GPS: ${errorMessage}`)
       throw err
     }
   }
@@ -161,8 +169,9 @@ const fetchVisitasByMes = async (year: number, month: number) => {
       return visita
     } catch (err) {
       console.error('Error fetching visita by id:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`Error al obtener la visita: ${errorMessage}`)
+      const errorMessage = parseError(err)
+      await logError('useVisitas.createVisita', err)
+      toast.error(`Error al crear la visita: ${errorMessage}`)
       throw err
     }
   }
@@ -181,8 +190,9 @@ const fetchVisitasByMes = async (year: number, month: number) => {
       return updatedVisita
     } catch (err) {
       console.error('Error confirming attendance:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`Error al confirmar asistencia: ${errorMessage}`)
+      const errorMessage = parseError(err)
+      await logError('useVisitas.createVisita', err)
+      toast.error(`Error al crear la visita: ${errorMessage}`)
       throw err
     }
   }
@@ -201,7 +211,8 @@ const fetchVisitasByMes = async (year: number, month: number) => {
       return updatedVisita
     } catch (err) {
       console.error('Error marking absence:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useVisitas.marcarFalta', err)
       toast.error(`Error al registrar falta: ${errorMessage}`)
       throw err
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fichasService } from '@/services/fichasService'
+import { logError, parseError } from '@/lib/errorHandler'
 import type { FichaPaciente, FichaPacienteInsert, FichaPacienteUpdate } from '@/types/ficha'
 import { toast } from 'sonner'
 
@@ -33,7 +34,8 @@ export function useFichas() {
       return newFicha
     } catch (err) {
       console.error('Error creating ficha:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useFichas.fetchFichas', err)
       toast.error(`Error al crear la ficha: ${errorMessage}`)
       throw err
     }
@@ -49,7 +51,8 @@ export function useFichas() {
       return updatedFicha
     } catch (err) {
       console.error('Error updating ficha:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useFichas.updateFicha', err)
       toast.error(`Error al actualizar la ficha: ${errorMessage}`)
       throw err
     }
@@ -62,8 +65,9 @@ export function useFichas() {
       toast.success('Ficha eliminada exitosamente')
     } catch (err) {
       console.error('Error deleting ficha:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      toast.error(`Error al eliminar la ficha: ${errorMessage}`)
+      const errorMessage = parseError(err)
+      await logError('useFichas.deleteFicha', err)
+      toast.error(`Error al borrar ficha: ${errorMessage}`)
       throw err
     }
   }
@@ -89,7 +93,8 @@ export function useFichas() {
       return ficha
     } catch (err) {
       console.error('Error fetching ficha by id:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      const errorMessage = parseError(err)
+      await logError('useFichas.getFichaById', err)
       toast.error(`Error al obtener la ficha: ${errorMessage}`)
       throw err
     }

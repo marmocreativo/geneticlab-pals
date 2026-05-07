@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
+import { ConnectionIndicators } from '@/components/ConnectionIndicators'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -240,17 +241,23 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </Sheet>
 
           {/* Título mobile */}
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold leading-tight">Aliado Presente v.{APP_VERSION}</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">
-              Datos actualizados: {formatLastFetch(getLastFetch())}
-            </p>
+          <div className="flex-1 min-w-0 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold leading-tight">Aliado Presente v.{APP_VERSION}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Datos actualizados: {formatLastFetch(getLastFetch())}
+              </p>
+            </div>
+            <ConnectionIndicators />
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <User className="h-5 w-5" />
+              <Button variant="outline" size="sm" className="flex items-center gap-2 max-w-[120px]">
+                <User className="h-4 w-4 shrink-0" />
+                <span className="text-xs truncate">
+                  {user?.user_metadata?.nombre_completo?.split(' ')[0]}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

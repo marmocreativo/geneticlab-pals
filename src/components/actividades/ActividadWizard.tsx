@@ -54,6 +54,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const { instituciones } = useInstituciones()
   const { contactos, fetchContactos } = useContactos()
   const { catalogos } = useCatalogos()
+  const { catalogos: sectores } = useCatalogos('sector')
 
   const [currentStep, setCurrentStep] = useState(1)
   const [step1Data, setStep1Data] = useState<Step1Data | null>(null)
@@ -64,17 +65,35 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const [showNewContactoForm, setShowNewContactoForm] = useState(false)
   const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
 
+  const [estadoFiltro, setEstadoFiltro] = useState('')
+  const [ciudadFiltro, setCiudadFiltro] = useState('')
+  const [sectorFiltro, setSectorFiltro] = useState('')
+  const [busquedaActiva, setBusquedaActiva] = useState<{
+    nombre: string
+    estado: string
+    ciudad: string
+    sector: string
+  }>({ nombre: '', estado: '', ciudad: '', sector: '' })
+  const [mostrarAvanzada, setMostrarAvanzada] = useState(false)
+
   const promedioVisitas = instituciones.length > 0
     ? instituciones.reduce((acc, i) => acc + (i.visitas_count ?? 0), 0) / instituciones.length
     : 0
 
+  const estadosUnicos = [...new Set(instituciones.map(i => i.estado).filter(Boolean))].sort()
+
   const institucionesFiltradas = [...instituciones]
     .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
-    .filter(i =>
-      busquedaInstitucion === '' ||
-      i.nombre.toLowerCase().includes(busquedaInstitucion.toLowerCase()) ||
-      i.direccion.toLowerCase().includes(busquedaInstitucion.toLowerCase())
-    )
+    .filter(i => {
+      const matchNombre = busquedaActiva.nombre === '' ||
+        i.nombre.toLowerCase().includes(busquedaActiva.nombre.toLowerCase()) ||
+        i.direccion.toLowerCase().includes(busquedaActiva.nombre.toLowerCase())
+      const matchEstado = busquedaActiva.estado === '' || i.estado === busquedaActiva.estado
+      const matchCiudad = busquedaActiva.ciudad === '' ||
+        i.ciudad?.toLowerCase().includes(busquedaActiva.ciudad.toLowerCase())
+      const matchSector = busquedaActiva.sector === '' || i.sector_id === busquedaActiva.sector
+      return matchNombre && matchEstado && matchCiudad && matchSector
+    })
 
   const step1Form = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -109,6 +128,11 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       step1Form.reset()
       step2Form.reset()
       setContactSearch('')
+      setEstadoFiltro('')
+      setCiudadFiltro('')
+      setSectorFiltro('')
+      setBusquedaActiva({ nombre: '', estado: '', ciudad: '', sector: '' })
+      setMostrarAvanzada(false)
     }
   }, [open])
 
@@ -118,6 +142,15 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       setContactosLoaded(true)
     }
   }, [currentStep, contactosLoaded, fetchContactos])
+
+  const handleBuscar = () => {
+    setBusquedaActiva({
+      nombre: busquedaInstitucion,
+      estado: estadoFiltro,
+      ciudad: ciudadFiltro,
+      sector: sectorFiltro
+    })
+  }
 
   const handleStep1Submit = (data: Step1Data) => {
     setStep1Data(data)
@@ -254,13 +287,62 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <div className="p-2 border-b">
-                                <Input
-                                  placeholder="Buscar institución..."
-                                  value={busquedaInstitucion}
-                                  onChange={e => setBusquedaInstitucion(e.target.value)}
-                                  className="h-8 text-sm"
-                                />
+                              <div className="p-2 border-b space-y-2">
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="Buscar por nombre..."
+                                    value={busquedaInstitucion}
+                                    onChange={e => setBusquedaInstitucion(e.target.value)}
+                                    onKeyDown={e => {
+                                      e.stopPropagation()
+                                      if (e.key === 'Enter') handleBuscar()
+                                    }}
+                                    className="h-8 text-sm flex-1"
+                                  />
+                                  <select
+                                    value={estadoFiltro}
+                                    onChange={e => setEstadoFiltro(e.target.value)}
+                                    className="h-8 text-sm border rounded px-2 bg-background"
+                                  >
+                                    <option value="">Estado</option>
+                                    {estadosUnicos.map(estado => (
+                                      <option key={estado} value={estado}>{estado}</option>
+                                    ))}
+                                  </select>
+                                  <Button type="button" size="sm" className="h-8 px-3" onClick={handleBuscar}>
+                                    Buscar
+                                  </Button>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="text-xs text-muted-foreground hover:text-foreground w-full py-2 border rounded flex items-center justify-center gap-1"
+                                  onClick={() => setMostrarAvanzada(v => !v)}
+                                >
+                                  {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
+                                </button>
+
+                                {mostrarAvanzada && (
+                                  <div className="flex gap-2">
+                                    <Input
+                                      placeholder="Ciudad..."
+                                      value={ciudadFiltro}
+                                      onChange={e => setCiudadFiltro(e.target.value)}
+                                      onKeyDown={e => e.stopPropagation()}
+                                      className="h-8 text-sm flex-1"
+                                    />
+                                    <select
+                                      value={sectorFiltro}
+                                      onChange={e => setSectorFiltro(e.target.value)}
+                                      className="h-8 text-sm border rounded px-2 bg-background"
+                                    >
+                                      <option value="">Sector</option>
+                                      {sectores.map(s => (
+                                        <option key={s.id} value={s.id}>{s.nombre}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
                               </div>
                               {institucionesFiltradas.length === 0 ? (
                                 <div className="p-2 text-sm text-muted-foreground text-center">

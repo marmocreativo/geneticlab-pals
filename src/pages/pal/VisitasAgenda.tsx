@@ -212,49 +212,58 @@ export default function VisitasAgenda() {
             </div>
 
             {/* Columnas de visitas */}
-            <div className="grid grid-cols-7 gap-2">
-              {calendarDays.map(day => {
-                const visitasDelDia = getVisitasDelDia(day)
-                return (
-                  <div
-                    key={day.toISOString()}
-                    className={cn(
-                      'min-h-[360px] rounded-md border p-2 space-y-2',
-                      isToday(day) && 'border-primary/30 bg-primary/5'
-                    )}
-                  >
-                    {visitasDelDia.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center pt-4">—</p>
-                    ) : (
-                      visitasDelDia.map(visita => (
-                        <button
-                          key={visita.id}
-                          onClick={() => navigate(`/pal/visitas/${visita.id}`)}
-                          className={cn(
-                            'w-full text-left rounded p-3 text-xs leading-snug',
-                            'border hover:shadow-sm transition-shadow',
-                            visita.estado === 'asistio' && 'bg-green-50 border-green-200',
-                            visita.estado === 'falto' && 'bg-red-50 border-red-200',
-                            visita.estado === 'programada' && 'bg-blue-50 border-blue-200',
-                          )}
-                        >
-                          <p className="font-medium truncate">{visita.institucion?.nombre}</p>
-                          <p className="text-muted-foreground text-[11px] mt-0.5">
-                            {format(new Date(visita.fecha_visita), 'HH:mm')}
-                          </p>
-                          <Badge
-                            variant={estadoBadgeVariant(visita.estado)}
-                            className="text-[9px] px-1 py-0 h-4 mt-1"
-                          >
-                            {visita.estado}
-                          </Badge>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+              <div className="grid grid-cols-7 gap-2">
+                {calendarDays.map(day => {
+                  const visitasDelDia = getVisitasDelDia(day)
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={cn(
+                        'min-h-[360px] rounded-md border p-2 space-y-2 flex flex-col',
+                        isToday(day) && 'border-primary/30 bg-primary/5'
+                      )}
+                    >
+                      <div className="flex-1 space-y-2">
+                        {visitasDelDia.length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center pt-4">—</p>
+                        ) : (
+                          visitasDelDia.map(visita => (
+                            <button
+                              key={visita.id}
+                              onClick={() => navigate(`/pal/visitas/${visita.id}`)}
+                              className={cn(
+                                'w-full text-left rounded p-3 text-xs leading-snug',
+                                'border hover:shadow-sm transition-shadow',
+                                visita.estado === 'asistio' && 'bg-green-50 border-green-200',
+                                visita.estado === 'falto' && 'bg-red-50 border-red-200',
+                                visita.estado === 'programada' && 'bg-blue-50 border-blue-200',
+                              )}
+                            >
+                              <p className="font-medium truncate">{visita.institucion?.nombre}</p>
+                              <p className="text-muted-foreground text-[11px] mt-0.5">
+                                {format(new Date(visita.fecha_visita), 'HH:mm')}
+                              </p>
+                              <Badge
+                                variant={estadoBadgeVariant(visita.estado)}
+                                className="text-[9px] px-1 py-0 h-4 mt-1"
+                              >
+                                {visita.estado}
+                              </Badge>
+                            </button>
+                          ))
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => navigate(`/pal/visitas-dia/${format(day, 'yyyy-MM-dd')}`)}
+                        className="w-full text-xs text-muted-foreground border border-dashed rounded p-1 hover:text-primary hover:border-primary transition-colors"
+                      >
+                        Ver / Agendar
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
           </div>
         </div>
       )}
