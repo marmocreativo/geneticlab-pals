@@ -323,18 +323,18 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                                 </button>
 
                                 {mostrarAvanzada && (
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-1">
                                     <Input
                                       placeholder="Ciudad..."
                                       value={ciudadFiltro}
                                       onChange={e => setCiudadFiltro(e.target.value)}
                                       onKeyDown={e => e.stopPropagation()}
-                                      className="h-8 text-sm flex-1"
+                                      className="h-8 text-xs min-w-0 flex-1"
                                     />
                                     <select
                                       value={sectorFiltro}
                                       onChange={e => setSectorFiltro(e.target.value)}
-                                      className="h-8 text-sm border rounded px-2 bg-background"
+                                      className="h-8 text-xs border rounded px-1 bg-background w-24 shrink-0"
                                     >
                                       <option value="">Sector</option>
                                       {sectores.map(s => (
