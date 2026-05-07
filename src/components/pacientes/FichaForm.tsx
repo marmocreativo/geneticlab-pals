@@ -295,19 +295,19 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                           e.stopPropagation()
                           if (e.key === 'Enter') handleBuscar()
                         }}
-                        className="h-8 text-sm flex-1"
+                        className="h-8 text-sm min-w-0 flex-1"
                       />
                       <select
                         value={estadoFiltro}
                         onChange={e => setEstadoFiltro(e.target.value)}
-                        className="h-8 text-sm border rounded px-2 bg-background"
+                        className="h-8 text-xs border rounded px-1 bg-background w-20 shrink-0"
                       >
                         <option value="">Estado</option>
                         {estadosUnicos.map(estado => (
                           <option key={estado} value={estado}>{estado}</option>
                         ))}
                       </select>
-                      <Button type="button" size="sm" className="h-8 px-3" onClick={handleBuscar}>
+                      <Button type="button" size="sm" className="h-8 px-2 shrink-0 text-xs" onClick={handleBuscar}>
                         Buscar
                       </Button>
                     </div>
