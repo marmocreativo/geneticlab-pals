@@ -28,6 +28,7 @@ import {
   Stethoscope,
   PenTool,
   RefreshCw,
+  ScrollText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/version'
@@ -50,6 +51,7 @@ const navItems: NavItem[] = [
   { title: 'Instituciones', href: '/admin/instituciones', icon: Building2, roles: ['admin'] },
   { title: 'Configuraciones', href: '/admin/configuraciones', icon: Settings, roles: ['admin'] },
   { title: 'Reportes', href: '/admin/reportes', icon: FileText, roles: ['admin'] },
+  { title: 'Logs', href: '/admin/logs', icon: ScrollText, roles: ['admin'] },
   { title: 'Dashboard', href: '/pal', icon: LayoutDashboard, roles: ['pal'] },
   { title: 'Agenda', href: '/pal/calendario', icon: Calendar, roles: ['pal'] },
   { title: 'Actividades', href: '/pal/actividades', icon: PenTool, roles: ['pal'] },

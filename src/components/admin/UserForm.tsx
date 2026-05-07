@@ -40,12 +40,20 @@ export default function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
 
     try {
       if (user) {
+        console.log('Actualizando usuario:', user.id)
+        console.log('Datos a enviar:', {
+          nombre_completo: formData.nombre_completo,
+          telefono: formData.telefono || null,
+          role: formData.role,
+        })
         // Editar usuario existente
         const result = await updateUser(user.id, {
           nombre_completo: formData.nombre_completo,
           telefono: formData.telefono || null,
           role: formData.role,
         })
+
+        console.log('Resultado:', result)
 
         if (!result.success) {
           setError(result.error || 'Error al actualizar usuario')

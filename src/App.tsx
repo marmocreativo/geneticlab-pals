@@ -25,6 +25,7 @@ import AdminPacientesPage from '@/pages/admin/AdminPacientesPage'
 import AdminVisitaDetailPage from '@/pages/admin/AdminVisitaDetailPage'
 import AdminUsuarioDetailPage from '@/pages/admin/AdminUsuarioDetailPage'
 import AdminInstitucionDetailPage from '@/pages/admin/AdminInstitucionDetailPage'
+import AdminLogsPage from '@/pages/admin/AdminLogsPage'
 import OfflineFallback from "@/pages/OfflineFallback"
 import { Toaster } from 'sonner'
 
@@ -74,6 +75,7 @@ function App() {
                   <Route path="/admin/instituciones" element={<InstitucionesPage />} />
                   <Route path="/admin/configuraciones" element={<ConfiguracionesPage />} />
                   <Route path="/admin/reportes" element={<ReportesPage />} />
+                  <Route path="/admin/logs" element={<AdminLogsPage />} />
                   <Route path="*" element={<Navigate to="/admin" replace />} />
                 </>
               ) : (

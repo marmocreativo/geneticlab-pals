@@ -16,6 +16,9 @@ import type { Visita } from '@/types/visita'
 import type { Actividad } from '@/types/actividad'
 import { formatearTelefono } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { Trash2 } from 'lucide-react'
+import { useUsers } from '@/hooks/useUsers'
+import { toast } from 'sonner'
 
 interface UserProfile {
   id: string
@@ -35,26 +38,41 @@ export default function AdminUsuarioDetailPage() {
   const [visitas, setVisitas] = useState<Visita[]>([])
   const [actividades, setActividades] = useState<Actividad[]>([])
   const [loading, setLoading] = useState(true)
+  const { limpiarDatosPal } = useUsers()
+
+  const handleLimpiar = async () => {
+    if (!user) return
+    if (!confirm(`¿Borrar TODOS los datos de ${user.nombre_completo}? Esta acción no se puede deshacer.`)) return
+    const result = await limpiarDatosPal(userId!)
+    if (result.success) {
+      toast.success('Datos eliminados correctamente')
+      // Recargar
+      cargar()
+    } else {
+      toast.error(result.error || 'Error al limpiar datos')
+    }
+  }
+
+  const cargar = async () => {
+    if (!userId) return
+    try {
+      setLoading(true)
+      const [{ data: userData }, visitasData, actividadesData] = await Promise.all([
+        supabase.from('users').select('*').eq('id', userId).single(),
+        visitasService.getVisitasByPal(userId),
+        actividadesService.getActividadesByPal(userId)
+      ])
+      setUser(userData)
+      setVisitas(visitasData)
+      setActividades(actividadesData)
+    } catch (error) {
+      console.error('Error cargando usuario:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (!userId) return
-    const cargar = async () => {
-      try {
-        setLoading(true)
-        const [{ data: userData }, visitasData, actividadesData] = await Promise.all([
-          supabase.from('users').select('*').eq('id', userId).single(),
-          visitasService.getVisitasByPal(userId),
-          actividadesService.getActividadesByPal(userId)
-        ])
-        setUser(userData)
-        setVisitas(visitasData)
-        setActividades(actividadesData)
-      } catch (error) {
-        console.error('Error cargando usuario:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
     cargar()
   }, [userId])
 
@@ -66,7 +84,7 @@ export default function AdminUsuarioDetailPage() {
       const nombre = v.institucion?.nombre || id
       if (!conteo[id]) conteo[id] = { nombre, total: 0, validadas: 0 }
       conteo[id].total++
-      if (v.gps_dispositivo) conteo[id].validadas++
+      if (v.validacion_gps) conteo[id].validadas++
     })
     return Object.values(conteo).sort((a, b) => b.total - a.total).slice(0, 5)
   }, [visitas])
@@ -76,7 +94,7 @@ export default function AdminUsuarioDetailPage() {
     const visitasAsistio = visitas.filter(v => v.estado === 'asistio').length
     const visitasFalto = visitas.filter(v => v.estado === 'falto').length
     const visitasProgramadas = visitas.filter(v => v.estado === 'programada').length
-    const visitasValidadas = visitas.filter(v => v.gps_dispositivo).length
+    const visitasValidadas = visitas.filter(v => v.validacion_gps).length
 
     const pacientesUnicos = new Set(
       actividades.filter(a => a.contacto_id).map(a => a.contacto_id)
@@ -141,6 +159,10 @@ export default function AdminUsuarioDetailPage() {
           <Badge variant={user.activo ? 'default' : 'destructive'}>
             {user.activo ? 'Activo' : 'Inactivo'}
           </Badge>
+          <Button variant="destructive" size="sm" onClick={handleLimpiar}>
+            <Trash2 className="h-4 w-4 mr-1" />
+            Limpiar datos
+          </Button>
         </div>
       </div>
 
@@ -280,7 +302,7 @@ export default function AdminUsuarioDetailPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Fuera de rango</span>
                 <span className="text-amber-600 font-medium">
-                  {visitas.filter(v => v.gps_dispositivo && !v.validacion_gps).length}
+                  {visitas.filter(v => v.validacion_gps === false && v.latitud_registro != null).length}
                 </span>
               </div>
             </div>
@@ -359,7 +381,7 @@ export default function AdminUsuarioDetailPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {v.gps_dispositivo && (
+                      {v.latitud_registro != null && (
                         <Badge variant="outline" className={cn(
                           'text-xs',
                           v.validacion_gps

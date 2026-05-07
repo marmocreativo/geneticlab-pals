@@ -29,7 +29,7 @@ const formSchema = z.object({
   latitud: z.number(),
   longitud: z.number(),
   sector_id: z.string().optional(),
-  google_place_id: z.string().optional(),
+  google_place_id: z.string().nullable().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -50,7 +50,12 @@ export function InstitucionForm({
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
+    defaultValues: initialData ? {
+      ...initialData,
+      latitud: Number(initialData.latitud),
+      longitud: Number(initialData.longitud),
+      google_place_id: initialData.google_place_id ?? '',
+    } : {
       nombre: '',
       direccion: '',
       latitud: 0,
@@ -85,7 +90,9 @@ export function InstitucionForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit((data) => {
+        onSubmit(data)
+      })} className="space-y-4">
         {!initialData && !showManualInput && (
           <div className="space-y-4">
             <PlaceSearchInput onPlaceSelect={handlePlaceSelect} />
@@ -191,7 +198,7 @@ export function InstitucionForm({
                   <FormLabel>Sector</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>

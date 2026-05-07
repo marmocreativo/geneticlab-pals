@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   format,
   startOfMonth,
@@ -129,6 +129,10 @@ export default function AdminAgendaPage() {
   }, [selectedMonth, selectedYear])
 
   useEffect(() => {
+    if (currentWeekIndex === 999) {
+      setCurrentWeekIndex(weeks.length - 1)
+      return
+    }
     if (selectedMonth === now.getMonth() && selectedYear === now.getFullYear()) {
       const todayWeekIdx = weeks.findIndex((week) => week.some((d) => isToday(d)))
       setCurrentWeekIndex(todayWeekIdx >= 0 ? todayWeekIdx : 0)
@@ -158,6 +162,25 @@ export default function AdminAgendaPage() {
   const clearUserFilter = () => {
     setSelectedUserId(null)
     setUserSearch('')
+  }
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const el = scrollRef.current
+    if (!el) return
+    const startX = e.pageX - el.offsetLeft
+    const scrollLeft = el.scrollLeft
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = e.pageX - el.offsetLeft
+      el.scrollLeft = scrollLeft - (x - startX)
+    }
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
   }
 
   return (
@@ -252,8 +275,19 @@ export default function AdminAgendaPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentWeekIndex((p) => Math.max(0, p - 1))}
-          disabled={currentWeekIndex === 0}
+          onClick={() => {
+            if (currentWeekIndex === 0) {
+              // Ir al mes anterior, última semana
+              const newMonth = selectedMonth === 0 ? 11 : selectedMonth - 1
+              const newYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear
+              setSelectedMonth(newMonth)
+              setSelectedYear(newYear)
+              // Ir a la última semana — se ajusta en el useEffect de weeks
+              setCurrentWeekIndex(999) // valor alto, se corregirá
+            } else {
+              setCurrentWeekIndex((p) => p - 1)
+            }
+          }}
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Anterior
@@ -272,8 +306,18 @@ export default function AdminAgendaPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentWeekIndex((p) => Math.min(weeks.length - 1, p + 1))}
-          disabled={currentWeekIndex >= weeks.length - 1}
+          onClick={() => {
+            if (currentWeekIndex >= weeks.length - 1) {
+              // Ir al mes siguiente, primera semana
+              const newMonth = selectedMonth === 11 ? 0 : selectedMonth + 1
+              const newYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear
+              setSelectedMonth(newMonth)
+              setSelectedYear(newYear)
+              setCurrentWeekIndex(0)
+            } else {
+              setCurrentWeekIndex((p) => p + 1)
+            }
+          }}
         >
           Siguiente
           <ChevronRight className="h-4 w-4 ml-1" />
@@ -294,7 +338,11 @@ export default function AdminAgendaPage() {
             </div>
           ) : (
             // Wrapper con scroll horizontal en móvil
-            <div className="overflow-x-auto rounded-lg">
+            <div 
+                  ref={scrollRef}
+                  className="overflow-x-auto rounded-lg cursor-grab active:cursor-grabbing select-none"
+                  onMouseDown={handleMouseDown}
+                >
               <table className="w-full border-collapse" style={{ minWidth: `${160 + currentWeekDays.length * 140}px` }}>
                 <thead>
                   <tr className="border-b">
@@ -409,11 +457,11 @@ export default function AdminAgendaPage() {
                                               </span>
                                               <span className={cn(
                                                 'text-[10px] px-1 py-0.5 rounded border font-medium',
-                                                v.gps_dispositivo
+                                                v.latitud_registro != null
                                                   ? 'bg-green-50 text-green-700 border-green-200'
                                                   : 'bg-red-50 text-red-700 border-red-200'
                                               )}>
-                                                GPS. {v.gps_dispositivo ? 'encendido' : 'apagado'}
+                                                GPS. {v.latitud_registro != null ? 'registrado' : 'sin registro'}
                                               </span>
                                               <span className="text-[10px] px-1 py-0.5 rounded border font-medium bg-muted text-muted-foreground border-muted-foreground/20">
                                                 {v.distancia_metros != null ? `${v.distancia_metros}m` : 'Sin dist.'}

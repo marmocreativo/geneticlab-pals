@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
 import { InstitucionesTable } from '@/components/instituciones/InstitucionesTable'
 import { InstitucionQuickForm } from '@/components/instituciones/InstitucionQuickForm'
 import { InstitucionForm } from '@/components/instituciones/InstitucionForm'
@@ -16,6 +17,7 @@ export default function InstitucionesPage() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editingInstitucion, setEditingInstitucion] = useState<any>(null)
   const [useQuickForm, setUseQuickForm] = useState(true)
+  const [busqueda, setBusqueda] = useState('')
 
   const handleCreate = async (data: any) => {
     try {
@@ -71,6 +73,12 @@ export default function InstitucionesPage() {
     console.log(institucion);
   }
 
+  const institucionesFiltradas = instituciones.filter(i =>
+    i.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+    i.direccion?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    i.sector_nombre?.toLowerCase().includes(busqueda.toLowerCase())
+  )
+
 
 
   return (
@@ -102,10 +110,18 @@ export default function InstitucionesPage() {
               </span>
             )}
           </CardTitle>
+          <div className="mt-3">
+            <Input
+              placeholder="Buscar por nombre, dirección o sector..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <InstitucionesTable
-            instituciones={instituciones}
+            instituciones={institucionesFiltradas}
             loading={loading}
             onEdit={handleEdit}
             onDelete={handleDelete}

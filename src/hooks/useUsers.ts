@@ -86,7 +86,6 @@ export function useUsers() {
         .eq('id', id)
 
       if (error) throw error
-      await fetchUsers()
       return { success: true }
     } catch (err) {
       return { 
@@ -114,6 +113,19 @@ export function useUsers() {
     }
   }
 
+  const limpiarDatosPal = async (id: string) => {
+    try {
+      const { error } = await supabase.rpc('limpiar_datos_pal', { p_pal_id: id })
+      if (error) throw error
+      return { success: true }
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Error al limpiar datos'
+      }
+    }
+  }
+
   useEffect(() => {
     fetchUsers()
   }, [])
@@ -127,5 +139,6 @@ export function useUsers() {
     updateUser,
     toggleUserStatus,
     deleteUserComplete,
+    limpiarDatosPal,
   }
 }
