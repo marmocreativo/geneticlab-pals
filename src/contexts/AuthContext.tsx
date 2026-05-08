@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   role: UserRole | null
+  nombreCompleto: string | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [nombreCompleto, setNombreCompleto] = useState<string | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchUserRole(session.user.id)
       } else if (event === 'SIGNED_OUT') {
         setRole(null)
+        setNombreCompleto(null)
         setLoading(false)
       }
     })
@@ -59,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(null)
             setUser(null)
             setRole(null)
+            setNombreCompleto(null)
           }
         })
       }
@@ -90,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cachedRole) await ensureUserExists(userId)
       } else {
         setRole(data.role)
+        setNombreCompleto(data.nombre_completo)
         localStorage.setItem(`role-${userId}`, data.role)
         setLoading(false)
       }
@@ -142,13 +147,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) localStorage.removeItem(`role-${user.id}`)
       localStorage.removeItem('control-pals-auth')
       setRole(null)
+      setNombreCompleto(null)
       setUser(null)
       setSession(null)
     }
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, role, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, nombreCompleto, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

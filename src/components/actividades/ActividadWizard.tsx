@@ -13,9 +13,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check, Plus, Star } from 'lucide-react'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
+import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check, Plus, Star, ChevronDown, ChevronUp } from 'lucide-react'
 import { format } from 'date-fns'
 import { ContactoQuickForm } from '@/components/contactos/ContactoQuickForm'
 import type { ActividadInsert } from '@/types/actividad'
@@ -63,8 +63,10 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const [showAddAnother, setShowAddAnother] = useState(false)
   const [contactosLoaded, setContactosLoaded] = useState(false)
   const [showNewContactoForm, setShowNewContactoForm] = useState(false)
-  const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
 
+  // Institución collapse
+  const [institucionOpen, setInstitucionOpen] = useState(false)
+  const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('')
   const [ciudadFiltro, setCiudadFiltro] = useState('')
   const [sectorFiltro, setSectorFiltro] = useState('')
@@ -125,6 +127,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       setContactosLoaded(false)
       setShowNewContactoForm(false)
       setBusquedaInstitucion('')
+      setInstitucionOpen(false)
       step1Form.reset()
       step2Form.reset()
       setContactSearch('')
@@ -197,19 +200,11 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
     setStep1Data(null)
   }
 
-  const handleCreateNewContacto = () => {
-    setShowNewContactoForm(true)
-  }
-
   const handleNewContactoSuccess = (contacto: Contacto) => {
     step2Form.setValue('contacto_id', contacto.id)
     setShowNewContactoForm(false)
     setContactSearchOpen(false)
     fetchContactos()
-  }
-
-  const handleNewContactoCancel = () => {
-    setShowNewContactoForm(false)
   }
 
   const filteredContactos = contactos
@@ -242,7 +237,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
           <ContactoQuickForm
             institucionId={step1Data.institucion_id}
             onSuccess={handleNewContactoSuccess}
-            onCancel={handleNewContactoCancel}
+            onCancel={() => setShowNewContactoForm(false)}
           />
         </DialogContent>
       </Dialog>
@@ -269,7 +264,8 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                 </h3>
 
                 <div className="space-y-4">
-                  {/* Institución con buscador */}
+
+                  {/* Institución con collapse integrado */}
                   <FormField
                     control={step1Form.control}
                     name="institucion_id"
@@ -279,117 +275,136 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                           <Building2 className="h-4 w-4" />
                           Institución
                         </FormLabel>
-                        <div className="space-y-3">
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar institución" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <div className="p-2 border-b space-y-2">
+
+                        {/* Trigger del collapse */}
+                        <button
+                          type="button"
+                          onClick={() => setInstitucionOpen(v => !v)}
+                          className="w-full flex items-center justify-between px-3 py-2 border rounded-md text-sm bg-background hover:bg-muted transition-colors"
+                        >
+                          <span className={field.value ? 'text-foreground' : 'text-muted-foreground'}>
+                            {field.value
+                              ? instituciones.find(i => i.id === field.value)?.nombre ?? 'Seleccionar institución'
+                              : 'Seleccionar institución'}
+                          </span>
+                          {institucionOpen
+                            ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                            : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        </button>
+
+                        {/* Panel colapsable */}
+                        {institucionOpen && (
+                          <div className="border rounded-md overflow-hidden bg-background">
+
+                            {/* Filtros */}
+                            <div className="p-2 space-y-2 border-b bg-muted/30">
+                              <div className="flex gap-1">
+                                <Input
+                                  placeholder="Buscar por nombre..."
+                                  value={busquedaInstitucion}
+                                  onChange={e => setBusquedaInstitucion(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
+                                  className="h-8 text-sm flex-1"
+                                />
+                                <select
+                                  value={estadoFiltro}
+                                  onChange={e => setEstadoFiltro(e.target.value)}
+                                  className="h-8 text-xs border rounded px-1 bg-background w-20 shrink-0"
+                                >
+                                  <option value="">Estado</option>
+                                  {estadosUnicos.map(estado => (
+                                    <option key={estado} value={estado}>{estado}</option>
+                                  ))}
+                                </select>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="h-8 px-2 shrink-0 text-xs"
+                                  onClick={handleBuscar}
+                                >
+                                  Buscar
+                                </Button>
+                              </div>
+
+                              <button
+                                type="button"
+                                className="text-xs text-muted-foreground hover:text-foreground w-full py-1 border rounded bg-background"
+                                onClick={() => setMostrarAvanzada(v => !v)}
+                              >
+                                {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
+                              </button>
+
+                              {mostrarAvanzada && (
                                 <div className="flex gap-1">
                                   <Input
-                                    placeholder="Buscar por nombre..."
-                                    value={busquedaInstitucion}
-                                    onChange={e => setBusquedaInstitucion(e.target.value)}
-                                    onKeyDown={e => {
-                                      e.stopPropagation()
-                                      if (e.key === 'Enter') handleBuscar()
-                                    }}
-                                    className="h-8 text-sm min-w-0 flex-1"
+                                    placeholder="Ciudad..."
+                                    value={ciudadFiltro}
+                                    onChange={e => setCiudadFiltro(e.target.value)}
+                                    className="h-8 text-xs flex-1"
                                   />
                                   <select
-                                    value={estadoFiltro}
-                                    onChange={e => setEstadoFiltro(e.target.value)}
-                                    className="h-8 text-xs border rounded px-1 bg-background w-20 shrink-0"
+                                    value={sectorFiltro}
+                                    onChange={e => setSectorFiltro(e.target.value)}
+                                    className="h-8 text-xs border rounded px-1 bg-background w-24 shrink-0"
                                   >
-                                    <option value="">Estado</option>
-                                    {estadosUnicos.map(estado => (
-                                      <option key={estado} value={estado}>{estado}</option>
+                                    <option value="">Sector</option>
+                                    {sectores.map(s => (
+                                      <option key={s.id} value={s.id}>{s.nombre}</option>
                                     ))}
                                   </select>
-                                  <Button type="button" size="sm" className="h-8 px-2 shrink-0 text-xs" onClick={handleBuscar}>
-                                    Buscar
-                                  </Button>
                                 </div>
+                              )}
+                            </div>
 
-                                <button
-                                  type="button"
-                                  className="text-xs text-muted-foreground hover:text-foreground w-full py-2 border rounded flex items-center justify-center gap-1"
-                                  onClick={() => setMostrarAvanzada(v => !v)}
-                                >
-                                  {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
-                                </button>
-
-                                {mostrarAvanzada && (
-                                  <div className="flex gap-1">
-                                    <Input
-                                      placeholder="Ciudad..."
-                                      value={ciudadFiltro}
-                                      onChange={e => setCiudadFiltro(e.target.value)}
-                                      onKeyDown={e => e.stopPropagation()}
-                                      className="h-8 text-xs min-w-0 flex-1"
-                                    />
-                                    <select
-                                      value={sectorFiltro}
-                                      onChange={e => setSectorFiltro(e.target.value)}
-                                      className="h-8 text-xs border rounded px-1 bg-background w-24 shrink-0"
-                                    >
-                                      <option value="">Sector</option>
-                                      {sectores.map(s => (
-                                        <option key={s.id} value={s.id}>{s.nombre}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
-                              </div>
+                            {/* Lista de resultados — scroll nativo */}
+                            <div className="overflow-y-auto" style={{ maxHeight: '240px' }}>
                               {institucionesFiltradas.length === 0 ? (
-                                <div className="p-2 text-sm text-muted-foreground text-center">
+                                <p className="p-3 text-sm text-muted-foreground text-center">
                                   No se encontraron instituciones
-                                </div>
+                                </p>
                               ) : (
                                 institucionesFiltradas.map(institucion => (
-                                  <SelectItem key={institucion.id} value={institucion.id}>
-                                    <div className="flex items-start gap-2 max-w-xs">
-                                      <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-sm flex items-center gap-1">
-                                          {(institucion.visitas_count ?? 0) > promedioVisitas && (
-                                            <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
-                                          )}
-                                          {institucion.nombre}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground truncate">
-                                          {institucion.direccion}
-                                        </div>
+                                  <button
+                                    key={institucion.id}
+                                    type="button"
+                                    className="w-full flex items-start gap-2 px-3 py-2 hover:bg-muted text-left border-b last:border-0 transition-colors"
+                                    onClick={() => {
+                                      field.onChange(institucion.id)
+                                      setInstitucionOpen(false)
+                                    }}
+                                  >
+                                    <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-medium text-sm flex items-center gap-1">
+                                        {(institucion.visitas_count ?? 0) > promedioVisitas && (
+                                          <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
+                                        )}
+                                        <span className="truncate">{institucion.nombre}</span>
+                                      </div>
+                                      <div className="text-xs text-muted-foreground truncate">
+                                        {institucion.direccion}
                                       </div>
                                     </div>
-                                  </SelectItem>
+                                  </button>
                                 ))
                               )}
-                            </SelectContent>
-                          </Select>
+                            </div>
+                          </div>
+                        )}
 
-                          {/* Institución seleccionada */}
-                          {field.value && (() => {
-                            const sel = instituciones.find(i => i.id === field.value)
-                            return sel ? (
-                              <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm">
-                                <Building2 className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <div className="flex-1">
-                                  <div className="font-medium flex items-center gap-1">
-                                    {(sel.visitas_count ?? 0) > promedioVisitas && (
-                                      <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                                    )}
-                                    {sel.nombre}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">{sel.direccion}</div>
-                                </div>
+                        {/* Institución seleccionada */}
+                        {field.value && !institucionOpen && (() => {
+                          const sel = instituciones.find(i => i.id === field.value)
+                          return sel ? (
+                            <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm">
+                              <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate">{sel.nombre}</div>
                               </div>
-                            ) : null
-                          })()}
-                        </div>
+                            </div>
+                          ) : null
+                        })()}
+
                         <FormMessage />
                       </FormItem>
                     )}
@@ -497,18 +512,20 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                       <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
-                            <Button variant="outline" role="combobox" className="w-full justify-between">
+                            <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
                               {field.value
                                 ? (() => {
                                     const selected = contactos.find(c => c.id === field.value)
-                                    return selected ? `${selected.nombre} ${selected.apellido_pat || ''} ${selected.apellido_mat || ''}`.trim() : 'Sin contacto'
+                                    return selected
+                                      ? `${selected.nombre} ${selected.apellido_pat || ''} ${selected.apellido_mat || ''}`.trim()
+                                      : 'Sin contacto'
                                   })()
                                 : 'Sin contacto'
                               }
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
+                        <PopoverContent className="w-[calc(100vw-2rem)] max-w-lg p-0" align="start">
                           <Command>
                             <CommandInput
                               placeholder="Buscar contacto..."
@@ -542,7 +559,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={handleCreateNewContacto}
+                        onClick={() => setShowNewContactoForm(true)}
                         className="w-full h-8 text-xs mt-2"
                       >
                         <Plus className="h-3 w-3 mr-1" />

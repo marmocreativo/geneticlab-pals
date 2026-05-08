@@ -199,7 +199,11 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
 
       let pacienteId = selectedPaciente
       if (createNewPaciente) {
-        const nuevo = await createContacto({ ...pacienteData, institucion_id: selectedInstitucion })
+        const nuevo = await createContacto({
+          ...pacienteData,
+          fecha_nacimiento: pacienteData.fecha_nacimiento || undefined,
+          institucion_id: selectedInstitucion
+        })
         pacienteId = nuevo.id
       }
 
@@ -380,7 +384,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                       )}
                       {selectedInstitucionData.nombre}
                     </div>
-                    <div className="text-xs text-muted-foreground">{selectedInstitucionData.direccion}</div>
                   </div>
                 </div>
               )}

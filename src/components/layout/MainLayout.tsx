@@ -75,7 +75,7 @@ async function forceUpdate() {
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const { user, role, signOut } = useAuth()
+  const { user, role, signOut, nombreCompleto } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -174,7 +174,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <Button variant="ghost" className="w-full justify-start gap-3">
                 <User className="h-5 w-5" />
                 <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-medium truncate">{user?.user_metadata?.nombre_completo}</p>
+                  <p className="text-sm font-medium truncate">{nombreCompleto ?? user?.user_metadata?.nombre_completo}</p>
                   <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                 </div>
               </Button>
@@ -226,7 +226,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
                   <User className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{user?.user_metadata?.nombre_completo}</p>
+                    <p className="text-sm font-medium truncate">{nombreCompleto ?? user?.user_metadata?.nombre_completo}</p>
                     <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                   </div>
                 </div>
@@ -247,7 +247,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <div>
               <p className="text-xs font-semibold leading-tight">Aliado Presente v.{APP_VERSION}</p>
               <p className="text-[10px] text-muted-foreground leading-tight">
-                Datos actualizados: {formatLastFetch(getLastFetch())}
+                Act: {formatLastFetch(getLastFetch())}
               </p>
             </div>
             <ConnectionIndicators />
@@ -258,14 +258,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <Button variant="outline" size="sm" className="flex items-center gap-2 max-w-[120px]">
                 <User className="h-4 w-4 shrink-0" />
                 <span className="text-xs truncate">
-                  {user?.user_metadata?.nombre_completo?.split(' ')[0]}
+                  {nombreCompleto ?? user?.user_metadata?.nombre_completo?.split(' ')[0]}
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>
                 <div>
-                  <p className="text-sm font-medium">{user?.user_metadata?.nombre_completo}</p>
+                  <p className="text-sm font-medium">{nombreCompleto ?? user?.user_metadata?.nombre_completo}</p>
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>

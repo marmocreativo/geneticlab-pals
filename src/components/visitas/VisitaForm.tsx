@@ -294,7 +294,6 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
                         )}
                         {selectedInstitucion.nombre}
                       </div>
-                      <div className="text-xs text-muted-foreground">{selectedInstitucion.direccion}</div>
                     </div>
                   </div>
                 )}
