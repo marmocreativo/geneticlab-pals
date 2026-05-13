@@ -71,7 +71,6 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
     }
   })
 
-  const selectedInstitucion = instituciones.find(i => i.id === form.watch('institucion_id'))
 
   const promedioVisitas = instituciones.length > 0
     ? instituciones.reduce((acc, i) => acc + (i.visitas_count ?? 0), 0) / instituciones.length
@@ -245,6 +244,7 @@ const institucionesFiltradas = [...instituciones]
                             placeholder="Ciudad..."
                             defaultValue=""
                             onChange={e => { ciudadFiltroRef.current = e.target.value }}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
                             className="h-8 text-xs flex-1"
                           />
                           <select
