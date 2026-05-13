@@ -190,9 +190,20 @@ export default function AdminLogsPage() {
                         </p>
 
                         {isExpanded && log.detalle && (
-                          <pre className="mt-2 text-xs bg-muted rounded p-2 overflow-x-auto text-muted-foreground">
-                            {JSON.stringify(log.detalle, null, 2)}
-                          </pre>
+                          <div className="relative mt-2">
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                navigator.clipboard.writeText(JSON.stringify(log.detalle, null, 2))
+                              }}
+                              className="absolute top-1 right-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded bg-background border"
+                            >
+                              Copiar
+                            </button>
+                            <pre className="text-xs bg-muted rounded p-2 overflow-x-auto text-muted-foreground pr-14">
+                              {JSON.stringify(log.detalle, null, 2)}
+                            </pre>
+                          </div>
                         )}
                       </div>
                     </div>
