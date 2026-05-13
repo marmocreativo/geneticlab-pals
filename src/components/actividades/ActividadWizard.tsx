@@ -160,9 +160,13 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
     setCurrentStep(2)
   }
 
-  const handleStep2Submit = async (data: Step2Data) => {
-    if (!user?.id || !step1Data) return
+  const submitRef = useRef(false)
 
+  const handleStep2Submit = async (data: Step2Data) => {
+    if (submitRef.current) return
+    submitRef.current = true
+    if (!user?.id || !step1Data) return
+    
     const actividadData: ActividadInsert = {
       pal_id: user.id,
       institucion_id: step1Data.institucion_id,
@@ -182,6 +186,8 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       setShowAddAnother(true)
     } catch (error) {
       console.error('Error submitting activity:', error)
+    } finally {
+      submitRef.current = false
     }
   }
 
@@ -683,7 +689,12 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                   Anterior
                 </Button>
                 <Button type="submit" disabled={loading}>
-                  {loading ? 'Guardando...' : 'Guardar Actividad'}
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Guardando...
+                    </span>
+                  ) : 'Guardar Actividad'}
                 </Button>
               </div>
             </form>

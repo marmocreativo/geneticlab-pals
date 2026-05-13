@@ -194,11 +194,17 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     return Object.keys(errors).length === 0
   }
 
+  const submitRef = useRef(false)
+
   const handleSubmit = async () => {
-    if (!validateFicha()) return
+    if (submitRef.current) return
+    submitRef.current = true
+    if (!validateFicha()) {
+      submitRef.current = false
+      return
+    }
     try {
       setLoading(true)
-
       let pacienteId = selectedPaciente
       if (createNewPaciente) {
         const nuevo = await createContacto({
@@ -236,6 +242,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
       // el hook ya muestra el toast
     } finally {
       setLoading(false)
+      submitRef.current = false
     }
   }
 
@@ -778,7 +785,12 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep('medico')}>Atrás</Button>
               <Button onClick={handleSubmit} disabled={loading}>
-                {loading ? 'Creando...' : 'Crear Ficha'}
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Creando ficha...
+                  </span>
+                ) : 'Crear Ficha'}
               </Button>
             </div>
           </div>

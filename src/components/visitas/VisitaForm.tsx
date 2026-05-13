@@ -102,9 +102,12 @@ const institucionesFiltradas = [...instituciones]
     })
   }
 
-  const handleSubmit = async (data: VisitaFormData) => {
-    if (!user?.id) return
+  const submitRef = useRef(false)
 
+  const handleSubmit = async (data: VisitaFormData) => {
+    if (submitRef.current) return
+    submitRef.current = true
+    if (!user?.id) return
     setLoading(true)
     try {
       const offsetMinutes = new Date().getTimezoneOffset()
@@ -126,6 +129,7 @@ const institucionesFiltradas = [...instituciones]
       console.error('Error creating visita:', error)
     } finally {
       setLoading(false)
+      submitRef.current = false
     }
   }
 
@@ -332,7 +336,12 @@ const institucionesFiltradas = [...instituciones]
             Cancelar
           </Button>
           <Button type="submit" disabled={loading} className="flex-1">
-            {loading ? 'Programando...' : 'Programar Visita'}
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Guardando...
+              </span>
+            ) : 'Programar Visita'}
           </Button>
         </div>
       </form>
