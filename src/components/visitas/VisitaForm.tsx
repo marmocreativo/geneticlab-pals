@@ -1,9 +1,9 @@
 // components/visitas/VisitaForm.tsx
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Building, Star } from 'lucide-react'
+import { Plus, Building, Star, ChevronDown, ChevronUp } from 'lucide-react'
 import { format } from 'date-fns'
 import { useCatalogos } from '@/hooks/useCatalogos'
 
@@ -16,13 +16,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 
 import { useVisitas } from '@/hooks/useVisitas'
@@ -51,10 +44,10 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
   const { catalogos: sectores } = useCatalogos('sector')
   const [loading, setLoading] = useState(false)
   const [showNewInstitucionForm, setShowNewInstitucionForm] = useState(false)
-  const [busqueda, setBusqueda] = useState('')
-  const [estadoFiltro, setEstadoFiltro] = useState('')
-  const [ciudadFiltro, setCiudadFiltro] = useState('')
-  const [sectorFiltro, setSectorFiltro] = useState('')
+  const busquedaRef = useRef('')
+  const estadoFiltroRef = useRef('')
+  const ciudadFiltroRef = useRef('')
+  const sectorFiltroRef = useRef('')
   const [busquedaActiva, setBusquedaActiva] = useState<{
     nombre: string
     estado: string
@@ -62,6 +55,7 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
     sector: string
   }>({ nombre: '', estado: '', ciudad: '', sector: '' })
   const [mostrarAvanzada, setMostrarAvanzada] = useState(false)
+  const [institucionOpen, setInstitucionOpen] = useState(false)
 
   const { createVisita } = useVisitas()
   const { instituciones, fetchInstituciones } = useInstituciones()
@@ -83,27 +77,31 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
     ? instituciones.reduce((acc, i) => acc + (i.visitas_count ?? 0), 0) / instituciones.length
     : 0
 
-  const institucionesFiltradas = [...instituciones]
-    .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
-    .filter(i => {
-      const matchNombre = busquedaActiva.nombre === '' ||
-        i.nombre.toLowerCase().includes(busquedaActiva.nombre.toLowerCase()) ||
-        i.direccion.toLowerCase().includes(busquedaActiva.nombre.toLowerCase())
-      const matchEstado = busquedaActiva.estado === '' || i.estado === busquedaActiva.estado
-      const matchCiudad = busquedaActiva.ciudad === '' ||
-        i.ciudad?.toLowerCase().includes(busquedaActiva.ciudad.toLowerCase())
-      const matchSector = busquedaActiva.sector === '' || i.sector_id === busquedaActiva.sector
-      return matchNombre && matchEstado && matchCiudad && matchSector
+const institucionesFiltradas = [...instituciones]
+  .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
+  .filter(i => {
+    console.log('busquedaActiva:', busquedaActiva)
+    console.log('i.ciudad:', i.ciudad, typeof i.ciudad)
+    console.log('i.estado:', i.estado, typeof i.estado)
+    console.log('i.sector_id:', i.sector_id, typeof i.sector_id)
+    const matchNombre = busquedaActiva.nombre === '' ||
+      i.nombre.toLowerCase().includes(busquedaActiva.nombre.toLowerCase()) ||
+      i.direccion.toLowerCase().includes(busquedaActiva.nombre.toLowerCase())
+    const matchEstado = busquedaActiva.estado === '' || (i.estado ?? '') === busquedaActiva.estado
+    const matchCiudad = busquedaActiva.ciudad === '' ||
+      (i.ciudad?.toLowerCase().includes(busquedaActiva.ciudad.toLowerCase()) ?? false)
+    const matchSector = busquedaActiva.sector === '' || (i.sector_id ?? '') === busquedaActiva.sector
+    return matchNombre && matchEstado && matchCiudad && matchSector
+  })
+
+  const handleBuscar = () => {
+    setBusquedaActiva({
+      nombre: busquedaRef.current,
+      estado: estadoFiltroRef.current,
+      ciudad: ciudadFiltroRef.current,
+      sector: sectorFiltroRef.current
     })
-  
-    const handleBuscar = () => {
-      setBusquedaActiva({
-        nombre: busqueda,
-        estado: estadoFiltro,
-        ciudad: ciudadFiltro,
-        sector: sectorFiltro
-      })
-    }
+  }
 
   const handleSubmit = async (data: VisitaFormData) => {
     if (!user?.id) return
@@ -188,30 +186,39 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
           render={({ field }) => (
             <FormItem>
               <FormLabel className="text-sm">Institución</FormLabel>
-              <div className="space-y-3">
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecciona una institución" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <div className="p-2 border-b space-y-2">
-                      {/* Fila principal: nombre + estado + botón */}
+              <div className="space-y-3 min-w-0">
+
+                {/* Trigger del collapse */}
+                <button
+                  type="button"
+                  onClick={() => setInstitucionOpen(v => !v)}
+                  className="w-full flex items-center justify-between px-3 py-2 border rounded-md text-sm bg-background hover:bg-muted transition-colors h-9"
+                >
+                  <span className={field.value ? 'text-foreground' : 'text-muted-foreground'}>
+                    {field.value
+                      ? instituciones.find(i => i.id === field.value)?.nombre ?? 'Seleccionar institución'
+                      : 'Seleccionar institución'}
+                  </span>
+                  {institucionOpen
+                    ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                    : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                </button>
+
+                {/* Panel colapsable */}
+                {institucionOpen && (
+                  <div className="border rounded-md overflow-hidden bg-background w-full min-w-0">
+                    <div className="p-2 space-y-2 border-b bg-muted/30">
                       <div className="flex gap-1">
                         <Input
                           placeholder="Buscar por nombre..."
-                          value={busqueda}
-                          onChange={e => setBusqueda(e.target.value)}
-                          onKeyDown={e => {
-                            e.stopPropagation()
-                            if (e.key === 'Enter') handleBuscar()
-                          }}
-                          className="h-8 text-sm min-w-0 flex-1"
+                          defaultValue=""
+                          onChange={e => { busquedaRef.current = e.target.value }}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
+                          className="h-8 text-sm flex-1"
                         />
                         <select
-                          value={estadoFiltro}
-                          onChange={e => setEstadoFiltro(e.target.value)}
+                          defaultValue=""
+                          onChange={e => { estadoFiltroRef.current = e.target.value; handleBuscar() }}
                           className="h-8 text-xs border rounded px-1 bg-background w-20 shrink-0"
                         >
                           <option value="">Estado</option>
@@ -224,28 +231,25 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
                         </Button>
                       </div>
 
-                      {/* Toggle búsqueda avanzada */}
                       <button
                         type="button"
-                        className="text-xs text-muted-foreground hover:text-foreground w-full py-2 border rounded flex items-center justify-center gap-1"
+                        className="text-xs text-muted-foreground hover:text-foreground w-full py-1 border rounded bg-background"
                         onClick={() => setMostrarAvanzada(v => !v)}
                       >
                         {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
                       </button>
 
-                      {/* Campos avanzados */}
                       {mostrarAvanzada && (
                         <div className="flex gap-1">
                           <Input
                             placeholder="Ciudad..."
-                            value={ciudadFiltro}
-                            onChange={e => setCiudadFiltro(e.target.value)}
-                            onKeyDown={e => e.stopPropagation()}
-                            className="h-8 text-xs min-w-0 flex-1"
+                            defaultValue=""
+                            onChange={e => { ciudadFiltroRef.current = e.target.value }}
+                            className="h-8 text-xs flex-1"
                           />
                           <select
-                            value={sectorFiltro}
-                            onChange={e => setSectorFiltro(e.target.value)}
+                            defaultValue=""
+                            onChange={e => { sectorFiltroRef.current = e.target.value; handleBuscar() }}
                             className="h-8 text-xs border rounded px-1 bg-background w-24 shrink-0"
                           >
                             <option value="">Sector</option>
@@ -256,47 +260,54 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
                         </div>
                       )}
                     </div>
-                    {institucionesFiltradas.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground text-center">
-                        No se encontraron instituciones
-                      </div>
-                    ) : (
-                      institucionesFiltradas.map((institucion) => (
-                        <SelectItem key={institucion.id} value={institucion.id}>
-                          <div className="flex items-start gap-2 max-w-xs">
-                            <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+
+                    <div className="overflow-y-auto" style={{ maxHeight: '240px' }}>
+                      {institucionesFiltradas.length === 0 ? (
+                        <p className="p-3 text-sm text-muted-foreground text-center">
+                          No se encontraron instituciones
+                        </p>
+                      ) : (
+                        institucionesFiltradas.map(institucion => (
+                          <button
+                            key={institucion.id}
+                            type="button"
+                            className="w-full flex items-start gap-2 px-3 py-2 hover:bg-muted text-left border-b last:border-0 transition-colors min-w-0"
+                            onClick={() => {
+                              field.onChange(institucion.id)
+                              setInstitucionOpen(false)
+                            }}
+                          >
+                            <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm flex items-center gap-1">
                                 {(institucion.visitas_count ?? 0) > promedioVisitas && (
-                                  <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
+                                  <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
                                 )}
-                                {institucion.nombre}
+                                <span className="truncate">{institucion.nombre}</span>
                               </div>
                               <div className="text-xs text-muted-foreground truncate">
                                 {institucion.direccion}
                               </div>
                             </div>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-
-                {/* Institución seleccionada */}
-                {selectedInstitucion && (
-                  <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm">
-                    <Building className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div className="flex-1">
-                      <div className="font-medium flex items-center gap-1">
-                        {(selectedInstitucion.visitas_count ?? 0) > promedioVisitas && (
-                          <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                        )}
-                        {selectedInstitucion.nombre}
-                      </div>
+                          </button>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
+
+                {/* Institución seleccionada */}
+                {field.value && !institucionOpen && (() => {
+                  const sel = instituciones.find(i => i.id === field.value)
+                  return sel ? (
+                    <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm">
+                      <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{sel.nombre}</div>
+                      </div>
+                    </div>
+                  ) : null
+                })()}
 
                 {/* Botón nueva institución */}
                 <Button
