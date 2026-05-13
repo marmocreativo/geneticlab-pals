@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Plus, X, Check, ChevronsUpDown, Building, Star } from 'lucide-react'
+import { Plus, X, Check, ChevronsUpDown, Building, Star, ChevronUp, ChevronDown } from 'lucide-react'
 import { useInstituciones } from '@/hooks/useInstituciones'
 import { useContactos } from '@/hooks/useContactos'
 import { useFichas } from '@/hooks/useFichas'
@@ -44,10 +44,11 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<Step>('institucion')
-  const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
-  const [estadoFiltro, setEstadoFiltro] = useState('')
-  const [ciudadFiltro, setCiudadFiltro] = useState('')
-  const [sectorFiltro, setSectorFiltro] = useState('')
+  const busquedaInstitucionRef = useRef('')
+  const estadoFiltroRef = useRef('')
+  const ciudadFiltroRef = useRef('')
+  const sectorFiltroRef = useRef('')
+  const [institucionOpen, setInstitucionOpen] = useState(false)
   const [busquedaActiva, setBusquedaActiva] = useState<{
     nombre: string
     estado: string
@@ -107,10 +108,10 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
 
   const handleBuscar = () => {
     setBusquedaActiva({
-      nombre: busquedaInstitucion,
-      estado: estadoFiltro,
-      ciudad: ciudadFiltro,
-      sector: sectorFiltro
+      nombre: busquedaInstitucionRef.current,
+      estado: estadoFiltroRef.current,
+      ciudad: ciudadFiltroRef.current,
+      sector: sectorFiltroRef.current
     })
   }
 
@@ -166,16 +167,17 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
   const resetForm = () => {
     setStep('institucion')
     setSelectedInstitucion('')
-    setBusquedaInstitucion('')
     setPacientesInstitucion([])
     setMedicosInstitucion([])
     setSelectedPaciente('')
     setCreateNewPaciente(false)
     setSelectedMedico('')
     setCreateNewMedico(false)
-    setEstadoFiltro('')
-    setCiudadFiltro('')
-    setSectorFiltro('')
+    busquedaInstitucionRef.current = ''
+    estadoFiltroRef.current = ''
+    ciudadFiltroRef.current = ''
+    sectorFiltroRef.current = ''
+    setInstitucionOpen(false)
     setBusquedaActiva({ nombre: '', estado: '', ciudad: '', sector: '' })
     setMostrarAvanzada(false)
     setPacienteData({ tipo_contacto: 'paciente', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', fecha_nacimiento: '', pal_id: user?.id || '' })
@@ -274,36 +276,48 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
           Nueva Ficha
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>{stepLabel[step]}</DialogTitle>
         </DialogHeader>
 
         {/* PASO 1 - Institución */}
         {step === 'institucion' && (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-hidden">
             <div className="space-y-1">
               <Label>Institución <span className="text-destructive">*</span></Label>
-              <Select value={selectedInstitucion} onValueChange={setSelectedInstitucion}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar institución" />
-                </SelectTrigger>
-                <SelectContent className="max-h-64 overflow-y-auto">
-                  <div className="p-2 border-b space-y-2">
-                    <div className="flex gap-2">
+
+              {/* Trigger collapse */}
+              <button
+                type="button"
+                onClick={() => setInstitucionOpen(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 border rounded-md text-sm bg-background hover:bg-muted transition-colors"
+              >
+                <span className={selectedInstitucion ? 'text-foreground' : 'text-muted-foreground'}>
+                  {selectedInstitucion
+                    ? instituciones.find(i => i.id === selectedInstitucion)?.nombre ?? 'Seleccionar institución'
+                    : 'Seleccionar institución'}
+                </span>
+                {institucionOpen
+                  ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                  : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+              </button>
+
+              {/* Panel colapsable */}
+              {institucionOpen && (
+                <div className="border rounded-md overflow-hidden bg-background w-full min-w-0 max-w-full">
+                  <div className="p-2 space-y-2 border-b bg-muted/30">
+                    <div className="flex gap-1">
                       <Input
                         placeholder="Buscar por nombre..."
-                        value={busquedaInstitucion}
-                        onChange={e => setBusquedaInstitucion(e.target.value)}
-                        onKeyDown={e => {
-                          e.stopPropagation()
-                          if (e.key === 'Enter') handleBuscar()
-                        }}
-                        className="h-8 text-sm min-w-0 flex-1"
+                        defaultValue=""
+                        onChange={e => { busquedaInstitucionRef.current = e.target.value }}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
+                        className="h-8 text-sm flex-1"
                       />
                       <select
-                        value={estadoFiltro}
-                        onChange={e => setEstadoFiltro(e.target.value)}
+                        defaultValue=""
+                        onChange={e => { estadoFiltroRef.current = e.target.value; handleBuscar() }}
                         className="h-8 text-xs border rounded px-1 bg-background w-20 shrink-0"
                       >
                         <option value="">Estado</option>
@@ -318,7 +332,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
 
                     <button
                       type="button"
-                      className="text-xs text-muted-foreground hover:text-foreground w-full py-2 border rounded flex items-center justify-center gap-1"
+                      className="text-xs text-muted-foreground hover:text-foreground w-full py-1 border rounded bg-background"
                       onClick={() => setMostrarAvanzada(v => !v)}
                     >
                       {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
@@ -328,14 +342,14 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                       <div className="flex gap-1">
                         <Input
                           placeholder="Ciudad..."
-                          value={ciudadFiltro}
-                          onChange={e => setCiudadFiltro(e.target.value)}
-                          onKeyDown={e => e.stopPropagation()}
-                          className="h-8 text-xs min-w-0 flex-1"
+                          defaultValue=""
+                          onChange={e => { ciudadFiltroRef.current = e.target.value }}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
+                          className="h-8 text-xs flex-1"
                         />
                         <select
-                          value={sectorFiltro}
-                          onChange={e => setSectorFiltro(e.target.value)}
+                          defaultValue=""
+                          onChange={e => { sectorFiltroRef.current = e.target.value; handleBuscar() }}
                           className="h-8 text-xs border rounded px-1 bg-background w-24 shrink-0"
                         >
                           <option value="">Sector</option>
@@ -346,47 +360,54 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                       </div>
                     )}
                   </div>
-                  {institucionesFiltradas.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground text-center">
-                      No se encontraron instituciones
-                    </div>
-                  ) : (
-                    institucionesFiltradas.map((inst) => (
-                      <SelectItem key={inst.id} value={inst.id}>
-                        <div className="flex items-start gap-2">
-                          <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+
+                  <div className="overflow-y-auto" style={{ maxHeight: '240px' }}>
+                    {institucionesFiltradas.length === 0 ? (
+                      <p className="p-3 text-sm text-muted-foreground text-center">
+                        No se encontraron instituciones
+                      </p>
+                    ) : (
+                      institucionesFiltradas.map(inst => (
+                        <button
+                          key={inst.id}
+                          type="button"
+                          className="w-full flex items-start gap-2 px-3 py-2 hover:bg-muted text-left border-b last:border-0 transition-colors min-w-0"
+                          onClick={() => {
+                            setSelectedInstitucion(inst.id)
+                            setInstitucionOpen(false)
+                          }}
+                        >
+                          <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm flex items-center gap-1 truncate max-w-[300px]">
+                            <div className="font-medium text-sm flex items-center gap-1">
                               {(inst.visitas_count ?? 0) > promedioVisitas && (
-                                <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
+                                <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
                               )}
-                              {inst.nombre}
+                              <span className="truncate">{inst.nombre}</span>
                             </div>
-                            <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            <div className="text-xs text-muted-foreground truncate">
                               {inst.direccion}
                             </div>
                           </div>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-
-              {/* Preview institución seleccionada */}
-              {selectedInstitucionData && (
-                <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm mt-2">
-                  <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <div className="font-medium flex items-center gap-1">
-                      {(selectedInstitucionData.visitas_count ?? 0) > promedioVisitas && (
-                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                      )}
-                      {selectedInstitucionData.nombre}
-                    </div>
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
+
+              {/* Institución seleccionada */}
+              {selectedInstitucion && !institucionOpen && (() => {
+                const sel = instituciones.find(i => i.id === selectedInstitucion)
+                return sel ? (
+                  <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm">
+                    <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{sel.nombre}</div>
+                    </div>
+                  </div>
+                ) : null
+              })()}
             </div>
 
             <div className="flex justify-end">
@@ -647,7 +668,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
           <div className="space-y-6">
             {resumen}
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-hidden">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label>Dosis <span className="text-destructive">*</span></Label>

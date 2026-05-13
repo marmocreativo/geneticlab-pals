@@ -1,5 +1,5 @@
 // components/actividades/ActividadWizard.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -66,10 +66,10 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
 
   // Institución collapse
   const [institucionOpen, setInstitucionOpen] = useState(false)
-  const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
-  const [estadoFiltro, setEstadoFiltro] = useState('')
-  const [ciudadFiltro, setCiudadFiltro] = useState('')
-  const [sectorFiltro, setSectorFiltro] = useState('')
+  const busquedaInstitucionRef = useRef('')
+  const estadoFiltroRef = useRef('')
+  const ciudadFiltroRef = useRef('')
+  const sectorFiltroRef = useRef('')
   const [busquedaActiva, setBusquedaActiva] = useState<{
     nombre: string
     estado: string
@@ -92,7 +92,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
         i.direccion.toLowerCase().includes(busquedaActiva.nombre.toLowerCase())
       const matchEstado = busquedaActiva.estado === '' || i.estado === busquedaActiva.estado
       const matchCiudad = busquedaActiva.ciudad === '' ||
-        i.ciudad?.toLowerCase().includes(busquedaActiva.ciudad.toLowerCase())
+        (i.ciudad?.toLowerCase().includes(busquedaActiva.ciudad.toLowerCase()) ?? false)
       const matchSector = busquedaActiva.sector === '' || i.sector_id === busquedaActiva.sector
       return matchNombre && matchEstado && matchCiudad && matchSector
     })
@@ -126,14 +126,14 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       setShowAddAnother(false)
       setContactosLoaded(false)
       setShowNewContactoForm(false)
-      setBusquedaInstitucion('')
       setInstitucionOpen(false)
       step1Form.reset()
       step2Form.reset()
       setContactSearch('')
-      setEstadoFiltro('')
-      setCiudadFiltro('')
-      setSectorFiltro('')
+      busquedaInstitucionRef.current = ''
+      estadoFiltroRef.current = ''
+      ciudadFiltroRef.current = ''
+      sectorFiltroRef.current = ''
       setBusquedaActiva({ nombre: '', estado: '', ciudad: '', sector: '' })
       setMostrarAvanzada(false)
     }
@@ -148,10 +148,10 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
 
   const handleBuscar = () => {
     setBusquedaActiva({
-      nombre: busquedaInstitucion,
-      estado: estadoFiltro,
-      ciudad: ciudadFiltro,
-      sector: sectorFiltro
+      nombre: busquedaInstitucionRef.current,
+      estado: estadoFiltroRef.current,
+      ciudad: ciudadFiltroRef.current,
+      sector: sectorFiltroRef.current
     })
   }
 
@@ -301,14 +301,14 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                               <div className="flex gap-1">
                                 <Input
                                   placeholder="Buscar por nombre..."
-                                  value={busquedaInstitucion}
-                                  onChange={e => setBusquedaInstitucion(e.target.value)}
+                                  defaultValue=""
+                                  onChange={e => { busquedaInstitucionRef.current = e.target.value }}
                                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
                                   className="h-8 text-sm flex-1"
                                 />
                                 <select
-                                  value={estadoFiltro}
-                                  onChange={e => setEstadoFiltro(e.target.value)}
+                                  defaultValue=""
+                                  onChange={e => { estadoFiltroRef.current = e.target.value; handleBuscar() }}
                                   className="h-8 text-xs border rounded px-1 bg-background w-20 shrink-0"
                                 >
                                   <option value="">Estado</option>
@@ -338,13 +338,14 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                                 <div className="flex gap-1">
                                   <Input
                                     placeholder="Ciudad..."
-                                    value={ciudadFiltro}
-                                    onChange={e => setCiudadFiltro(e.target.value)}
+                                    defaultValue=""
+                                    onChange={e => { ciudadFiltroRef.current = e.target.value }}
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
                                     className="h-8 text-xs flex-1"
                                   />
                                   <select
-                                    value={sectorFiltro}
-                                    onChange={e => setSectorFiltro(e.target.value)}
+                                    defaultValue=""
+                                    onChange={e => { sectorFiltroRef.current = e.target.value; handleBuscar() }}
                                     className="h-8 text-xs border rounded px-1 bg-background w-24 shrink-0"
                                   >
                                     <option value="">Sector</option>
