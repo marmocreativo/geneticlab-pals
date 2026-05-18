@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { UserRole } from '@/types/database.types'
@@ -22,89 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const safetyTimeout = setTimeout(() => {
-      setLoading(false)
-    }, 10000)
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      clearTimeout(safetyTimeout)
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchUserRole(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchUserRole(session.user.id)
-      } else if (event === 'SIGNED_OUT') {
-        setRole(null)
-        setNombreCompleto(null)
-        setLoading(false)
-      }
-    })
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session) {
-            setSession(session)
-            setUser(session.user)
-          } else {
-            setSession(null)
-            setUser(null)
-            setRole(null)
-            setNombreCompleto(null)
-          }
-        })
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      subscription.unsubscribe()
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
-
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const cachedRole = localStorage.getItem(`role-${userId}`)
-      if (cachedRole) {
-        setRole(cachedRole as UserRole)
-        setLoading(false)
-      }
-
-      const { data, error } = await supabase
-        .from('users')
-        .select('role, nombre_completo, activo')
-        .eq('id', userId)
-        .single()
-
-      if (error || !data) {
-        if (!cachedRole) await ensureUserExists(userId)
-      } else {
-        setRole(data.role)
-        setNombreCompleto(data.nombre_completo)
-        localStorage.setItem(`role-${userId}`, data.role)
-        setLoading(false)
-      }
-    } catch (error) {
-      console.error('❌ Error al obtener rol:', error)
-      setLoading(false)
-    }
-  }
-
-  const ensureUserExists = async (_userId: string) => {
+  const ensureUserExists = useCallback(async (_userId: string) => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -128,7 +46,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  const fetchUserRole = useCallback(async (userId: string) => {
+    try {
+      const cached = localStorage.getItem(`user-profile-${userId}`)
+      if (cached) {
+        const { role, nombreCompleto } = JSON.parse(cached)
+        setRole(role as UserRole)
+        setNombreCompleto(nombreCompleto)
+        setLoading(false)
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('role, nombre_completo, activo')
+        .eq('id', userId)
+        .single()
+
+      if (error || !data) {
+        if (!cached) await ensureUserExists(userId)
+      } else {
+        setRole(data.role)
+        setNombreCompleto(data.nombre_completo)
+        localStorage.setItem(`user-profile-${userId}`, JSON.stringify({
+          role: data.role,
+          nombreCompleto: data.nombre_completo
+        }))
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('❌ Error al obtener rol:', error)
+      setLoading(false)
+    }
+  }, [ensureUserExists])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        fetchUserRole(session.user.id)
+      } else {
+        setLoading(false)
+      }
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        fetchUserRole(session.user.id)
+      } else {
+        setRole(null)
+        setLoading(false)
+      }
+    })
+
+    // NUEVO: forzar re-check al volver al frente
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          setUser(null)
+          setSession(null)
+          setRole(null)
+        }
+        // Si hay sesión, onAuthStateChange ya la manejará si hubo refresh
+      } catch {
+        // Error de red al volver — no hacer nada, el usuario puede reintentar
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [fetchUserRole])
+
+  
+
+  
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -144,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.warn('Error al cerrar sesión en Supabase:', error)
     } finally {
-      if (user) localStorage.removeItem(`role-${user.id}`)
+      if (user) localStorage.removeItem(`user-profile-${user.id}`)
       localStorage.removeItem('control-pals-auth')
       setRole(null)
       setNombreCompleto(null)
