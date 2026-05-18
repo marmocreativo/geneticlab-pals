@@ -405,17 +405,14 @@ const VisitaDetailsPage: React.FC = () => {
       <div className="flex-1 p-4 space-y-6">
 
         {/* Institución */}
-        <Card className="bg-gradient-to-r from-primary to-accent text-primary-foreground overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold mb-1">{visita.institucion?.nombre}</h1>
-                <div className="text-primary-foreground/80 text-sm">Visita programada</div>
-              </div>
+        <Card className="bg-gradient-to-r from-primary to-accent text-primary-foreground">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-base font-semibold truncate flex-1">{visita.institucion?.nombre}</h1>
               {visita.estado === 'programada' && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-primary-foreground hover:bg-white/20">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-primary-foreground hover:bg-white/20 flex-shrink-0">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -436,46 +433,103 @@ const VisitaDetailsPage: React.FC = () => {
         </Card>
 
         {/* Datos */}
-        <div className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {format(new Date(visita.fecha_visita), 'dd MMM yyyy', { locale: es })}
-            </Badge>
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {format(new Date(visita.fecha_visita), 'HH:mm')}
-            </Badge>
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <Wifi className="h-3 w-3" />
-              Presencial
-            </Badge>
-          </div>
-          {showDireccion && (
-            <Card>
-              <CardContent className="p-3">
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <p className="text-sm text-muted-foreground">{visita.institucion?.direccion}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+            <Calendar className="h-3 w-3" />
+            {format(new Date(visita.fecha_visita), 'dd MMM yyyy', { locale: es })}
+          </Badge>
+          <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+            <Clock className="h-3 w-3" />
+            {format(new Date(visita.fecha_visita), 'HH:mm')}
+          </Badge>
+          <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+            <Wifi className="h-3 w-3" />
+            Presencial
+          </Badge>
+          {getEstadoBadge(visita.estado)}
         </div>
+        {showDireccion && (
+          <Card>
+            <CardContent className="p-3">
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <p className="text-sm text-muted-foreground">{visita.institucion?.direccion}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <div className="border-t border-dashed"></div>
+        {/* Botón validar — arriba del mapa */}
+          {visita.estado === 'programada' && (
+            <Button
+              className="w-full"
+              onClick={handleValidarYFoto}
+              disabled={validandoGPS}
+            >
+              {validandoGPS ? (
+                <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin mr-2" />
+              ) : (
+                <Navigation className="h-4 w-4 mr-2" />
+              )}
+              {validandoGPS ? 'Validando...' : 'Validar ubicación y foto'}
+            </Button>
+          )}
 
-        {/* MAPA — programada: tiempo real con botón. confirmada: estático con resultado */}
-        {visita.institucion && (
-          <Card className="overflow-hidden relative z-0">
-            <CardContent className="p-0">
-              <div className="relative">
+          {visita.estado === 'asistio' && ubicacionValidada && (
+            <CardContent className="p-4">
+              <div className="flex gap-3">
+                
+                {/* Foto */}
+                {bucketReady && !fotosLoading && fotos.length > 0 && (
+                  <div className="relative group flex-shrink-0">
+                    <img
+                      src={fotos[0].url_storage}
+                      alt="Evidencia"
+                      className="w-24 h-24 object-cover rounded border border-green-200"
+                    />
+                    <Button
+                      onClick={() => handleEliminarFoto(fotos[0].id, fotos[0].url_storage)}
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-1 right-1 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Datos */}
+                <div className="flex items-start gap-2 text-green-700 flex-1">
+                  <CheckCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Visita confirmada</p>
+                    {horaValidacion && (
+                      <p className="text-sm text-green-600">
+                        {format(new Date(horaValidacion), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
+                      </p>
+                    )}
+                    {visita.distancia_metros !== undefined && visita.distancia_metros !== null && (
+                      <p className="text-sm text-green-600">
+                        {visita.distancia_metros}m del hospital
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </CardContent>
+            )}
+
+          {/* MAPA */}
+          {visita.institucion && (
+            <Card className="overflow-hidden relative z-0 py-0">
+              <CardContent className="p-0">
                 <MapContainer
                   center={[visita.institucion.latitud, visita.institucion.longitud]}
                   zoom={15}
-                  style={{ height: '240px', width: '100%' }}
+                  style={{ height: '200px', width: '100%' }}
                   zoomControl={false}
-                  key={visita.estado} // re-montar al cambiar estado
+                  key={visita.estado}
                 >
                   <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -483,7 +537,6 @@ const VisitaDetailsPage: React.FC = () => {
                   />
                   <FitBounds puntos={puntosMapa} />
 
-                  {/* Hospital */}
                   <Marker
                     position={[visita.institucion.latitud, visita.institucion.longitud]}
                     icon={iconoHospital}
@@ -491,7 +544,6 @@ const VisitaDetailsPage: React.FC = () => {
                     <Popup>{visita.institucion.nombre}</Popup>
                   </Marker>
 
-                  {/* Radio permitido — solo cuando está programada */}
                   {visita.estado === 'programada' && (
                     <Circle
                       center={[visita.institucion.latitud, visita.institucion.longitud]}
@@ -500,14 +552,12 @@ const VisitaDetailsPage: React.FC = () => {
                     />
                   )}
 
-                  {/* Ubicación en tiempo real — solo cuando está programada */}
                   {visita.estado === 'programada' && ubicacionUsuario && (
                     <Marker position={[ubicacionUsuario.lat, ubicacionUsuario.lng]} icon={iconoUsuario}>
                       <Popup>Tu ubicación</Popup>
                     </Marker>
                   )}
 
-                  {/* Ubicación validada — cuando ya confirmó */}
                   {visita.estado === 'asistio' && ubicacionValidada && (
                     <Marker position={[ubicacionValidada.lat, ubicacionValidada.lng]} icon={iconoUsuario}>
                       <Popup>Ubicación registrada</Popup>
@@ -515,102 +565,35 @@ const VisitaDetailsPage: React.FC = () => {
                   )}
                 </MapContainer>
 
-                {/* Botón flotante — solo cuando está programada y no validado */}
-                {visita.estado === 'programada' && (
-                  <div className="absolute bottom-3 right-3 z-[1000]">
-                    <Button
-                      size="sm"
-                      onClick={handleValidarYFoto}
-                      disabled={validandoGPS}
-                      className="shadow-lg"
-                    >
-                      {validandoGPS ? (
-                        <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin mr-2" />
-                      ) : (
-                        <Navigation className="h-4 w-4 mr-2" />
-                      )}
-                      {validandoGPS
-                        ? 'Validando...'
-                        : visita.gps_dispositivo
-                          ? 'Validar con fotografía'
-                          : 'Validar ubicación'}
-                    </Button>
+                {/* Leyenda */}
+                <div className="flex items-center gap-4 px-3 py-2 text-xs text-muted-foreground border-t">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-primary"></div>
+                    <span>Hospital</span>
                   </div>
-                )}
-              </div>
-
-              {/* Leyenda */}
-              <div className="flex items-center gap-4 px-3 py-2 text-xs text-muted-foreground border-t">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-primary"></div>
-                  <span>Hospital</span>
+                  {visita.estado === 'programada' && ubicacionUsuario && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full bg-accent"></div>
+                      <span>Tu ubicación</span>
+                    </div>
+                  )}
+                  {visita.estado === 'asistio' && ubicacionValidada && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full bg-accent"></div>
+                      <span>Ubicación registrada</span>
+                    </div>
+                  )}
+                  {visita.estado === 'programada' && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full border border-primary bg-primary/10"></div>
+                      <span>Zona válida ({distanciaPermitida}m)</span>
+                    </div>
+                  )}
                 </div>
-                {visita.estado === 'programada' && ubicacionUsuario && (
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-full bg-accent"></div>
-                    <span>Tu ubicación</span>
-                  </div>
-                )}
-                {visita.estado === 'asistio' && ubicacionValidada && (
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-full bg-accent"></div>
-                    <span>Ubicación registrada</span>
-                  </div>
-                )}
-                {visita.estado === 'programada' && (
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-full border border-primary bg-primary/10"></div>
-                    <span>Zona válida ({distanciaPermitida}m)</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {visita.estado === 'asistio' && ubicacionValidada && (
-        <CardContent className="p-4">
-          <div className="flex gap-3">
-            
-            {/* Foto */}
-            {bucketReady && !fotosLoading && fotos.length > 0 && (
-              <div className="relative group flex-shrink-0">
-                <img
-                  src={fotos[0].url_storage}
-                  alt="Evidencia"
-                  className="w-24 h-24 object-cover rounded border border-green-200"
-                />
-                <Button
-                  onClick={() => handleEliminarFoto(fotos[0].id, fotos[0].url_storage)}
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-1 right-1 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-
-            {/* Datos */}
-            <div className="flex items-start gap-2 text-green-700 flex-1">
-              <CheckCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">Visita confirmada</p>
-                {horaValidacion && (
-                  <p className="text-sm text-green-600">
-                    {format(new Date(horaValidacion), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
-                  </p>
-                )}
-                {visita.distancia_metros !== undefined && visita.distancia_metros !== null && (
-                  <p className="text-sm text-green-600">
-                    {visita.distancia_metros}m del hospital
-                  </p>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </CardContent>
-        )}
+              </CardContent>
+            </Card>
+          )}
+        
         
         {/* Marcar falta — solo visible si GPS ya validado pero aún programada */}
         {visita.estado === 'programada' && visita.validacion_gps && (
