@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/version'
 import { getLastFetch } from '@/lib/lastFetch'
 import { BtnNotificaciones } from '@/components/admin/BtnNotificaciones'
+import { BtnAyuda } from '@/components/BtnAyuda'
 
 interface NavItem {
   title: string
@@ -309,6 +310,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               </Link>
             )
           })}
+          {role === 'pal' && <BtnAyuda />}
         </div>
       </nav>
 
