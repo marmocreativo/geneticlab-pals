@@ -33,6 +33,7 @@ import {
 import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/version'
 import { getLastFetch } from '@/lib/lastFetch'
+import { BtnNotificaciones } from '@/components/admin/BtnNotificaciones'
 
 interface NavItem {
   title: string
@@ -168,6 +169,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
         <div className="p-4 border-t space-y-2">
           <VersionInfo />
+          {role === 'admin' && <BtnNotificaciones />}
           <ForceUpdateButton />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -222,6 +224,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
               <div className="p-4 border-t space-y-2">
                 <VersionInfo />
+                {role === 'admin' && <BtnNotificaciones />}
                 <ForceUpdateButton />
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
                   <User className="h-5 w-5 text-muted-foreground" />
