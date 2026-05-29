@@ -1,3 +1,5 @@
+// @ts-nocheck
+// @ts-ignore - Deno npm specifier, no requiere tipos locales
 import webpush from 'npm:web-push'
 
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!

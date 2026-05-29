@@ -11,7 +11,9 @@ import { clientsClaim } from 'workbox-core'
 
 
 // Precaching (Vite PWA inyecta el manifest aquí)
-precacheAndRoute(__WB_MANIFEST)
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
 // skipWaiting + clientsClaim
