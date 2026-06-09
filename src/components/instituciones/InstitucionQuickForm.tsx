@@ -20,6 +20,8 @@ interface FormData {
   direccion: string;
   latitud: number;
   longitud: number;
+  ciudad?: string;
+  estado?: string;
   google_place_id?: string;
   photo_reference?: string;
 }
@@ -31,61 +33,62 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>();
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult & { photo_reference?: string }) => {
-    console.log('🎯 InstitucionQuickForm: handlePlaceSelect llamado');
-    console.log('📦 Place recibido:', place);
-    
     if (!place.geometry?.location) {
-      console.log('❌ InstitucionQuickForm: Sin geometría o ubicación');
       toast.error('No se pudo obtener la ubicación del lugar');
       return;
     }
 
-    console.log('✅ InstitucionQuickForm: Place válido, extrayendo datos...');
-    
     const lat = place.geometry.location.lat();
     const lng = place.geometry.location.lng();
-    
-    console.log('📊 Datos extraídos:', {
-      nombre: place.name,
-      direccion: place.formatted_address,
-      latitud: lat,
-      longitud: lng,
-      place_id: place.place_id
-    });
+
+    console.log('address_components:', JSON.stringify(place.address_components, null, 2))
+
+    let ciudad = ''
+    let estado = ''
+    if (place.address_components) {
+      for (const component of place.address_components) {
+        if (
+          component.types.includes('locality') ||
+          component.types.includes('sublocality_level_1') ||
+          component.types.includes('administrative_area_level_2')
+        ) {
+          if (!ciudad) ciudad = component.long_name
+        }
+        if (component.types.includes('administrative_area_level_1')) {
+          estado = component.long_name
+        }
+      }
+    }
 
     setSelectedPlace(place);
-    
-    // Rellenar automáticamente los campos
-    console.log('📝 Seteando valores en el formulario...');
     setValue('nombre', place.name || '');
     setValue('direccion', place.formatted_address || '');
     setValue('latitud', lat);
     setValue('longitud', lng);
     setValue('google_place_id', place.place_id);
     setValue('photo_reference', place.photo_reference);
+    setValue('ciudad', ciudad);
+    setValue('estado', estado);
 
-    console.log('✅ InstitucionQuickForm: Valores seteados');
     toast.success('Datos cargados automáticamente');
   };
 
   const onSubmit = async (data: FormData) => {
-    console.log('💾 Guardando institución:', data);
     try {
       setLoading(true);
-      
       const newInstitucion = await institucionesService.create({
         nombre: data.nombre,
         direccion: data.direccion,
         latitud: data.latitud,
         longitud: data.longitud,
         google_place_id: data.google_place_id,
+        ciudad: data.ciudad,
+        estado: data.estado,
       });
-
-      console.log('✅ Institución creada:', newInstitucion);
       toast.success('Institución creada exitosamente');
       onSuccess(newInstitucion);
     } catch (error) {
-      console.error('💥 Error al crear institución:', error);
+      console.error('Error al crear institución:', error);
       toast.error('Error al crear institución');
     } finally {
       setLoading(false);
@@ -94,8 +97,6 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
 
   const nombre = watch('nombre');
   const direccion = watch('direccion');
-
-  console.log('🔍 Form values:', { nombre, direccion });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -107,6 +108,7 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+
           <div className="space-y-2">
             <Label>Buscar Institución en Google Maps</Label>
             <PlaceSearchInput onPlaceSelect={handlePlaceSelect} />
@@ -117,27 +119,21 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
 
           {selectedPlace && (
             <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-green-800">
-                  Lugar seleccionado
-                </p>
-                <p className="text-sm text-green-700">
-                  {selectedPlace.name}
-                </p>
+                <p className="text-sm font-medium text-green-800">Lugar seleccionado</p>
+                <p className="text-sm text-green-700">{selectedPlace.name}</p>
               </div>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="nombre">Nombre de la Institución *</Label>
+            <Label htmlFor="nombre">Nombre *</Label>
             <Input
               {...register('nombre', { required: true })}
-              placeholder="Nombre"
+              placeholder="Nombre de la institución"
             />
-            {errors.nombre && (
-              <p className="text-sm text-red-500">Campo requerido</p>
-            )}
+            {errors.nombre && <p className="text-sm text-red-500">Campo requerido</p>}
           </div>
 
           <div className="space-y-2">
@@ -146,48 +142,61 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
               {...register('direccion', { required: true })}
               placeholder="Dirección completa"
             />
-            {errors.direccion && (
-              <p className="text-sm text-red-500">Campo requerido</p>
-            )}
+            {errors.direccion && <p className="text-sm text-red-500">Campo requerido</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="latitud">Latitud *</Label>
+              <Label>Estado</Label>
               <Input
-                type="number"
-                step="any"
-                {...register('latitud', { required: true, valueAsNumber: true })}
-                placeholder="19.432608"
+                {...register('estado')}
+                readOnly
+                className="bg-muted text-muted-foreground cursor-not-allowed"
+                placeholder="Se carga automáticamente"
               />
-              {errors.latitud && (
-                <p className="text-sm text-red-500">Campo requerido</p>
-              )}
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="longitud">Longitud *</Label>
+              <Label>Ciudad</Label>
               <Input
-                type="number"
-                step="any"
-                {...register('longitud', { required: true, valueAsNumber: true })}
-                placeholder="-99.133209"
+                {...register('ciudad')}
+                readOnly
+                className="bg-muted text-muted-foreground cursor-not-allowed"
+                placeholder="Se carga automáticamente"
               />
-              {errors.longitud && (
-                <p className="text-sm text-red-500">Campo requerido</p>
-              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Latitud</Label>
+              <Input
+                {...register('latitud', { required: true, valueAsNumber: true })}
+                readOnly
+                className="bg-muted text-muted-foreground cursor-not-allowed"
+                placeholder="Se carga automáticamente"
+              />
+              {errors.latitud && <p className="text-sm text-red-500">Campo requerido</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Longitud</Label>
+              <Input
+                {...register('longitud', { required: true, valueAsNumber: true })}
+                readOnly
+                className="bg-muted text-muted-foreground cursor-not-allowed"
+                placeholder="Se carga automáticamente"
+              />
+              {errors.longitud && <p className="text-sm text-red-500">Campo requerido</p>}
             </div>
           </div>
 
           {nombre && direccion && (
-            <div className="bg-muted p-3 rounded-md">
-              <p className="text-sm font-medium">Vista previa:</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                <strong>{nombre}</strong>
-              </p>
-              <p className="text-sm text-muted-foreground">{direccion}</p>
+            <div className="bg-muted p-3 rounded-md space-y-0.5">
+              <p className="text-sm font-medium">Vista previa</p>
+              <p className="text-sm font-semibold">{nombre}</p>
+              <p className="text-xs text-muted-foreground">{direccion}</p>
             </div>
           )}
+
         </CardContent>
       </Card>
 

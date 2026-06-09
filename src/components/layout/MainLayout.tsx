@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
+import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { ConnectionIndicators } from '@/components/ConnectionIndicators'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -28,7 +29,9 @@ import {
   Stethoscope,
   PenTool,
   RefreshCw,
-  ScrollText
+  ScrollText,
+  Wrench,
+  Download 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/version'
@@ -51,6 +54,8 @@ const navItems: NavItem[] = [
   { title: 'Usuarios', href: '/admin/usuarios', icon: Users, roles: ['admin'] },
   { title: 'Catálogos', href: '/admin/catalogos', icon: BookOpen, roles: ['admin'] },
   { title: 'Instituciones', href: '/admin/instituciones', icon: Building2, roles: ['admin'] },
+  { title: 'Mantenimiento', href: '/admin/mantenimiento', icon: Wrench, roles: ['admin'] },
+  
   { title: 'Configuraciones', href: '/admin/configuraciones', icon: Settings, roles: ['admin'] },
   { title: 'Reportes', href: '/admin/reportes', icon: FileText, roles: ['admin'] },
   { title: 'Logs', href: '/admin/logs', icon: ScrollText, roles: ['admin'] },
@@ -107,6 +112,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {filteredNavItems.map((item) => {
         const Icon = item.icon
         const isActive = location.pathname === item.href
+        const isHijo = item.href === '/admin/mantenimiento'
         return (
           <Link
             key={item.href}
@@ -114,6 +120,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             onClick={() => setSidebarOpen(false)}
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              isHijo && 'ml-4 text-xs',
               isActive
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -147,6 +154,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </Button>
   )
 
+  const { puedeInstalar, instalar } = usePWAInstall()
+
   return (
     <div className="h-screen flex bg-gradient-to-b from-background to-white">
 
@@ -171,6 +180,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <div className="p-4 border-t space-y-2">
           <VersionInfo />
           {role === 'admin' && <BtnNotificaciones />}
+          {puedeInstalar && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start gap-2 text-xs"
+              onClick={instalar}
+            >
+              <Download className="h-3 w-3" />
+              Instalar app
+            </Button>
+          )}
           <ForceUpdateButton />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -226,6 +246,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <div className="p-4 border-t space-y-2">
                 <VersionInfo />
                 {role === 'admin' && <BtnNotificaciones />}
+                {puedeInstalar && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2 text-xs"
+                    onClick={instalar}
+                  >
+                    <Download className="h-3 w-3" />
+                    Instalar app
+                  </Button>
+                )}
                 <ForceUpdateButton />
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
                   <User className="h-5 w-5 text-muted-foreground" />

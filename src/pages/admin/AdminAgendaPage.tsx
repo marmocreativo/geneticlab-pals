@@ -183,6 +183,110 @@ export default function AdminAgendaPage() {
     window.addEventListener('mouseup', handleMouseUp)
   }
 
+  const VistaMovil = () => {
+  const visitasSemana = currentWeekDays.map(day => {
+    const dayStr = format(day, 'yyyy-MM-dd')
+    const visitasDelDia = visitas
+      .filter(v => format(new Date(v.fecha_visita), 'yyyy-MM-dd') === dayStr)
+      .sort((a, b) => new Date(a.fecha_visita).getTime() - new Date(b.fecha_visita).getTime())
+    return { day, visitasDelDia }
+  }).filter(d => d.visitasDelDia.length > 0)
+
+  if (visitasSemana.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground text-sm">
+        Sin visitas esta semana
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {visitasSemana.map(({ day, visitasDelDia }) => (
+        <div key={day.toISOString()}>
+          <div className={cn(
+            'px-3 py-1.5 rounded-md mb-2 text-sm font-semibold',
+            isToday(day)
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground'
+          )}>
+            {format(day, "EEEE d 'de' MMMM", { locale: es })}
+          </div>
+
+          <div className="space-y-2">
+            {visitasDelDia.map(v => {
+              const pal = palUsers.find(u => u.id === v.pal_id)
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => handleVisitaClick(v)}
+                  className={cn(
+                    'w-full text-left rounded-lg border p-3 text-xs transition-opacity hover:opacity-80',
+                    ESTADO_COLORS[v.estado] || 'bg-gray-50 border-gray-200'
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    {v.fotos_evidencia && v.fotos_evidencia.length > 0 ? (
+                      <img
+                        src={v.fotos_evidencia[0].url_storage}
+                        alt="Evidencia"
+                        className="w-12 h-12 object-cover rounded shrink-0"
+                      />
+                    ) : null}
+
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1 font-semibold truncate">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] opacity-75 shrink-0">
+                          <Clock className="h-2.5 w-2.5" />
+                          {format(new Date(v.fecha_visita), 'HH:mm')}
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-muted-foreground font-medium">
+                        {pal?.nombre_completo ?? '—'}
+                      </p>
+
+                      {v.estado === 'asistio' && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className={cn(
+                            'text-[10px] px-1 py-0.5 rounded border font-medium',
+                            v.validacion_gps
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-red-50 text-red-700 border-red-200'
+                          )}>
+                            {v.validacion_gps ? 'En rango' : 'Muy lejos'}
+                          </span>
+                          <span className={cn(
+                            'text-[10px] px-1 py-0.5 rounded border font-medium',
+                            v.latitud_registro != null
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-red-50 text-red-700 border-red-200'
+                          )}>
+                            GPS {v.latitud_registro != null ? 'registrado' : 'sin registro'}
+                          </span>
+                          {v.distancia_metros != null && (
+                            <span className="text-[10px] px-1 py-0.5 rounded border font-medium bg-muted text-muted-foreground border-muted-foreground/20">
+                              {v.distancia_metros}m
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
   return (
     <div className="space-y-4">
       <div>
@@ -324,8 +428,8 @@ export default function AdminAgendaPage() {
         </Button>
       </div>
 
-      {/* Tabla */}
-      <Card>
+      {/* Desktop */}
+      <Card className="hidden lg:block py-0">
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -337,12 +441,11 @@ export default function AdminAgendaPage() {
               No se encontraron usuarios
             </div>
           ) : (
-            // Wrapper con scroll horizontal en móvil
-            <div 
-                  ref={scrollRef}
-                  className="overflow-x-auto rounded-lg cursor-grab active:cursor-grabbing select-none"
-                  onMouseDown={handleMouseDown}
-                >
+            <div
+              ref={scrollRef}
+              className="overflow-x-auto rounded-lg cursor-grab active:cursor-grabbing select-none"
+              onMouseDown={handleMouseDown}
+            >
               <table className="w-full border-collapse" style={{ minWidth: `${160 + currentWeekDays.length * 140}px` }}>
                 <thead>
                   <tr className="border-b">
@@ -501,6 +604,18 @@ export default function AdminAgendaPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Móvil */}
+      <div className="lg:hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">Cargando visitas...</span>
+          </div>
+        ) : (
+          <VistaMovil />
+        )}
+      </div>
 
       {/* Leyenda */}
       <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">

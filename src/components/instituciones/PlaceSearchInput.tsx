@@ -90,7 +90,7 @@ export function PlaceSearchInput({ onPlaceSelect }: PlaceSearchInputProps) {
     placesService.current.getDetails(
       {
         placeId: suggestion.place_id,
-        fields: ['name', 'formatted_address', 'geometry', 'place_id', 'photos'],
+        fields: ['name', 'formatted_address', 'geometry', 'place_id', 'photos', 'address_components'],
       },
       (place, status) => {
         if (status === google.maps.places.PlacesServiceStatus.OK && place) {
