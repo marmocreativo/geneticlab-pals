@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Lock, Mail, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Lock, Mail, Eye, EyeOff, Fingerprint } from 'lucide-react'
+import { useWebAuthn } from '@/hooks/useWebAuthn'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -14,9 +15,15 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  
+  const [biometricAvailable, setBiometricAvailable] = useState(false)
+
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const { loginWithBiometric, isSupported, loading: biometricLoading, error: biometricError } = useWebAuthn()
+
+  useEffect(() => {
+    setBiometricAvailable(isSupported())
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,13 +40,24 @@ export default function Login() {
     }
   }
 
+  const handleBiometricLogin = async () => {
+    if (!email) {
+      setError('Ingresa tu correo electrónico primero')
+      return
+    }
+    setError('')
+    const success = await loginWithBiometric(email)
+    if (success) navigate('/')
+    else setError(biometricError || 'Error al autenticar con biométrico')
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-primary/20 p-4">
-      <Card className="w-full max-w-md ">
+      <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-3">
-          <img src="/logo.svg" alt="Aliado Presente Logo" className="h-32 w-auto" />
-        </div>
+            <img src="/logo.svg" alt="Aliado Presente Logo" className="h-32 w-auto" />
+          </div>
           <CardTitle className="text-xl font-bold">Acceso a usuarios</CardTitle>
           <CardDescription>
             Ingresa tus credenciales para acceder
@@ -52,7 +70,7 @@ export default function Login() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
               <div className="relative">
@@ -65,7 +83,7 @@ export default function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
-                  disabled={loading}
+                  disabled={loading || biometricLoading}
                 />
               </div>
             </div>
@@ -82,7 +100,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10"
                   required
-                  disabled={loading}
+                  disabled={loading || biometricLoading}
                 />
                 <button
                   type="button"
@@ -98,7 +116,7 @@ export default function Login() {
             <Button
               type="submit"
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              disabled={loading}
+              disabled={loading || biometricLoading}
             >
               {loading ? (
                 <>
@@ -109,6 +127,34 @@ export default function Login() {
                 'Iniciar sesión'
               )}
             </Button>
+
+            {biometricAvailable && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">o</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleBiometricLogin}
+                  disabled={biometricLoading || loading}
+                >
+                  {biometricLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Fingerprint className="mr-2 h-4 w-4" />
+                  )}
+                  Iniciar sesión con huella
+                </Button>
+              </>
+            )}
           </form>
         </CardContent>
       </Card>
