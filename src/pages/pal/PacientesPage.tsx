@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import FichaForm from '@/components/pacientes/FichaForm'
 import {
   ChevronLeft, ChevronRight, Check, X, Calendar,
-  Pencil, Plus, Stethoscope, Building, Star
+  Pencil, Plus, Stethoscope, Building, Star, UserX
 } from 'lucide-react'
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
@@ -48,6 +48,16 @@ interface EditFormState {
   numero_pm: string
   status: 'en_tx' | 'fuera_tx'
   periodicidad: PeriodicidadFicha | ''
+}
+
+interface PacientePreseleccionado {
+  id: string
+  nombre: string
+  apellido_pat?: string | null
+  apellido_mat?: string | null
+  telefono?: string | null
+  fecha_nacimiento?: string | null
+  institucion_id?: string | null
 }
 
 function IconoFecha({ estado }: { estado?: string }) {
@@ -113,8 +123,17 @@ export default function PacientesPage() {
 
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('all')
   const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
+  const [filtroEstadoRep, setFiltroEstadoRep] = useState<string>('all')
+  const [filtroStatus, setFiltroStatus] = useState<string>('all')
+  const [busquedaPaciente, setBusquedaPaciente] = useState('')
   const [pagina, setPagina] = useState(1)
 
+  // Pacientes sin ficha
+  const [pacientesSinFicha, setPacientesSinFicha] = useState<Contacto[]>([])
+  const [pacienteSeleccionado, setPacienteSeleccionado] = useState<PacientePreseleccionado | null>(null)
+  const [openFichaForm, setOpenFichaForm] = useState(false)
+
+  // Dialog edición
   const [editingFicha, setEditingFicha] = useState<FichaPaciente | null>(null)
   const [editForm, setEditForm] = useState<EditFormState>({
     doctor_id: '',
@@ -141,6 +160,22 @@ export default function PacientesPage() {
     pal_id: user?.id || ''
   })
 
+  // Cargar pacientes sin ficha cuando las fichas estén listas
+  useEffect(() => {
+    if (!user?.id || loading) return
+    contactosService.getPacientesByUser(user.id).then(pacientes => {
+      const idsConFicha = new Set(fichas.map(f => f.paciente_id))
+      setPacientesSinFicha(pacientes.filter(p => !idsConFicha.has(p.id)))
+    }).catch(() => setPacientesSinFicha([]))
+  }, [fichas, user?.id, loading])
+
+  const estadosRepublica = useMemo(() => {
+    const estados = instituciones
+      .map(i => i.estado)
+      .filter((e): e is string => !!e)
+    return [...new Set(estados)].sort()
+  }, [instituciones])
+
   // Fichas filtradas y ordenadas
   const fichasFiltradas = useMemo(() => {
     let result = [...fichas]
@@ -149,7 +184,28 @@ export default function PacientesPage() {
       result = result.filter(f => f.institucion_id === selectedInstitucion)
     }
 
-    // Ordenar por fecha_inicio_tratamiento descendente
+    if (filtroEstadoRep !== 'all') {
+      const idsInstitucion = new Set(
+        instituciones.filter(i => i.estado === filtroEstadoRep).map(i => i.id)
+      )
+      result = result.filter(f => idsInstitucion.has(f.institucion_id))
+    }
+
+    if (filtroStatus !== 'all') {
+      result = result.filter(f => f.status === filtroStatus)
+    }
+
+    if (busquedaPaciente.trim()) {
+      const texto = busquedaPaciente.trim().toLowerCase()
+      result = result.filter(f => {
+        const p = f.paciente
+        if (!p) return false
+        const nombre = [p.nombre, p.apellido_pat, p.apellido_mat]
+          .filter(Boolean).join(' ').toLowerCase()
+        return nombre.includes(texto)
+      })
+    }
+
     result.sort((a, b) => {
       const fechaA = a.fecha_inicio_tratamiento ?? ''
       const fechaB = b.fecha_inicio_tratamiento ?? ''
@@ -157,15 +213,23 @@ export default function PacientesPage() {
     })
 
     return result
-  }, [fichas, selectedInstitucion])
+  }, [fichas, selectedInstitucion, filtroEstadoRep, filtroStatus, busquedaPaciente, instituciones])
 
-  // Paginación
   const totalPaginas = Math.ceil(fichasFiltradas.length / PAGE_SIZE)
   const fichasPagina = fichasFiltradas.slice((pagina - 1) * PAGE_SIZE, pagina * PAGE_SIZE)
 
-  // Reset pagina al cambiar filtro
   const handleInstitucionChange = (val: string) => {
     setSelectedInstitucion(val)
+    setPagina(1)
+  }
+
+  const handleEstadoRepChange = (val: string) => {
+    setFiltroEstadoRep(val)
+    setPagina(1)
+  }
+
+  const handleStatusChange = (val: string) => {
+    setFiltroStatus(val)
     setPagina(1)
   }
 
@@ -284,6 +348,19 @@ export default function PacientesPage() {
     }
   }
 
+  const handleAbrirFichaParaPaciente = (paciente: Contacto) => {
+    setPacienteSeleccionado({
+      id: paciente.id,
+      nombre: paciente.nombre,
+      apellido_pat: paciente.apellido_pat,
+      apellido_mat: paciente.apellido_mat,
+      telefono: paciente.telefono,
+      fecha_nacimiento: paciente.fecha_nacimiento,
+      institucion_id: paciente.institucion_id,
+    })
+    setOpenFichaForm(true)
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
 
@@ -303,48 +380,79 @@ export default function PacientesPage() {
       </div>
 
       {/* Filtro institución */}
-      <div className="flex flex-col md:flex-row gap-3">
-        <Select value={selectedInstitucion} onValueChange={handleInstitucionChange}>
-          <SelectTrigger className="w-full md:w-64">
-            <SelectValue placeholder="Todas las instituciones" />
-          </SelectTrigger>
-          <SelectContent className="max-h-64 overflow-y-auto">
-            <div className="p-2 border-b">
-              <Input
-                placeholder="Buscar institución..."
-                value={busquedaInstitucion}
-                onChange={e => setBusquedaInstitucion(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
-            <SelectItem value="all">Todas las instituciones</SelectItem>
-            {institucionesFiltradas.map((inst) => (
-              <SelectItem key={inst.id} value={inst.id}>
-                <div className="flex items-start gap-2">
-                  <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm flex items-center gap-1 truncate max-w-[200px]">
-                      {(inst.visitas_count ?? 0) > promedioVisitas && (
-                        <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
-                      )}
-                      {inst.nombre}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                      {inst.direccion}
+      <div className="flex flex-col gap-3">
+        <Input
+          placeholder="Buscar paciente por nombre..."
+          value={busquedaPaciente}
+          onChange={e => { setBusquedaPaciente(e.target.value); setPagina(1) }}
+          className="w-full md:w-80"
+        />
+        <div className="flex flex-col md:flex-row gap-3">
+          <Select value={selectedInstitucion} onValueChange={handleInstitucionChange}>
+            <SelectTrigger className="w-full md:w-64">
+              <SelectValue placeholder="Todas las instituciones" />
+            </SelectTrigger>
+            <SelectContent className="max-h-64 overflow-y-auto">
+              <div className="p-2 border-b">
+                <Input
+                  placeholder="Buscar institución..."
+                  value={busquedaInstitucion}
+                  onChange={e => setBusquedaInstitucion(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <SelectItem value="all">Todas las instituciones</SelectItem>
+              {institucionesFiltradas.map((inst) => (
+                <SelectItem key={inst.id} value={inst.id}>
+                  <div className="flex items-start gap-2">
+                    <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm flex items-center gap-1 truncate max-w-[200px]">
+                        {(inst.visitas_count ?? 0) > promedioVisitas && (
+                          <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
+                        )}
+                        {inst.nombre}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {inst.direccion}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filtroEstadoRep} onValueChange={handleEstadoRepChange}>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder="Estado de la república" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              {estadosRepublica.map(estado => (
+                <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filtroStatus} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-full md:w-40">
+              <SelectValue placeholder="Status tratamiento" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="en_tx">En Tx</SelectItem>
+              <SelectItem value="fuera_tx">Fuera Tx</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Total pacientes</p>
+            <p className="text-xs text-muted-foreground">Total fichas</p>
             <p className="text-3xl font-bold">{stats.total}</p>
           </CardContent>
         </Card>
@@ -352,6 +460,12 @@ export default function PacientesPage() {
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">En Tratamiento</p>
             <p className="text-3xl font-bold">{stats.enTratamiento}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-xs text-muted-foreground">Sin ficha</p>
+            <p className="text-3xl font-bold">{pacientesSinFicha.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -378,7 +492,6 @@ export default function PacientesPage() {
               <Card key={ficha.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4 space-y-3">
 
-                  {/* Fila superior: folio + status */}
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] text-muted-foreground font-mono">
                       Folio: {ficha.numero_pm}
@@ -391,12 +504,10 @@ export default function PacientesPage() {
                     </Badge>
                   </div>
 
-                  {/* Nombre paciente */}
                   <p className="font-semibold text-base leading-tight">
                     {formatearNombre(ficha.paciente)}
                   </p>
 
-                  {/* Médico */}
                   {ficha.doctor && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Stethoscope className="h-3 w-3 flex-shrink-0" />
@@ -404,13 +515,11 @@ export default function PacientesPage() {
                     </div>
                   )}
 
-                  {/* Institución */}
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Building className="h-3 w-3 flex-shrink-0" />
                     <span className="max-w-[180px] truncate">{ficha.institucion?.nombre}</span>
                   </div>
 
-                  {/* Fecha inicio */}
                   {ficha.fecha_inicio_tratamiento && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Calendar className="h-3 w-3 flex-shrink-0" />
@@ -420,10 +529,8 @@ export default function PacientesPage() {
                     </div>
                   )}
 
-                  {/* Mini tabla de fechas */}
                   <TablaDates ficha={ficha} />
 
-                  {/* Botones */}
                   <div className="flex gap-2 pt-1">
                     <Button
                       variant="outline"
@@ -449,7 +556,6 @@ export default function PacientesPage() {
             ))}
           </div>
 
-          {/* Paginación */}
           {totalPaginas > 1 && (
             <div className="flex items-center justify-between pt-2">
               <Button
@@ -477,6 +583,60 @@ export default function PacientesPage() {
           )}
         </>
       )}
+
+      {/* Pacientes sin ficha */}
+      {pacientesSinFicha.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <UserX className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">Sin ficha de tratamiento</h2>
+            <Badge variant="outline">{pacientesSinFicha.length}</Badge>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {pacientesSinFicha.map(paciente => (
+              <Card key={paciente.id} className="border-dashed">
+                <CardContent className="p-4 space-y-2">
+                  <p className="font-semibold text-base leading-tight">
+                    {formatearNombre(paciente)}
+                  </p>
+                  {paciente.telefono && (
+                    <p className="text-xs text-muted-foreground">{paciente.telefono}</p>
+                  )}
+                  {paciente.institucion && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Building className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{paciente.institucion.nombre}</span>
+                    </div>
+                  )}
+                  <Button
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => handleAbrirFichaParaPaciente(paciente)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Crear ficha
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* FichaForm controlado externamente para pacientes sin ficha */}
+      <FichaForm
+        onSuccess={() => {
+          fetchFichas()
+          setOpenFichaForm(false)
+          setPacienteSeleccionado(null)
+        }}
+        pacientePreseleccionado={pacienteSeleccionado ?? undefined}
+        externalOpen={openFichaForm}
+        onExternalOpenChange={(v) => {
+          setOpenFichaForm(v)
+          if (!v) setPacienteSeleccionado(null)
+        }}
+      />
 
       {/* Dialog de edición */}
       <Dialog open={!!editingFicha} onOpenChange={(open) => { if (!open) handleCloseEdit() }}>

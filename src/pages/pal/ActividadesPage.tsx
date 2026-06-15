@@ -493,64 +493,39 @@ export default function ActividadesPage() {
                     className="w-full"
                     onClick={() => toggleExpand(actividad.id)}
                   >
-                    <CardContent className="p-4 py-0">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1 text-left space-y-2">
-                          {/* 1. DESCRIPCIÓN - Más importante */}
-                          <div>
-                            <h3 className="font-semibold text-base leading-tight">
-                              {actividad.descripcion_actividad || 'Actividad sin descripción'}
-                            </h3>
-                          </div>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1 text-left space-y-1">
 
-                          {/* 2. FECHA Y HORA - Segunda importancia (misma fila) */}
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
+                          {/* Institución y fecha — primera línea */}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Building2 className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{actividad.institucion?.nombre || 'Sin institución'}</span>
+                            <span className="shrink-0">·</span>
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            <span className="shrink-0">
                               {format(new Date(actividad.fecha_actividad + 'T00:00:00'), 'd MMM yyyy', { locale: es })}
-                            </div>
-                            {actividad.hora_actividad && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {actividad.hora_actividad.slice(0, 5)}
-                              </div>
-                            )}
-                            <Badge 
-                              variant={actividad.tipo_actividad === 'presencial' ? 'default' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {actividad.tipo_actividad === 'presencial' ? 'Presencial' : 'Telefónica'}
-                            </Badge>
+                            </span>
                           </div>
 
-                          {/* 3. INSTITUCIÓN - Fila separada */}
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate max-w-[200px]">{actividad.institucion?.nombre || 'Sin institución'}</span>
-                          </div>
+                          {/* Descripción — protagonista */}
+                          <p className="text-sm font-medium leading-snug">
+                            {actividad.descripcion_actividad || 'Sin descripción'}
+                          </p>
 
-                          {/* 4. CONTACTO - Tercera importancia */}
-                          {actividad.contacto && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <User className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                {formatearNombreContacto(actividad.contacto)}
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
-                              </Badge>
-                            </div>
+                          {/* Temas impartidos — completos */}
+                          {actividad.temas_impartidos && (
+                            <p className="text-xs text-muted-foreground">
+                              {actividad.temas_impartidos}
+                            </p>
                           )}
+
                         </div>
 
-                        {/* Icono de expansión */}
-                        <div className="flex-shrink-0">
-                          {expandedItems.has(actividad.id) ? (
-                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
+                        {expandedItems.has(actividad.id)
+                          ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                          : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                        }
                       </div>
                     </CardContent>
                   </CollapsibleTrigger>

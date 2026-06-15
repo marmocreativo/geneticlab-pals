@@ -107,7 +107,9 @@ export default function ReportesPage() {
           pal:users(nombre_completo),
           contacto:contactos(nombre, apellido_pat, apellido_mat, tipo_contacto),
           entrega_sobres:catalogos!actividades_entrega_sobres_id_fkey(nombre),
-          entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(nombre)
+          entrega_kit_rash:catalogos!actividades_entrega_kit_rash_id_fkey(nombre),
+          institucion:instituciones(nombre),
+          created_at
         `)
         .gte('fecha_actividad', fechaInicio)
         .lte('fecha_actividad', fechaFin)
@@ -122,6 +124,7 @@ export default function ReportesPage() {
       const datos = data.map((a: any) => ({
         'ID': a.id,
         'PAL': a.pal?.nombre_completo || 'N/A',
+        'Institución': a.institucion?.nombre || 'N/A',
         'Contacto': a.contacto
           ? [a.contacto.nombre, a.contacto.apellido_pat, a.contacto.apellido_mat].filter(Boolean).join(' ')
           : 'N/A',
@@ -133,6 +136,7 @@ export default function ReportesPage() {
         'Notas': a.notas || '',
         'Fecha Actividad': a.fecha_actividad,
         'Hora Actividad': a.hora_actividad || '',
+        'Fecha Registro': format(new Date(a.created_at), 'dd/MM/yyyy HH:mm'),
       }))
 
       descargarExcel([{ nombre: 'Actividades', datos }], 'reporte_actividades')
@@ -266,17 +270,71 @@ export default function ReportesPage() {
     }
   }
 
+  const generateInstitucionesReport = async () => {
+    try {
+      setLoading(true)
+
+      const { data, error } = await supabase
+        .from('instituciones')
+        .select(`
+          id,
+          nombre,
+          direccion,
+          ciudad,
+          estado,
+          visitas(
+            fecha_visita,
+            pal:users(nombre_completo)
+          )
+        `)
+        .order('nombre')
+
+      if (error) throw error
+      if (!data?.length) {
+        toast.warning('No hay instituciones registradas')
+        return
+      }
+
+      const datos = data.map((inst: any) => {
+        const visitasOrdenadas = (inst.visitas || [])
+          .sort((a: any, b: any) => new Date(b.fecha_visita).getTime() - new Date(a.fecha_visita).getTime())
+        const ultimaVisita = visitasOrdenadas[0]
+
+        return {
+          'Institución': inst.nombre,
+          'Dirección': inst.direccion || '',
+          'Ciudad': inst.ciudad || '',
+          'Estado': inst.estado || '',
+          'PAL Asignado': ultimaVisita?.pal?.nombre_completo || 'Sin visitas',
+          'Última Visita': ultimaVisita?.fecha_visita
+            ? format(new Date(ultimaVisita.fecha_visita), 'dd/MM/yyyy')
+            : '',
+          'Total Visitas': inst.visitas?.length || 0,
+        }
+      })
+
+      descargarExcel([{ nombre: 'Instituciones', datos }], 'reporte_instituciones')
+      toast.success('Reporte de instituciones descargado')
+    } catch (err) {
+      console.error(err)
+      toast.error('Error al generar el reporte')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDownload = () => {
     switch (tipoReporte) {
       case 'visitas': generateVisitasReport(); break
       case 'actividades': generateActividadesReport(); break
       case 'contactos': generateContactosReport(); break
       case 'pacientes': generateFichasReport(); break
+      case 'instituciones': generateInstitucionesReport(); break
       default: toast.error('Selecciona un tipo de reporte válido')
     }
   }
 
-  const mostrarFiltroFecha = tipoReporte !== 'contactos'
+  const mostrarFiltroFecha = tipoReporte !== 'contactos' && tipoReporte !== 'instituciones'
 
   return (
     <div className="space-y-6">
@@ -341,6 +399,7 @@ export default function ReportesPage() {
                   <SelectItem value="actividades">Actividades Realizadas</SelectItem>
                   <SelectItem value="contactos">Base de Contactos</SelectItem>
                   <SelectItem value="pacientes">Fichas de Pacientes</SelectItem>
+                  <SelectItem value="instituciones">Instituciones y PAL Asignado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -387,6 +446,7 @@ export default function ReportesPage() {
               {tipoReporte === 'actividades' && 'Exporta actividades del período con contacto, temas impartidos, entregas y notas.'}
               {tipoReporte === 'contactos' && 'Exporta la base completa de contactos sin filtro de fecha.'}
               {tipoReporte === 'pacientes' && 'Exporta fichas de pacientes con dos hojas: datos principales y fechas de tratamiento agrupadas por paciente.'}
+              {tipoReporte === 'instituciones' && 'Exporta todas las instituciones con el PAL asignado según su última visita registrada.'}
             </p>
           </div>
         </CardContent>

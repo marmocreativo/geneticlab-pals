@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check, Plus, Star, ChevronDown, ChevronUp } from 'lucide-react'
 import { format } from 'date-fns'
 import { ContactoQuickForm } from '@/components/contactos/ContactoQuickForm'
@@ -55,6 +56,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const { contactos, fetchContactos } = useContactos()
   const { catalogos } = useCatalogos()
   const { catalogos: sectores } = useCatalogos('sector')
+  const { catalogos: temasDisponibles } = useCatalogos('temas_impartidos')
 
   const [currentStep, setCurrentStep] = useState(1)
   const [step1Data, setStep1Data] = useState<Step1Data | null>(null)
@@ -170,7 +172,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
     const actividadData: ActividadInsert = {
       pal_id: user.id,
       institucion_id: step1Data.institucion_id,
-      fecha_actividad: step1Data.fecha_actividad,
+      fecha_actividad: format(new Date(), 'yyyy-MM-dd'),
       hora_actividad: step1Data.hora_actividad || undefined,
       tipo_actividad: data.tipo_actividad,
       contacto_id: data.contacto_id || undefined,
@@ -451,10 +453,10 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                         <FormItem>
                           <FormLabel className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
-                            Fecha
+                            Fecha (No editable)
                           </FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input type="date" {...field} readOnly className="bg-muted cursor-not-allowed" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -600,15 +602,50 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                 <FormField
                   control={step2Form.control}
                   name="temas_impartidos"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Temas Impartidos</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Lista los temas educativos compartidos..." className="resize-none" rows={3} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const seleccionados: string[] = field.value
+                      ? field.value.split(',').map(t => t.trim()).filter(Boolean)
+                      : []
+
+                    const toggleTema = (nombre: string) => {
+                      const nuevos = seleccionados.includes(nombre)
+                        ? seleccionados.filter(t => t !== nombre)
+                        : [...seleccionados, nombre]
+                      field.onChange(nuevos.join(', '))
+                    }
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Temas Impartidos</FormLabel>
+                        <div className="border rounded-md overflow-y-auto" style={{ maxHeight: '180px' }}>
+                          {temasDisponibles.length === 0 ? (
+                            <p className="p-3 text-sm text-muted-foreground text-center">
+                              No hay temas disponibles
+                            </p>
+                          ) : (
+                            temasDisponibles.map(tema => (
+                              <label
+                                key={tema.id}
+                                className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-0"
+                              >
+                                <Checkbox
+                                  checked={seleccionados.includes(tema.nombre)}
+                                  onCheckedChange={() => toggleTema(tema.nombre)}
+                                />
+                                <span className="text-sm">{tema.nombre}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                        {seleccionados.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Seleccionados: {field.value}
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
                 />
               </div>
 

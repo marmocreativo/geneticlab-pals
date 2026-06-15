@@ -19,7 +19,7 @@ import {
   Navigation,
   Camera,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -54,6 +54,7 @@ export default function AdminAgendaPage() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear())
   const [userSearch, setUserSearch] = useState('')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [searchParams] = useSearchParams()
   const [visitas, setVisitas] = useState<Visita[]>([])
   const [loading, setLoading] = useState(false)
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0)
@@ -110,6 +111,17 @@ export default function AdminAgendaPage() {
   }, [monthDays])
 
   const currentWeekDays = weeks[currentWeekIndex] || []
+
+  useEffect(() => {
+    const palId = searchParams.get('pal')
+    if (palId && palUsers.length > 0) {
+      const pal = palUsers.find(u => u.id === palId)
+      if (pal) {
+        setSelectedUserId(pal.id)
+        setUserSearch(pal.nombre_completo)
+      }
+    }
+  }, [palUsers])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -184,6 +196,8 @@ export default function AdminAgendaPage() {
   }
 
   const VistaMovil = () => {
+    const hoyStr = format(new Date(), 'yyyy-MM-dd')
+  const [diaAbierto, setDiaAbierto] = useState<string>(hoyStr)
   const visitasSemana = currentWeekDays.map(day => {
     const dayStr = format(day, 'yyyy-MM-dd')
     const visitasDelDia = visitas
@@ -201,88 +215,110 @@ export default function AdminAgendaPage() {
   }
 
   return (
-    <div className="space-y-4">
-      {visitasSemana.map(({ day, visitasDelDia }) => (
-        <div key={day.toISOString()}>
-          <div className={cn(
-            'px-3 py-1.5 rounded-md mb-2 text-sm font-semibold',
-            isToday(day)
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground'
-          )}>
-            {format(day, "EEEE d 'de' MMMM", { locale: es })}
+    <div className="space-y-2">
+      {currentWeekDays.map((day) => {
+        const dayStr = format(day, 'yyyy-MM-dd')
+        const visitasDelDia = visitas
+          .filter(v => {
+            const matchDia = format(new Date(v.fecha_visita), 'yyyy-MM-dd') === dayStr
+            const matchPal = selectedUserId ? v.pal_id === selectedUserId : true
+            return matchDia && matchPal
+          })
+          .sort((a, b) => new Date(a.fecha_visita).getTime() - new Date(b.fecha_visita).getTime())
+
+        const estaAbierto = diaAbierto === dayStr
+
+        return (
+          <div key={dayStr} className="border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setDiaAbierto(estaAbierto ? '' : dayStr)}
+              className={cn(
+                'w-full flex items-center justify-between px-3 py-2 text-sm font-semibold',
+                isToday(day)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              <span>{format(day, "EEEE d 'de' MMMM", { locale: es })}</span>
+              <div className="flex items-center gap-2">
+                {visitasDelDia.length > 0 && (
+                  <span className={cn(
+                    'text-xs px-1.5 py-0.5 rounded-full font-medium',
+                    isToday(day) ? 'bg-white/20 text-white' : 'bg-background text-foreground'
+                  )}>
+                    {visitasDelDia.length}
+                  </span>
+                )}
+                <ChevronRight className={cn('h-4 w-4 transition-transform', estaAbierto && 'rotate-90')} />
+              </div>
+            </button>
+
+            {estaAbierto && (
+              <div className="p-2 space-y-2">
+                {visitasDelDia.length === 0 ? (
+                  <p className="text-center text-xs text-muted-foreground py-4">Sin visitas</p>
+                ) : (
+                  visitasDelDia.map(v => {
+                    const pal = palUsers.find(u => u.id === v.pal_id)
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => handleVisitaClick(v)}
+                        className={cn(
+                          'w-full text-left rounded-lg border p-3 text-xs transition-opacity hover:opacity-80',
+                          ESTADO_COLORS[v.estado] || 'bg-gray-50 border-gray-200'
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          {v.fotos_evidencia && v.fotos_evidencia.length > 0 ? (
+                            <img
+                              src={v.fotos_evidencia[0].url_storage}
+                              alt="Evidencia"
+                              className="w-12 h-12 object-cover rounded shrink-0"
+                            />
+                          ) : null}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1 font-semibold truncate">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] opacity-75 shrink-0">
+                                <Clock className="h-2.5 w-2.5" />
+                                {format(new Date(v.fecha_visita), 'HH:mm')}
+                              </div>
+                            </div>
+                            {!selectedUserId && (
+                              <p className="text-[10px] text-muted-foreground font-medium">
+                                {pal?.nombre_completo ?? '—'}
+                              </p>
+                            )}
+                            {v.estado === 'asistio' && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                <span className={cn(
+                                  'text-[10px] px-1 py-0.5 rounded border font-medium',
+                                  v.validacion_gps ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+                                )}>
+                                  {v.validacion_gps ? 'En rango' : 'Muy lejos'}
+                                </span>
+                                {v.distancia_metros != null && (
+                                  <span className="text-[10px] px-1 py-0.5 rounded border font-medium bg-muted text-muted-foreground border-muted-foreground/20">
+                                    {v.distancia_metros}m
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            )}
           </div>
-
-          <div className="space-y-2">
-            {visitasDelDia.map(v => {
-              const pal = palUsers.find(u => u.id === v.pal_id)
-              return (
-                <button
-                  key={v.id}
-                  onClick={() => handleVisitaClick(v)}
-                  className={cn(
-                    'w-full text-left rounded-lg border p-3 text-xs transition-opacity hover:opacity-80',
-                    ESTADO_COLORS[v.estado] || 'bg-gray-50 border-gray-200'
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    {v.fotos_evidencia && v.fotos_evidencia.length > 0 ? (
-                      <img
-                        src={v.fotos_evidencia[0].url_storage}
-                        alt="Evidencia"
-                        className="w-12 h-12 object-cover rounded shrink-0"
-                      />
-                    ) : null}
-
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1 font-semibold truncate">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[10px] opacity-75 shrink-0">
-                          <Clock className="h-2.5 w-2.5" />
-                          {format(new Date(v.fecha_visita), 'HH:mm')}
-                        </div>
-                      </div>
-
-                      <p className="text-[10px] text-muted-foreground font-medium">
-                        {pal?.nombre_completo ?? '—'}
-                      </p>
-
-                      {v.estado === 'asistio' && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          <span className={cn(
-                            'text-[10px] px-1 py-0.5 rounded border font-medium',
-                            v.validacion_gps
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : 'bg-red-50 text-red-700 border-red-200'
-                          )}>
-                            {v.validacion_gps ? 'En rango' : 'Muy lejos'}
-                          </span>
-                          <span className={cn(
-                            'text-[10px] px-1 py-0.5 rounded border font-medium',
-                            v.latitud_registro != null
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : 'bg-red-50 text-red-700 border-red-200'
-                          )}>
-                            GPS {v.latitud_registro != null ? 'registrado' : 'sin registro'}
-                          </span>
-                          {v.distancia_metros != null && (
-                            <span className="text-[10px] px-1 py-0.5 rounded border font-medium bg-muted text-muted-foreground border-muted-foreground/20">
-                              {v.distancia_metros}m
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -334,41 +370,30 @@ export default function AdminAgendaPage() {
             </div>
 
             <div className="flex-1 flex gap-2">
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar PAL..."
-                  value={userSearch}
-                  onChange={(e) => {
-                    setUserSearch(e.target.value)
-                    setSelectedUserId(null)
-                  }}
-                  className="pl-9"
-                />
-                {(userSearch || selectedUserId) && (
-                  <button onClick={clearUserFilter} className="absolute right-2.5 top-2.5">
-                    <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                  </button>
-                )}
-
-                {userSearch && !selectedUserId && filteredUsers.length > 0 && (
-                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {filteredUsers.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() => {
-                          setSelectedUserId(u.id)
-                          setUserSearch(u.nombre_completo)
-                        }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                      >
-                        {u.nombre_completo}
-                        <span className="text-muted-foreground ml-2 text-xs">{u.email}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <Select
+                value={selectedUserId ?? 'todos'}
+                onValueChange={(v) => {
+                  if (v === 'todos') {
+                    clearUserFilter()
+                  } else {
+                    const pal = palUsers.find(u => u.id === v)
+                    setSelectedUserId(v)
+                    setUserSearch(pal?.nombre_completo ?? '')
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Todos los PALs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los PALs</SelectItem>
+                  {palUsers.map(u => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.nombre_completo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -398,7 +423,7 @@ export default function AdminAgendaPage() {
         </Button>
 
         <span className="text-sm font-medium">
-          Semana {currentWeekIndex + 1} de {weeks.length}
+          Semana {currentWeekIndex + 1} de {weeks.length}<br/>
           {currentWeekDays.length > 0 && (
             <span className="text-muted-foreground ml-2">
               ({format(currentWeekDays[0], 'd MMM', { locale: es })} —{' '}

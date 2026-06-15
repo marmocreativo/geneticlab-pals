@@ -19,8 +19,21 @@ import type { ContactoInsert, Contacto } from '@/types/contacto'
 import type { PeriodicidadFicha } from '@/types/database.types'
 import { cn } from '@/lib/utils'
 
+interface PacientePreseleccionado {
+  id: string
+  nombre: string
+  apellido_pat?: string | null
+  apellido_mat?: string | null
+  telefono?: string | null
+  fecha_nacimiento?: string | null
+  institucion_id?: string | null
+}
+
 interface FichaFormProps {
   onSuccess?: () => void
+  pacientePreseleccionado?: PacientePreseleccionado
+  externalOpen?: boolean
+  onExternalOpenChange?: (open: boolean) => void
 }
 
 type Step = 'institucion' | 'paciente' | 'medico' | 'ficha'
@@ -32,7 +45,12 @@ const PERIODICIDAD_OPTIONS: { value: PeriodicidadFicha; label: string }[] = [
   { value: 'cada_4_semanas', label: 'Cada 4 semanas' },
 ]
 
-export default function FichaForm({ onSuccess }: FichaFormProps) {
+export default function FichaForm({
+  onSuccess,
+  pacientePreseleccionado,
+  externalOpen,
+  onExternalOpenChange,
+}: FichaFormProps) {
   const { user } = useAuth()
   const { instituciones } = useInstituciones()
   const { createContacto } = useContactos()
@@ -44,26 +62,21 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<Step>('institucion')
+
   const busquedaInstitucionRef = useRef('')
   const estadoFiltroRef = useRef('')
   const ciudadFiltroRef = useRef('')
   const sectorFiltroRef = useRef('')
+
   const [institucionOpen, setInstitucionOpen] = useState(false)
-  const [busquedaActiva, setBusquedaActiva] = useState<{
-    nombre: string
-    estado: string
-    ciudad: string
-    sector: string
-  }>({ nombre: '', estado: '', ciudad: '', sector: '' })
+  const [busquedaActiva, setBusquedaActiva] = useState({ nombre: '', estado: '', ciudad: '', sector: '' })
   const [mostrarAvanzada, setMostrarAvanzada] = useState(false)
 
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('')
   const [pacientesInstitucion, setPacientesInstitucion] = useState<Contacto[]>([])
   const [medicosInstitucion, setMedicosInstitucion] = useState<Contacto[]>([])
   const [loadingContactos, setLoadingContactos] = useState(false)
-  
 
-  // Paciente
   const [selectedPaciente, setSelectedPaciente] = useState<string>('')
   const [createNewPaciente, setCreateNewPaciente] = useState(false)
   const [openPacienteCombobox, setOpenPacienteCombobox] = useState(false)
@@ -77,7 +90,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     pal_id: user?.id || ''
   })
 
-  // Médico
   const [selectedMedico, setSelectedMedico] = useState<string>('')
   const [createNewMedico, setCreateNewMedico] = useState(false)
   const [openMedicoCombobox, setOpenMedicoCombobox] = useState(false)
@@ -90,7 +102,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     pal_id: user?.id || ''
   })
 
-  // Ficha
   const [fichaData, setFichaData] = useState({
     diagnostico: '',
     terapia: '',
@@ -105,6 +116,35 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     dosis?: string
     fecha_inicio_tratamiento?: string
   }>({})
+
+  const submitRef = useRef(false)
+
+  // Control de apertura: externo o interno
+  const isOpen = externalOpen !== undefined ? externalOpen : open
+
+  // Cuando se abre con paciente preseleccionado, precargar datos y saltar pasos
+  useEffect(() => {
+    if (!isOpen) return
+    if (pacientePreseleccionado) {
+      if (pacientePreseleccionado.institucion_id) {
+        setSelectedInstitucion(pacientePreseleccionado.institucion_id)
+      }
+      setSelectedPaciente(pacientePreseleccionado.id)
+      setCreateNewPaciente(false)
+      setStep('medico')
+    } else {
+      setStep('institucion')
+    }
+  }, [isOpen])
+
+  const handleOpenChange = (v: boolean) => {
+    if (onExternalOpenChange) {
+      onExternalOpenChange(v)
+    } else {
+      setOpen(v)
+    }
+    if (!v) resetForm()
+  }
 
   const handleBuscar = () => {
     setBusquedaActiva({
@@ -180,9 +220,18 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     setInstitucionOpen(false)
     setBusquedaActiva({ nombre: '', estado: '', ciudad: '', sector: '' })
     setMostrarAvanzada(false)
-    setPacienteData({ tipo_contacto: 'paciente', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', fecha_nacimiento: '', pal_id: user?.id || '' })
-    setMedicoData({ tipo_contacto: 'medico', nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', pal_id: user?.id || '' })
-    setFichaData({ diagnostico: '', terapia: '', dosis: '', fecha_inicio_tratamiento: '', fecha_final_tratamiento: '', numero_pm: '', status: 'en_tx', periodicidad: '' })
+    setPacienteData({
+      tipo_contacto: 'paciente', nombre: '', apellido_pat: '', apellido_mat: '',
+      telefono: '', fecha_nacimiento: '', pal_id: user?.id || ''
+    })
+    setMedicoData({
+      tipo_contacto: 'medico', nombre: '', apellido_pat: '', apellido_mat: '',
+      telefono: '', pal_id: user?.id || ''
+    })
+    setFichaData({
+      diagnostico: '', terapia: '', dosis: '', fecha_inicio_tratamiento: '',
+      fecha_final_tratamiento: '', numero_pm: '', status: 'en_tx', periodicidad: ''
+    })
     setFichaErrors({})
   }
 
@@ -193,8 +242,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     setFichaErrors(errors)
     return Object.keys(errors).length === 0
   }
-
-  const submitRef = useRef(false)
 
   const handleSubmit = async () => {
     if (submitRef.current) return
@@ -235,8 +282,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
         periodicidad: fichaData.periodicidad || undefined,
       })
 
-      setOpen(false)
-      resetForm()
+      handleOpenChange(false)
       onSuccess?.()
     } catch {
       // el hook ya muestra el toast
@@ -250,8 +296,16 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
 
   const resumen = (
     <div className="text-sm text-muted-foreground space-y-1">
-      <p>Institución: <strong>{selectedInstitucionData?.nombre}</strong></p>
-      {(selectedPaciente || createNewPaciente) && (
+      {selectedInstitucionData && (
+        <p>Institución: <strong>{selectedInstitucionData.nombre}</strong></p>
+      )}
+      {pacientePreseleccionado && (
+        <p>Paciente: <strong>
+          {[pacientePreseleccionado.nombre, pacientePreseleccionado.apellido_pat, pacientePreseleccionado.apellido_mat]
+            .filter(Boolean).join(' ')}
+        </strong></p>
+      )}
+      {!pacientePreseleccionado && (selectedPaciente || createNewPaciente) && (
         <p>Paciente: <strong>
           {createNewPaciente
             ? `${pacienteData.nombre} ${pacienteData.apellido_pat || ''} ${pacienteData.apellido_mat || ''}`.trim()
@@ -274,15 +328,17 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
     medico: 'Seleccionar Médico',
     ficha: 'Datos de la Ficha',
   }
-
+  
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm() }}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Ficha
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {externalOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Ficha
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>{stepLabel[step]}</DialogTitle>
@@ -294,7 +350,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
             <div className="space-y-1">
               <Label>Institución <span className="text-destructive">*</span></Label>
 
-              {/* Trigger collapse */}
               <button
                 type="button"
                 onClick={() => setInstitucionOpen(v => !v)}
@@ -310,7 +365,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                   : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
               </button>
 
-              {/* Panel colapsable */}
               {institucionOpen && (
                 <div className="border rounded-md overflow-hidden bg-background w-full min-w-0 max-w-full">
                   <div className="p-2 space-y-2 border-b bg-muted/30">
@@ -403,7 +457,6 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                 </div>
               )}
 
-              {/* Institución seleccionada */}
               {selectedInstitucion && !institucionOpen && (() => {
                 const sel = instituciones.find(i => i.id === selectedInstitucion)
                 return sel ? (
@@ -662,7 +715,15 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
             </Card>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep('paciente')}>Atrás</Button>
+              <Button variant="outline" onClick={() => {
+                if (pacientePreseleccionado) {
+                  handleOpenChange(false)
+                } else {
+                  setStep('paciente')
+                }
+              }}>
+                Atrás
+              </Button>
               <Button onClick={() => setStep('ficha')}>
                 {selectedMedico || createNewMedico ? 'Continuar' : 'Omitir'}
               </Button>
@@ -722,9 +783,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                     value={fichaData.periodicidad || 'none'}
                     onValueChange={(v) => setFichaData(prev => ({ ...prev, periodicidad: v === 'none' ? '' : v as PeriodicidadFicha }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar..." />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Sin especificar</SelectItem>
                       {PERIODICIDAD_OPTIONS.map(o => (
@@ -742,9 +801,7 @@ export default function FichaForm({ onSuccess }: FichaFormProps) {
                     value={fichaData.status}
                     onValueChange={(v) => setFichaData(prev => ({ ...prev, status: v as 'en_tx' | 'fuera_tx' }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="en_tx">En Tx</SelectItem>
                       <SelectItem value="fuera_tx">Fuera Tx</SelectItem>

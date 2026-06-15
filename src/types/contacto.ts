@@ -1,6 +1,6 @@
 export interface Contacto {
   id: string
-  tipo_contacto: 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero' | 'kam'
+  tipo_contacto: 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero' | 'kam' | 'otro'
   relacion_con_paciente?: string
   nombre: string
   apellido_pat?: string
@@ -18,7 +18,7 @@ export interface Contacto {
 }
 
 export interface ContactoInsert {
-  tipo_contacto: 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero' | 'kam'
+  tipo_contacto: 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero' | 'kam' | 'otro'
   relacion_con_paciente?: string
   nombre: string
   apellido_pat?: string
@@ -30,7 +30,7 @@ export interface ContactoInsert {
 }
 
 export interface ContactoUpdate {
-  tipo_contacto?: 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero'| 'kam'
+  tipo_contacto?: 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero'| 'kam' | 'otro'
   relacion_con_paciente?: string
   nombre?: string
   apellido_pat?: string

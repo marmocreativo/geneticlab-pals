@@ -14,9 +14,12 @@ import {
 import { useUsers } from '@/hooks/useUsers'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  eachWeekOfInterval, endOfWeek, parseISO, differenceInDays
+  eachWeekOfInterval, endOfWeek, parseISO, differenceInDays,
+  startOfWeek,
+  addDays
 } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { Link } from 'react-router-dom'
 import { visitasService } from '@/services/visitasService'
 import { actividadesService } from '@/services/actividadesService'
 import type { Visita } from '@/types/visita'
@@ -32,18 +35,27 @@ export default function Dashboard() {
   const [actividades, setActividades] = useState<Actividad[]>([])
   const [loading, setLoading] = useState(true)
   const [lastFetch, setLastFetch] = useState<string | null>(null)
+  const [visitasSemana, setVisitasSemana] = useState<Visita[]>([])
+  const inicioSemana = startOfWeek(hoy, { weekStartsOn: 1 })
+  const finSemana = endOfWeek(hoy, { weekStartsOn: 1 })
+  const diasLaborales = eachDayOfInterval({ start: inicioSemana, end: addDays(inicioSemana, 4) })
 
   // Cargar datos cuando cambia el rango
   useEffect(() => {
     const cargar = async () => {
       try {
         setLoading(true)
-        const [v, a] = await Promise.all([
+        const [v, a, vs] = await Promise.all([
           visitasService.getVisitasByRangoFechas(fechaInicio, fechaFin),
-          actividadesService.getAllActividades(fechaInicio, fechaFin)
+          actividadesService.getAllActividades(fechaInicio, fechaFin),
+          visitasService.getVisitasByRangoFechas(
+            format(inicioSemana, 'yyyy-MM-dd'),
+            format(addDays(inicioSemana, 4), 'yyyy-MM-dd')
+          )
         ])
         setVisitas(v)
         setActividades(a)
+        setVisitasSemana(vs)
         setLastFetch(localStorage.getItem('app_last_fetch'))
       } catch (error) {
         console.error('Error loading dashboard:', error)
@@ -125,6 +137,19 @@ export default function Dashboard() {
     })
   }, [users, visitas, actividades])
 
+  const palsAgendaIncompleta = useMemo(() => {
+    const pals = users.filter(u => u.role === 'pal' && u.activo)
+    return pals.filter(pal => {
+      return diasLaborales.some(dia => {
+        const diaStr = format(dia, 'yyyy-MM-dd')
+        return !visitasSemana.some(v =>
+          v.pal_id === pal.id &&
+          format(parseISO(v.fecha_visita), 'yyyy-MM-dd') === diaStr
+        )
+      })
+    })
+  }, [users, visitasSemana, diasLaborales])
+
   // Fila 3 — Instituciones con más visitas
   const topInstituciones = useMemo(() => {
     const conteo: Record<string, { nombre: string; total: number }> = {}
@@ -148,6 +173,8 @@ export default function Dashboard() {
     })
     return Object.values(conteo).sort((a, b) => b.total - a.total).slice(0, 5)
   }, [actividades])
+
+  
 
   // Stats fila 4
   const totalPals = users.filter(u => u.role === 'pal' && u.activo).length
@@ -242,7 +269,7 @@ export default function Dashboard() {
       </Card>
 
       {/* Fila 2 — Alertas */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
 
         {/* Institución con más visitas fuera de rango */}
         <Card className={alertaInstitucion ? 'border-amber-200' : ''}>
@@ -283,7 +310,7 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">Todos los PALs tienen actividad</p>
             ) : (
               <div className="space-y-1">
-                {palsInactivos.slice(0, 3).map(pal => (
+                {palsInactivos.map(pal => (
                   <div key={pal.id} className="flex items-center justify-between">
                     <span className="text-sm">{pal.nombre_completo}</span>
                     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
@@ -296,6 +323,41 @@ export default function Dashboard() {
                     +{palsInactivos.length - 3} más
                   </p>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* PALs sin agenda completa */}
+        <Card className={palsAgendaIncompleta.length > 0 ? 'border-orange-200' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              Agenda semanal incompleta
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="h-8 bg-muted animate-pulse rounded" />
+            ) : palsAgendaIncompleta.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Todos los PALs tienen su semana cubierta</p>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Los siguientes usuarios no tienen completa su agenda semanal
+                </p>
+                {palsAgendaIncompleta.map(pal => (
+                  <Link
+                    key={pal.id}
+                    to={`/admin/agenda?pal=${pal.id}`}
+                    className="flex items-center justify-between hover:bg-muted/50 rounded px-1 py-0.5 transition-colors"
+                  >
+                    <span className="text-sm">{pal.nombre_completo}</span>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs">
+                      Incompleta
+                    </Badge>
+                  </Link>
+                ))}
               </div>
             )}
           </CardContent>

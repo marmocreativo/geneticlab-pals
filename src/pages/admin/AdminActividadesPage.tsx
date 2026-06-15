@@ -111,21 +111,21 @@ export default function AdminActividadesPage() {
               </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
+            <div className="flex flex-wrap items-center gap-2 w-full">
+              <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
               <span className="text-sm text-muted-foreground">Desde:</span>
               <input
                 type="date"
                 value={filtroFechaInicio}
                 onChange={(e) => setFiltroFechaInicio(e.target.value)}
-                className="text-sm border rounded px-2 py-1 h-9"
+                className="text-sm border rounded px-2 py-1 h-9 flex-1 min-w-0"
               />
               <span className="text-sm text-muted-foreground">Hasta:</span>
               <input
                 type="date"
                 value={filtroFechaFin}
                 onChange={(e) => setFiltroFechaFin(e.target.value)}
-                className="text-sm border rounded px-2 py-1 h-9"
+                className="text-sm border rounded px-2 py-1 h-9 flex-1 min-w-0"
               />
             </div>
           </div>
@@ -139,106 +139,165 @@ export default function AdminActividadesPage() {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Cargando actividades...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>PAL / Institución / Contacto</TableHead>
-                  <TableHead>Actividad</TableHead>
-                  <TableHead>Temas</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {actividadesFiltradas.map((actividad) => (
-                  <TableRow key={actividad.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <div className="text-sm">{formatearFechaHora(actividad)}</div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-1 text-sm font-medium">
-                          <User className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                          <span className="truncate">{actividad.pal?.nombre_completo || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <MapPin className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{actividad.institucion?.nombre || 'N/A'}</span>
-                        </div>
-                        {actividad.contacto && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <span className="truncate">{formatearNombreContacto(actividad.contacto)}</span>
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 flex-shrink-0">
-                              {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="text-sm truncate max-w-48" title={actividad.descripcion_actividad || ''}>
-                          {actividad.descripcion_actividad || 'Sin descripción'}
-                        </div>
-                        {actividad.entrega_sobres && (
-                          <Badge variant="secondary" className="text-xs">
-                            Entrega de sobres <b>{actividad.entrega_sobres.nombre}</b>
-                          </Badge>
-                        )}
-                        {actividad.entrega_kit_rash && (
-                          <Badge variant="secondary" className="text-xs">
-                            Entrega de Kit RASH<b>{actividad.entrega_kit_rash.nombre}</b>
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="text-sm max-w-40 truncate" title={actividad.temas_impartidos || ''}>
-                        {actividad.temas_impartidos || 'Sin temas'}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewActivity(actividad)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {actividadesFiltradas.length === 0 && !loading && (
+          ) : actividadesFiltradas.length === 0 ? (
             <div className="text-center py-8">
               <Activity className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No se encontraron actividades</p>
             </div>
+          ) : (
+            <>
+              {/* Móvil — cards */}
+              <div className="flex flex-col gap-3 lg:hidden">
+                {actividadesFiltradas.map((actividad) => (
+                  <button
+                    key={actividad.id}
+                    onClick={() => handleViewActivity(actividad)}
+                    className="w-full text-left border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors"
+                  >
+                    {/* PAL + tipo */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 font-semibold text-sm">
+                        <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span>{actividad.pal?.nombre_completo || 'N/A'}</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {actividad.tipo_actividad === 'presencial' ? 'Presencial' : 'Telefónica'}
+                      </Badge>
+                    </div>
+
+                    {/* Institución + fecha */}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        <span className="font-medium">{actividad.institucion?.nombre || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="w-3 h-3 shrink-0" />
+                        <span>{formatearFechaHora(actividad)}</span>
+                      </div>
+                    </div>
+
+                    {/* Descripción completa */}
+                    {actividad.descripcion_actividad && (
+                      <p className="text-sm leading-snug">{actividad.descripcion_actividad}</p>
+                    )}
+
+                    {/* Temas */}
+                    {actividad.temas_impartidos && (
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        <span className="font-medium">Temas:</span> {actividad.temas_impartidos}
+                      </p>
+                    )}
+
+                    {/* Contacto */}
+                    {actividad.contacto && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>{formatearNombreContacto(actividad.contacto)}</span>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Entregas */}
+                    {(actividad.entrega_sobres || actividad.entrega_kit_rash) && (
+                      <div className="flex flex-wrap gap-1">
+                        {actividad.entrega_sobres && (
+                          <Badge variant="secondary" className="text-xs">
+                            Sobres: {actividad.entrega_sobres.nombre}
+                          </Badge>
+                        )}
+                        {actividad.entrega_kit_rash && (
+                          <Badge variant="secondary" className="text-xs">
+                            Kit RASH: {actividad.entrega_kit_rash.nombre}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Desktop — tabla */}
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>PAL / Institución / Contacto</TableHead>
+                      <TableHead>Actividad</TableHead>
+                      <TableHead>Temas</TableHead>
+                      <TableHead>Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {actividadesFiltradas.map((actividad) => (
+                      <TableRow key={actividad.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <div className="text-sm">{formatearFechaHora(actividad)}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-1 text-sm font-medium">
+                              <User className="w-3 h-3 text-muted-foreground shrink-0" />
+                              <span className="truncate">{actividad.pal?.nombre_completo || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <MapPin className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{actividad.institucion?.nombre || 'N/A'}</span>
+                            </div>
+                            {actividad.contacto && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <span className="truncate">{formatearNombreContacto(actividad.contacto)}</span>
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">
+                                  {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="text-sm truncate max-w-48" title={actividad.descripcion_actividad || ''}>
+                              {actividad.descripcion_actividad || 'Sin descripción'}
+                            </div>
+                            {actividad.entrega_sobres && (
+                              <Badge variant="secondary" className="text-xs">
+                                Entrega de sobres <b>{actividad.entrega_sobres.nombre}</b>
+                              </Badge>
+                            )}
+                            {actividad.entrega_kit_rash && (
+                              <Badge variant="secondary" className="text-xs">
+                                Entrega de Kit RASH <b>{actividad.entrega_kit_rash.nombre}</b>
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm max-w-40 truncate" title={actividad.temas_impartidos || ''}>
+                            {actividad.temas_impartidos || 'Sin temas'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" onClick={() => handleViewActivity(actividad)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
       <Dialog open={showDetail} onOpenChange={setShowDetail}>
-        <DialogContent
-          className="overflow-y-auto"
-          style={{
-            maxWidth: '90vw',
-            maxHeight: '90vh',
-            width: '90vw',
-            height: '90vh'
-          }}
-        >
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalle de Actividad</DialogTitle>
           </DialogHeader>
