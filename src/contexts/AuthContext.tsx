@@ -143,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    const savedEmail = localStorage.getItem('last_login_email')
     try {
       await supabase.auth.signOut()
     } catch (error) {
@@ -150,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (user) localStorage.removeItem(`user-profile-${user.id}`)
       localStorage.removeItem('control-pals-auth')
+      if (savedEmail) localStorage.setItem('last_login_email', savedEmail)
       setRole(null)
       setNombreCompleto(null)
       setUser(null)
