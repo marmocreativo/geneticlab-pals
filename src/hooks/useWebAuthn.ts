@@ -171,13 +171,13 @@ export function useWebAuthn() {
       )
 
       // 4. Iniciar sesión con el token recibido
-      const { error: sessionError } = await supabase.auth.verifyOtp({
-        email: result.email,
-        token: result.token,
-        type: 'magiclink'
-      })
+    const { error: sessionError } = await supabase.auth.verifyOtp({
+    email: result.email,
+    token: result.token,
+    type: 'email'
+    })
 
-      if (sessionError) throw sessionError
+    if (sessionError) throw new Error(sessionError.message)
 
       return true
     } catch (err) {
