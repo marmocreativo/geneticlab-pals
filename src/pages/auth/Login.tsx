@@ -106,14 +106,6 @@ export default function Login() {
               </Alert>
             )}
 
-            {/* DEBUG - quitar después */}
-            <div className="text-xs text-muted-foreground space-y-1 p-2 bg-muted rounded">
-              <p>Email guardado: {email || 'ninguno'}</p>
-              <p>Soporta biométrico: {isSupported() ? 'sí' : 'no'}</p>
-              <p>Tiene huella: {hasBiometric ? 'sí' : 'no'}</p>
-              <p>Error biométrico: {biometricError || 'ninguno'}</p>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
               <div className="relative">
