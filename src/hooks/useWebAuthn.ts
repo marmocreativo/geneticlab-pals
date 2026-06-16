@@ -170,13 +170,21 @@ export function useWebAuthn() {
         }
       )
 
-      // 4. Establecer sesión directamente con los tokens
+      // 4. Establecer sesión
+    if (result.access_token && result.refresh_token) {
     const { error: sessionError } = await supabase.auth.setSession({
-    access_token: result.access_token,
-    refresh_token: result.refresh_token
+        access_token: result.access_token,
+        refresh_token: result.refresh_token
     })
-
     if (sessionError) throw new Error(sessionError.message)
+    } else if (result.token) {
+    const { error: sessionError } = await supabase.auth.verifyOtp({
+        email: result.email,
+        token: result.token,
+        type: 'magiclink'
+    })
+    if (sessionError) throw new Error(sessionError.message)
+    }
 
       return true
     } catch (err) {
