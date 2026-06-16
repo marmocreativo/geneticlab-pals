@@ -114,7 +114,7 @@ export default function Login() {
               <p>Email guardado: {email || 'ninguno'}</p>
               <p>Soporta biométrico: {isSupported() ? 'sí' : 'no'}</p>
               <p>Tiene huella: {hasBiometric ? 'sí' : 'no'}</p>
-              <p>Respuesta servidor: {debugInfo}</p>
+              <p>Error biométrico: {biometricError || 'ninguno'}</p>
             </div>
 
             <div className="space-y-2">
