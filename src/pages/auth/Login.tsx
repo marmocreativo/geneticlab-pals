@@ -9,21 +9,58 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Lock, Mail, Eye, EyeOff, Fingerprint } from 'lucide-react'
 import { useWebAuthn } from '@/hooks/useWebAuthn'
 
+const EMAIL_STORAGE_KEY = 'last_login_email'
+
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [biometricAvailable, setBiometricAvailable] = useState(false)
+  const [hasBiometric, setHasBiometric] = useState(false)
 
   const { signIn } = useAuth()
   const navigate = useNavigate()
-  const { loginWithBiometric, isSupported, loading: biometricLoading, error: biometricError } = useWebAuthn()
+  const {
+    loginWithBiometric,
+    isSupported,
+    loading: biometricLoading,
+    error: biometricError
+  } = useWebAuthn()
 
   useEffect(() => {
-    setBiometricAvailable(isSupported())
+    // Recuperar email guardado
+    const savedEmail = localStorage.getItem(EMAIL_STORAGE_KEY)
+    if (savedEmail) setEmail(savedEmail)
   }, [])
+
+  useEffect(() => {
+    // Verificar si tiene huella registrada para el email
+    const checkBiometric = async () => {
+      if (!isSupported()) return
+      if (!email) { setHasBiometric(false); return }
+
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webauthn-verify`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({ action: 'check-credentials', email })
+          }
+        )
+        const data = await res.json()
+        setHasBiometric(data.hasCredentials === true)
+      } catch {
+        setHasBiometric(false)
+      }
+    }
+
+    checkBiometric()
+  }, [email])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,8 +69,9 @@ export default function Login() {
 
     try {
       await signIn(email, password)
+      localStorage.setItem(EMAIL_STORAGE_KEY, email)
       navigate('/')
-    } catch (err) {
+    } catch {
       setError('Credenciales incorrectas. Por favor intenta de nuevo.')
     } finally {
       setLoading(false)
@@ -41,14 +79,14 @@ export default function Login() {
   }
 
   const handleBiometricLogin = async () => {
-    if (!email) {
-      setError('Ingresa tu correo electrónico primero')
-      return
-    }
     setError('')
     const success = await loginWithBiometric(email)
-    if (success) navigate('/')
-    else setError(biometricError || 'Error al autenticar con biométrico')
+    if (success) {
+      localStorage.setItem(EMAIL_STORAGE_KEY, email)
+      navigate('/')
+    } else {
+      setError(biometricError || 'Error al autenticar con huella')
+    }
   }
 
   return (
@@ -64,7 +102,7 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-4">
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -82,80 +120,80 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
-                  required
                   disabled={loading || biometricLoading}
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10"
-                  required
-                  disabled={loading || biometricLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(prev => !prev)}
-                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              disabled={loading || biometricLoading}
-            >
-              {loading ? (
-                <>
+            {hasBiometric ? (
+              <Button
+                type="button"
+                className="w-full"
+                onClick={handleBiometricLogin}
+                disabled={biometricLoading || loading}
+              >
+                {biometricLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Iniciando sesión...
-                </>
-              ) : (
-                'Iniciar sesión'
-              )}
-            </Button>
+                ) : (
+                  <Fingerprint className="mr-2 h-4 w-4" />
+                )}
+                Iniciar sesión con huella
+              </Button>
+            ) : null}
 
-            {biometricAvailable && (
-              <>
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">o</span>
-                  </div>
+            {hasBiometric && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
                 </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleBiometricLogin}
-                  disabled={biometricLoading || loading}
-                >
-                  {biometricLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Fingerprint className="mr-2 h-4 w-4" />
-                  )}
-                  Iniciar sesión con huella
-                </Button>
-              </>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    o usa tu contraseña
+                  </span>
+                </div>
+              </div>
             )}
-          </form>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10"
+                    required
+                    disabled={loading || biometricLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                variant={hasBiometric ? 'outline' : 'default'}
+                className="w-full"
+                disabled={loading || biometricLoading}
+              >
+                {loading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  'Iniciar sesión'
+                )}
+              </Button>
+            </form>
+          </div>
         </CardContent>
       </Card>
     </div>

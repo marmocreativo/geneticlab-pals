@@ -2,10 +2,28 @@
 import { useNavigate } from 'react-router-dom'
 import { Calendar, PenTool, Stethoscope } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import BiometricSetup from '@/components/BiometricSetup'
+import { useState, useEffect } from 'react'
+import BiometricPromptDialog, { shouldShowBiometricPrompt } from '@/components/BiometricPromptDialog'
+import { useWebAuthn } from '@/hooks/useWebAuthn'
 
 export default function PalDashboard() {
   const navigate = useNavigate()
+
+  const [showBiometricDialog, setShowBiometricDialog] = useState(false)
+    const { getCredentials, isSupported } = useWebAuthn()
+
+    useEffect(() => {
+      const checkBiometric = async () => {
+        if (!isSupported()) return
+        if (!shouldShowBiometricPrompt()) return
+
+        const credentials = await getCredentials()
+        if (credentials && credentials.length === 0) {
+          setShowBiometricDialog(true)
+        }
+      }
+      checkBiometric()
+    }, [])
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -61,9 +79,10 @@ export default function PalDashboard() {
         </Card>
       </div>
 
-      <div className="mt-6">
-        <BiometricSetup />
-      </div>
+      <BiometricPromptDialog
+        open={showBiometricDialog}
+        onClose={() => setShowBiometricDialog(false)}
+      />
     </div>
     </div>
   )
