@@ -181,9 +181,9 @@ export function useWebAuthn() {
 
       return true
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al autenticar'
-      setError(msg)
-      return false
+    const msg = err instanceof Error ? err.message : JSON.stringify(err)
+    setError(msg)
+    return false
     } finally {
       setLoading(false)
     }
