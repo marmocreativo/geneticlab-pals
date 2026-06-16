@@ -18,7 +18,6 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasBiometric, setHasBiometric] = useState(false)
-  const [debugInfo, setDebugInfo] = useState('')
 
   const { signIn } = useAuth()
   const navigate = useNavigate()
@@ -51,10 +50,8 @@ export default function Login() {
           body: JSON.stringify({ action: 'check-credentials', email })
         })
         const data = await res.json()
-        setDebugInfo(JSON.stringify(data))
         setHasBiometric(data.hasCredentials === true)
       } catch (err) {
-        setDebugInfo('Error: ' + String(err))
         setHasBiometric(false)
       }
     }
