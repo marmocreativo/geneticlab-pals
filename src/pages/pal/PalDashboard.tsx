@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Calendar, PenTool, Stethoscope } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import BiometricSetup from '@/components/BiometricSetup'
 
 export default function PalDashboard() {
   const navigate = useNavigate()
@@ -58,6 +59,10 @@ export default function PalDashboard() {
             <Stethoscope className="absolute right-2 top-1/2 -translate-y-1/2 h-20 w-20 opacity-20 rotate-12" />
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-6">
+        <BiometricSetup />
       </div>
     </div>
     </div>
