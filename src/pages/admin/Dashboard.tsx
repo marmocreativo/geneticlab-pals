@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
+import BiometricPromptDialog, { shouldShowBiometricPrompt } from '@/components/BiometricPromptDialog'
+import { useWebAuthn } from '@/hooks/useWebAuthn'
 import {
   Users, Building2, Calendar, Activity,
   AlertTriangle, Database, Clock, Wifi
@@ -27,6 +29,21 @@ import type { Actividad } from '@/types/actividad'
 
 export default function Dashboard() {
   const { users } = useUsers()
+
+  const [showBiometricDialog, setShowBiometricDialog] = useState(false)
+  const { getCredentials, isSupported } = useWebAuthn()
+
+  useEffect(() => {
+    const checkBiometric = async () => {
+      if (!isSupported()) return
+      if (!shouldShowBiometricPrompt()) return
+      const credentials = await getCredentials()
+      if (credentials && credentials.length === 0) {
+        setShowBiometricDialog(true)
+      }
+    }
+    checkBiometric()
+  }, [])
 
   const hoy = new Date()
   const [fechaInicio, setFechaInicio] = useState(format(startOfMonth(hoy), 'yyyy-MM-dd'))
@@ -512,6 +529,10 @@ export default function Dashboard() {
         </Card>
 
       </div>
+      <BiometricPromptDialog
+        open={showBiometricDialog}
+        onClose={() => setShowBiometricDialog(false)}
+      />
     </div>
   )
 }
