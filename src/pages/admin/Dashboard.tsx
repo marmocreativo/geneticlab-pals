@@ -37,7 +37,6 @@ export default function Dashboard() {
   const [lastFetch, setLastFetch] = useState<string | null>(null)
   const [visitasSemana, setVisitasSemana] = useState<Visita[]>([])
   const inicioSemana = startOfWeek(hoy, { weekStartsOn: 1 })
-  const finSemana = endOfWeek(hoy, { weekStartsOn: 1 })
   const diasLaborales = eachDayOfInterval({ start: inicioSemana, end: addDays(inicioSemana, 4) })
 
   // Cargar datos cuando cambia el rango

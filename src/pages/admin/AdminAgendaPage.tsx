@@ -11,8 +11,6 @@ import { es } from 'date-fns/locale'
 import {
   ChevronLeft,
   ChevronRight,
-  Search,
-  X,
   MapPin,
   Clock,
   Loader2,
@@ -22,7 +20,6 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
