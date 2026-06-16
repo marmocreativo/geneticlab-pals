@@ -18,6 +18,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasBiometric, setHasBiometric] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
 
   const { signIn } = useAuth()
   const navigate = useNavigate()
@@ -35,26 +36,25 @@ export default function Login() {
   }, [])
 
   useEffect(() => {
-    // Verificar si tiene huella registrada para el email
     const checkBiometric = async () => {
       if (!isSupported()) return
       if (!email) { setHasBiometric(false); return }
 
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webauthn-verify`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
-            },
-            body: JSON.stringify({ action: 'check-credentials', email })
-          }
-        )
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webauthn-verify`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({ action: 'check-credentials', email })
+        })
         const data = await res.json()
+        setDebugInfo(JSON.stringify(data))
         setHasBiometric(data.hasCredentials === true)
-      } catch {
+      } catch (err) {
+        setDebugInfo('Error: ' + String(err))
         setHasBiometric(false)
       }
     }
@@ -114,6 +114,7 @@ export default function Login() {
               <p>Email guardado: {email || 'ninguno'}</p>
               <p>Soporta biométrico: {isSupported() ? 'sí' : 'no'}</p>
               <p>Tiene huella: {hasBiometric ? 'sí' : 'no'}</p>
+              <p>Respuesta servidor: {debugInfo}</p>
             </div>
 
             <div className="space-y-2">
