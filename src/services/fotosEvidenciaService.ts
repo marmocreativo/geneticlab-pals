@@ -1,7 +1,7 @@
 // services/fotosEvidenciaService.ts
 import { supabase } from '@/lib/supabase'
 
-async function comprimirImagen(file: File, maxWidth = 1280, quality = 0.8): Promise<File> {
+async function comprimirImagen(file: File, maxWidth = 800, quality = 0.8): Promise<File> {
   return new Promise((resolve) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -29,6 +29,8 @@ async function comprimirImagen(file: File, maxWidth = 1280, quality = 0.8): Prom
           const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
             type: 'image/jpeg'
           })
+          canvas.width = 0
+          canvas.height = 0
           resolve(compressed)
         },
         'image/jpeg',
