@@ -390,40 +390,79 @@ export default function PacientesPage() {
           className="w-full md:w-80"
         />
         <div className="flex flex-col md:flex-row gap-3">
-          <Select value={selectedInstitucion} onValueChange={handleInstitucionChange}>
-            <SelectTrigger className="w-full md:w-64">
-              <SelectValue placeholder="Todas las instituciones" />
-            </SelectTrigger>
-            <SelectContent className="max-h-64 overflow-y-auto">
-              <div className="p-2 border-b">
-                <Input
-                  placeholder="Buscar institución..."
-                  value={busquedaInstitucion}
-                  onChange={e => setBusquedaInstitucion(e.target.value)}
-                  className="h-8 text-sm"
-                />
-              </div>
-              <SelectItem value="all">Todas las instituciones</SelectItem>
-              {institucionesFiltradas.map((inst) => (
-                <SelectItem key={inst.id} value={inst.id}>
-                  <div className="flex items-start gap-2">
+          <div className="relative w-full md:w-64">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-start font-normal"
+              onClick={() => setOpenInstitucionDropdown(prev => !prev)}
+            >
+              <Building className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+              <span className="truncate">
+                {selectedInstitucion === 'all'
+                  ? 'Todas las instituciones'
+                  : instituciones.find(i => i.id === selectedInstitucion)?.nombre ?? 'Todas las instituciones'}
+              </span>
+            </Button>
+
+            {openInstitucionDropdown && (
+              <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-72 overflow-y-auto">
+                <div className="p-2 border-b sticky top-0 bg-popover">
+                  <Input
+                    ref={busquedaInstitucionRef}
+                    placeholder="Buscar institución..."
+                    defaultValue=""
+                    onChange={e => setBusquedaInstitucion(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
+                    className="h-8 text-sm"
+                    autoFocus
+                  />
+                </div>
+
+                <div
+                  className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                  onClick={() => {
+                    handleInstitucionChange('all')
+                    setOpenInstitucionDropdown(false)
+                    setBusquedaInstitucion('')
+                  }}
+                >
+                  Todas las instituciones
+                </div>
+
+                {institucionesFiltradas.map((inst) => (
+                  <div
+                    key={inst.id}
+                    className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-accent"
+                    onClick={() => {
+                      handleInstitucionChange(inst.id)
+                      setOpenInstitucionDropdown(false)
+                      setBusquedaInstitucion('')
+                    }}
+                  >
                     <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm flex items-center gap-1 truncate max-w-[200px]">
+                      <div className="font-medium text-sm flex items-center gap-1 truncate">
                         {(inst.visitas_count ?? 0) > promedioVisitas && (
                           <Star className="h-3 w-3 text-amber-400 fill-amber-400 flex-shrink-0" />
                         )}
                         {inst.nombre}
                       </div>
-                      <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                      <div className="text-xs text-muted-foreground truncate">
                         {inst.direccion}
                       </div>
                     </div>
                   </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                ))}
+
+                {institucionesFiltradas.length === 0 && (
+                  <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                    Sin resultados
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <Select value={filtroEstadoRep} onValueChange={handleEstadoRepChange}>
             <SelectTrigger className="w-full md:w-48">
