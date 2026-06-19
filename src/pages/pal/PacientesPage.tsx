@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef  } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -123,8 +123,6 @@ export default function PacientesPage() {
 
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('all')
   const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
-  const [openInstitucionDropdown, setOpenInstitucionDropdown] = useState(false)
-  const busquedaInstitucionRef = useRef<HTMLInputElement>(null)
   const [filtroEstadoRep, setFiltroEstadoRep] = useState<string>('all')
   const [filtroStatus, setFiltroStatus] = useState<string>('all')
   const [busquedaPaciente, setBusquedaPaciente] = useState('')
