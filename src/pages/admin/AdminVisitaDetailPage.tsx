@@ -76,17 +76,20 @@ export default function AdminVisitaDetailPage() {
       .finally(() => setLoadingVisita(false))
   }, [visitaId])
 
-  useEffect(() => {
-    if (!palId || !fecha || !visita?.institucion_id) return
-    actividadesService.getActividadesByInstitucion(visita.institucion_id, palId)
-      .then(data => {
-        // filtrar por fecha
-        const filtradas = data.filter(a => a.fecha_actividad === fecha)
-        setActividades(filtradas)
-      })
-      .catch(console.error)
-      .finally(() => setLoadingActividades(false))
-  }, [palId, fecha, visita?.institucion_id])
+useEffect(() => {
+  if (!palId || !fecha) return
+  if (!visita?.institucion_id) {
+    setLoadingActividades(false)
+    return
+  }
+  actividadesService.getActividadesByInstitucion(visita.institucion_id, palId)
+    .then(data => {
+      const filtradas = data.filter(a => a.fecha_actividad === fecha)
+      setActividades(filtradas)
+    })
+    .catch(console.error)
+    .finally(() => setLoadingActividades(false))
+}, [palId, fecha, visita?.institucion_id])
 
   useEffect(() => {
     if (!visitaId) return
@@ -155,8 +158,10 @@ export default function AdminVisitaDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="font-semibold">{visita.institucion?.nombre || 'N/A'}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{visita.institucion?.direccion}</p>
+              <div>
+                <p className="font-semibold">{visita.institucion?.nombre || 'Home office'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{visita.institucion?.direccion}</p>
+              </div>
             </div>
             <div className="border-t pt-3 space-y-2">
               <div className="flex items-center gap-2 text-sm">
@@ -312,7 +317,7 @@ export default function AdminVisitaDetailPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="h-4 w-4" />
-            Actividades del día en {visita.institucion?.nombre}
+            Actividades del día en {visita.institucion?.nombre ?? 'Home office'}
           </CardTitle>
         </CardHeader>
         <CardContent>

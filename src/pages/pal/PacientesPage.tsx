@@ -644,9 +644,9 @@ export default function PacientesPage() {
                     <p className="text-xs text-muted-foreground">{paciente.telefono}</p>
                   )}
                   {paciente.institucion && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Building className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{paciente.institucion.nombre}</span>
+                    <div className="flex items-start gap-1 text-xs text-muted-foreground">
+                      <Building className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                      <span>{paciente.institucion.nombre}</span>
                     </div>
                   )}
                   <Button

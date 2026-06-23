@@ -44,7 +44,7 @@ const contactoSchema = z.object({
 type ContactoFormData = z.infer<typeof contactoSchema>
 
 interface ContactoQuickFormProps {
-  institucionId: string
+  institucionId?: string
   onSuccess: (contacto: Contacto) => void
   onCancel: () => void
 }
@@ -77,7 +77,7 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
       const contactoData: ContactoInsert = {
         ...data,
         pal_id: user.id,
-        institucion_id: institucionId,
+        institucion_id: institucionId ?? null,
         // Limpiar campos opcionales vacíos
         apellido_pat: data.apellido_pat || undefined,
         apellido_mat: data.apellido_mat || undefined,

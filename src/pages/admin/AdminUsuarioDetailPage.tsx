@@ -80,8 +80,8 @@ export default function AdminUsuarioDetailPage() {
   const topInstituciones = useMemo(() => {
     const conteo: Record<string, { nombre: string; total: number; validadas: number }> = {}
     visitas.forEach(v => {
-      const id = v.institucion_id
-      const nombre = v.institucion?.nombre || id
+      const id = v.institucion_id ?? 'home_office'
+      const nombre = v.institucion?.nombre ?? 'Home office'
       if (!conteo[id]) conteo[id] = { nombre, total: 0, validadas: 0 }
       conteo[id].total++
       if (v.validacion_gps) conteo[id].validadas++
@@ -100,7 +100,7 @@ export default function AdminUsuarioDetailPage() {
       actividades.filter(a => a.contacto_id).map(a => a.contacto_id)
     ).size
 
-    const institucionesUnicas = new Set(visitas.map(v => v.institucion_id)).size
+    const institucionesUnicas = new Set(visitas.filter(v => v.institucion_id).map(v => v.institucion_id)).size
 
     const actividadesPresencial = actividades.filter(a => a.tipo_actividad === 'presencial').length
     const actividadesTelefono = actividades.filter(a => a.tipo_actividad === 'telefono').length
@@ -374,7 +374,7 @@ export default function AdminUsuarioDetailPage() {
                   <div key={v.id} className="flex items-center justify-between py-2.5">
                     <div className="flex items-center gap-3">
                       <div>
-                        <p className="text-sm font-medium">{v.institucion?.nombre}</p>
+                        <p className="text-sm font-medium">{v.institucion?.nombre ?? 'Home office'}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(parseISO(v.fecha_visita), "d 'de' MMMM yyyy 'a las' HH:mm", { locale: es })}
                         </p>

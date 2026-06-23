@@ -408,7 +408,7 @@ const VisitaDetailsPage: React.FC = () => {
         <Card className="bg-gradient-to-r from-primary to-accent text-primary-foreground">
           <CardContent className="p-3">
             <div className="flex items-center justify-between gap-2">
-              <h1 className="text-base font-semibold truncate flex-1">{visita.institucion?.nombre}</h1>
+              <h1 className="text-base font-semibold truncate flex-1">{visita.institucion?.nombre ?? 'Home office'}</h1>
               {visita.estado === 'programada' && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -444,7 +444,7 @@ const VisitaDetailsPage: React.FC = () => {
           </Badge>
           <Badge variant="secondary" className="flex items-center gap-1 text-xs">
             <Wifi className="h-3 w-3" />
-            Presencial
+            {visita.institucion ? 'Presencial' : 'Home office'}
           </Badge>
           {getEstadoBadge(visita.estado)}
         </div>

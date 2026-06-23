@@ -261,7 +261,7 @@ export default function AdminActividadesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <div className="text-sm truncate max-w-48" title={actividad.descripcion_actividad || ''}>
+                            <div className="text-sm whitespace-pre-wrap break-words">
                               {actividad.descripcion_actividad || 'Sin descripción'}
                             </div>
                             {actividad.entrega_sobres && (
@@ -277,7 +277,7 @@ export default function AdminActividadesPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm max-w-40 truncate" title={actividad.temas_impartidos || ''}>
+                          <div className="text-sm whitespace-pre-wrap break-words">
                             {actividad.temas_impartidos || 'Sin temas'}
                           </div>
                         </TableCell>

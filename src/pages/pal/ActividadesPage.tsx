@@ -391,7 +391,7 @@ export default function ActividadesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">
-                          {actividad.institucion?.nombre || 'Sin institución'}
+                          {actividad.institucion?.nombre || 'Home office'}
                         </div>
                         <div className="text-sm text-muted-foreground truncate max-w-xs">
                           {actividad.institucion?.direccion}
@@ -500,7 +500,7 @@ export default function ActividadesPage() {
                           {/* Institución y fecha — primera línea */}
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Building2 className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{actividad.institucion?.nombre || 'Sin institución'}</span>
+                            <span className="truncate">{actividad.institucion?.nombre || 'Home office'}</span>
                             <span className="shrink-0">·</span>
                             <Calendar className="h-3 w-3 shrink-0" />
                             <span className="shrink-0">

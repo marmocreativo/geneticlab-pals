@@ -134,8 +134,8 @@ export default function Dashboard() {
     const fueraDeRango = visitas.filter(v => v.gps_dispositivo && !v.validacion_gps)
     const conteo: Record<string, { nombre: string; total: number }> = {}
     fueraDeRango.forEach(v => {
-      const id = v.institucion_id
-      const nombre = v.institucion?.nombre || id
+      const id = v.institucion_id ?? 'home_office'
+      const nombre = v.institucion?.nombre ?? 'Home office'
       if (!conteo[id]) conteo[id] = { nombre, total: 0 }
       conteo[id].total++
     })
@@ -167,16 +167,16 @@ export default function Dashboard() {
   }, [users, visitasSemana, diasLaborales])
 
   // Fila 3 — Instituciones con más visitas
-  const topInstituciones = useMemo(() => {
-    const conteo: Record<string, { nombre: string; total: number }> = {}
-    visitas.forEach(v => {
-      const id = v.institucion_id
-      const nombre = v.institucion?.nombre || id
-      if (!conteo[id]) conteo[id] = { nombre, total: 0 }
-      conteo[id].total++
-    })
-    return Object.values(conteo).sort((a, b) => b.total - a.total).slice(0, 5)
-  }, [visitas])
+const topInstituciones = useMemo(() => {
+  const conteo: Record<string, { nombre: string; total: number }> = {}
+  visitas.forEach(v => {
+    const id = v.institucion_id ?? 'home_office'
+    const nombre = v.institucion?.nombre ?? 'Home office'
+    if (!conteo[id]) conteo[id] = { nombre, total: 0 }
+    conteo[id].total++
+  })
+  return Object.values(conteo).sort((a, b) => b.total - a.total).slice(0, 5)
+}, [visitas])
 
   // Fila 3 — PALs con más actividades
   const topPals = useMemo(() => {

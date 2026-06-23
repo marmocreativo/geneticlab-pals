@@ -1,7 +1,7 @@
 export interface Visita {
   id: string
   pal_id: string
-  institucion_id: string
+  institucion_id?: string | null
   fecha_visita: string
   validacion_gps: boolean
   latitud_registro?: number
@@ -10,17 +10,15 @@ export interface Visita {
   gps_dispositivo?: boolean
   fecha_hora_registro?: string
   estado: 'programada' | 'asistio' | 'falto' | 'reagendada'
-  // tipo_visita removido - todas las visitas son presenciales
   created_at: string
   updated_at: string
-  // Relaciones (sin cambios)
   institucion?: {
     id: string
     nombre: string
     direccion: string
     latitud: number
     longitud: number
-  }
+  } | null
   pal?: {
     id: string
     nombre_completo: string
@@ -33,10 +31,9 @@ export interface Visita {
 
 export interface VisitaInsert {
   pal_id: string
-  institucion_id: string
+  institucion_id?: string | null
   fecha_visita: string
   estado?: 'programada' | 'asistio' | 'falto' | 'reagendada'
-  // tipo_visita removido
   validacion_gps?: boolean
   latitud_registro?: number
   longitud_registro?: number
@@ -50,7 +47,7 @@ export interface VisitaInsert {
 export interface VisitaUpdate {
   fecha_visita?: string
   estado?: 'programada' | 'asistio' | 'falto' | 'reagendada'
-  // tipo_visita removido
+  institucion_id?: string | null
   validacion_gps?: boolean
   latitud_registro?: number
   longitud_registro?: number

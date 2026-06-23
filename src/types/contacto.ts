@@ -25,7 +25,7 @@ export interface ContactoInsert {
   apellido_mat?: string
   telefono?: string
   fecha_nacimiento?: string
-  institucion_id?: string
+  institucion_id?: string | null
   pal_id: string
 }
 

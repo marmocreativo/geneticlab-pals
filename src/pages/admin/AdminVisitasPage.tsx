@@ -173,7 +173,7 @@ export default function AdminVisitasPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{visita.institucion?.nombre || 'N/A'}</span>
+                        <span className="text-sm">{visita.institucion?.nombre || 'Home office'}</span>
                       </div>
                     </TableCell>
 

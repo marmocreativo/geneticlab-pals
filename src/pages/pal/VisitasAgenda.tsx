@@ -239,7 +239,7 @@ export default function VisitasAgenda() {
                                 visita.estado === 'programada' && 'bg-blue-50 border-blue-200',
                               )}
                             >
-                              <p className="font-medium truncate">{visita.institucion?.nombre}</p>
+                              <p className="font-medium truncate">{visita.institucion?.nombre ?? 'Home office'}</p>
                               <p className="text-muted-foreground text-[11px] mt-0.5">
                                 {format(new Date(visita.fecha_visita), 'HH:mm')}
                               </p>

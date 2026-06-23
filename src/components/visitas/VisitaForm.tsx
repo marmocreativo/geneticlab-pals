@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Building, Star, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Building, Star, ChevronDown, ChevronUp, Home } from 'lucide-react'
 import { format } from 'date-fns'
 import { useCatalogos } from '@/hooks/useCatalogos'
 
@@ -26,10 +26,14 @@ import type { VisitaInsert } from '@/types/visita'
 import type { Institucion } from '@/types/institucion'
 
 const visitaSchema = z.object({
-  institucion_id: z.string().min(1, 'Selecciona una institución'),
+  institucion_id: z.string().optional(),
   fecha_visita: z.string().min(1, 'La fecha es requerida'),
   hora_visita: z.string().min(1, 'La hora es requerida'),
-})
+  es_home_office: z.boolean(),
+}).refine(
+  (data) => data.es_home_office || (data.institucion_id && data.institucion_id.length > 0),
+  { message: 'Selecciona una institución', path: ['institucion_id'] }
+)
 
 type VisitaFormData = z.infer<typeof visitaSchema>
 
@@ -68,6 +72,7 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
     defaultValues: {
       fecha_visita: defaultDate ? format(defaultDate, 'yyyy-MM-dd') : '',
       hora_visita: '09:00',
+      es_home_office: false,
     }
   })
 
@@ -117,9 +122,10 @@ const institucionesFiltradas = [...instituciones]
 
       const visitaData: VisitaInsert = {
         pal_id: user.id,
-        institucion_id: data.institucion_id,
+        institucion_id: data.es_home_office ? null : data.institucion_id,
         fecha_visita: `${data.fecha_visita}T${data.hora_visita}:00${tzOffset}`,
-        estado: 'programada'
+        estado: data.es_home_office ? 'asistio' : 'programada',
+        ...(data.es_home_office ? { validacion_gps: false, gps_dispositivo: false } : {})
       }
 
       await createVisita(visitaData)
@@ -181,155 +187,183 @@ const institucionesFiltradas = [...instituciones]
             </FormItem>
           )}
         />
-
-        {/* Institución */}
+        {/* Home Office */}
         <FormField
           control={form.control}
-          name="institucion_id"
+          name="es_home_office"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-sm">Institución</FormLabel>
-              <div className="space-y-3 min-w-0">
-
-                {/* Trigger del collapse */}
-                <button
-                  type="button"
-                  onClick={() => setInstitucionOpen(v => !v)}
-                  className="w-full flex items-center justify-between px-3 py-2 border rounded-md text-sm bg-background hover:bg-muted transition-colors h-9"
-                >
-                  <span className={field.value ? 'text-foreground' : 'text-muted-foreground'}>
-                    {field.value
-                      ? instituciones.find(i => i.id === field.value)?.nombre ?? 'Seleccionar institución'
-                      : 'Seleccionar institución'}
-                  </span>
-                  {institucionOpen
-                    ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-                    : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
-                </button>
-
-                {/* Panel colapsable */}
-                {institucionOpen && (
-                  <div className="border rounded-md overflow-hidden bg-background w-full min-w-0">
-                    <div className="p-2 space-y-2 border-b bg-muted/30">
-                      <div className="flex gap-1">
-                        <Input
-                          placeholder="Buscar por nombre..."
-                          defaultValue=""
-                          onChange={e => { busquedaRef.current = e.target.value }}
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
-                          className="h-8 text-sm flex-1"
-                        />
-                        <select
-                          defaultValue=""
-                          onChange={e => { estadoFiltroRef.current = e.target.value; handleBuscar() }}
-                          className="h-8 text-xs border rounded px-1 bg-background w-20 shrink-0"
-                        >
-                          <option value="">Estado</option>
-                          {estadosUnicos.map(estado => (
-                            <option key={estado} value={estado}>{estado}</option>
-                          ))}
-                        </select>
-                        <Button type="button" size="sm" className="h-8 px-2 shrink-0 text-xs" onClick={handleBuscar}>
-                          Buscar
-                        </Button>
-                      </div>
-
-                      <button
-                        type="button"
-                        className="text-xs text-muted-foreground hover:text-foreground w-full py-1 border rounded bg-background"
-                        onClick={() => setMostrarAvanzada(v => !v)}
-                      >
-                        {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
-                      </button>
-
-                      {mostrarAvanzada && (
-                        <div className="flex gap-1">
-                          <Input
-                            placeholder="Ciudad..."
-                            defaultValue=""
-                            onChange={e => { ciudadFiltroRef.current = e.target.value }}
-                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
-                            className="h-8 text-xs flex-1"
-                          />
-                          <select
-                            defaultValue=""
-                            onChange={e => { sectorFiltroRef.current = e.target.value; handleBuscar() }}
-                            className="h-8 text-xs border rounded px-1 bg-background w-24 shrink-0"
-                          >
-                            <option value="">Sector</option>
-                            {sectores.map(s => (
-                              <option key={s.id} value={s.id}>{s.nombre}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="overflow-y-auto" style={{ maxHeight: '240px' }}>
-                      {institucionesFiltradas.length === 0 ? (
-                        <p className="p-3 text-sm text-muted-foreground text-center">
-                          No se encontraron instituciones
-                        </p>
-                      ) : (
-                        institucionesFiltradas.map(institucion => (
-                          <button
-                            key={institucion.id}
-                            type="button"
-                            className="w-full flex items-start gap-2 px-3 py-2 hover:bg-muted text-left border-b last:border-0 transition-colors min-w-0"
-                            onClick={() => {
-                              field.onChange(institucion.id)
-                              setInstitucionOpen(false)
-                            }}
-                          >
-                            <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm flex items-center gap-1">
-                                {(institucion.visitas_count ?? 0) > promedioVisitas && (
-                                  <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
-                                )}
-                                <span className="truncate">{institucion.nombre}</span>
-                              </div>
-                              <div className="text-xs text-muted-foreground truncate">
-                                {institucion.direccion}
-                              </div>
-                            </div>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Institución seleccionada */}
-                {field.value && !institucionOpen && (() => {
-                  const sel = instituciones.find(i => i.id === field.value)
-                  return sel ? (
-                    <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm">
-                      <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{sel.nombre}</div>
-                      </div>
-                    </div>
-                  ) : null
-                })()}
-
-                {/* Botón nueva institución */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNewInstitucionForm(true)}
-                  className="w-full h-8 text-xs"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Agregar Nueva Institución
-                </Button>
+            <FormItem className="flex items-center justify-between rounded-md border px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Home className="h-4 w-4 text-muted-foreground" />
+                <FormLabel className="text-sm font-normal cursor-pointer">Home office</FormLabel>
               </div>
-              <FormMessage />
+              <FormControl>
+                <input
+                  type="checkbox"
+                  checked={field.value}
+                  onChange={(e) => {
+                    field.onChange(e.target.checked)
+                    if (e.target.checked) {
+                      form.setValue('institucion_id', '')
+                      setInstitucionOpen(false)
+                    }
+                  }}
+                  className="h-4 w-4"
+                />
+              </FormControl>
             </FormItem>
           )}
         />
 
+        {/* Institución */}
+        {!form.watch('es_home_office') && (
+          <FormField
+            control={form.control}
+            name="institucion_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm">Institución</FormLabel>
+                <div className="space-y-3 min-w-0">
+
+                  {/* Trigger del collapse */}
+                  <button
+                    type="button"
+                    onClick={() => setInstitucionOpen(v => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2 border rounded-md text-sm bg-background hover:bg-muted transition-colors h-9"
+                  >
+                    <span className={field.value ? 'text-foreground' : 'text-muted-foreground'}>
+                      {field.value
+                        ? instituciones.find(i => i.id === field.value)?.nombre ?? 'Seleccionar institución'
+                        : 'Seleccionar institución'}
+                    </span>
+                    {institucionOpen
+                      ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                      : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  </button>
+
+                  {/* Panel colapsable */}
+                  {institucionOpen && (
+                    <div className="border rounded-md overflow-hidden bg-background w-full min-w-0">
+                      <div className="p-2 space-y-2 border-b bg-muted/30">
+                        <div className="flex gap-1">
+                          <Input
+                            placeholder="Buscar por nombre..."
+                            defaultValue=""
+                            onChange={e => { busquedaRef.current = e.target.value }}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
+                            className="h-8 text-sm flex-1"
+                          />
+                          <select
+                            defaultValue=""
+                            onChange={e => { estadoFiltroRef.current = e.target.value; handleBuscar() }}
+                            className="h-8 text-xs border rounded px-1 bg-background w-20 shrink-0"
+                          >
+                            <option value="">Estado</option>
+                            {estadosUnicos.map(estado => (
+                              <option key={estado} value={estado}>{estado}</option>
+                            ))}
+                          </select>
+                          <Button type="button" size="sm" className="h-8 px-2 shrink-0 text-xs" onClick={handleBuscar}>
+                            Buscar
+                          </Button>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:text-foreground w-full py-1 border rounded bg-background"
+                          onClick={() => setMostrarAvanzada(v => !v)}
+                        >
+                          {mostrarAvanzada ? 'Ocultar filtros' : 'Búsqueda avanzada'}
+                        </button>
+
+                        {mostrarAvanzada && (
+                          <div className="flex gap-1">
+                            <Input
+                              placeholder="Ciudad..."
+                              defaultValue=""
+                              onChange={e => { ciudadFiltroRef.current = e.target.value }}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
+                              className="h-8 text-xs flex-1"
+                            />
+                            <select
+                              defaultValue=""
+                              onChange={e => { sectorFiltroRef.current = e.target.value; handleBuscar() }}
+                              className="h-8 text-xs border rounded px-1 bg-background w-24 shrink-0"
+                            >
+                              <option value="">Sector</option>
+                              {sectores.map(s => (
+                                <option key={s.id} value={s.id}>{s.nombre}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="overflow-y-auto" style={{ maxHeight: '240px' }}>
+                        {institucionesFiltradas.length === 0 ? (
+                          <p className="p-3 text-sm text-muted-foreground text-center">
+                            No se encontraron instituciones
+                          </p>
+                        ) : (
+                          institucionesFiltradas.map(institucion => (
+                            <button
+                              key={institucion.id}
+                              type="button"
+                              className="w-full flex items-start gap-2 px-3 py-2 hover:bg-muted text-left border-b last:border-0 transition-colors min-w-0"
+                              onClick={() => {
+                                field.onChange(institucion.id)
+                                setInstitucionOpen(false)
+                              }}
+                            >
+                              <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm flex items-center gap-1">
+                                  {(institucion.visitas_count ?? 0) > promedioVisitas && (
+                                    <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
+                                  )}
+                                  <span className="truncate">{institucion.nombre}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {institucion.direccion}
+                                </div>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Institución seleccionada */}
+                  {field.value && !institucionOpen && (() => {
+                    const sel = instituciones.find(i => i.id === field.value)
+                    return sel ? (
+                      <div className="flex items-start gap-2 p-3 bg-muted/50 rounded text-sm">
+                        <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{sel.nombre}</div>
+                        </div>
+                      </div>
+                    ) : null
+                  })()}
+
+                  {/* Botón nueva institución */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewInstitucionForm(true)}
+                    className="w-full h-8 text-xs"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Agregar Nueva Institución
+                  </Button>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         {/* Botones */}
         <div className="flex gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} className="flex-1">

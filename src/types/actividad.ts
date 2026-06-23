@@ -7,7 +7,7 @@ export interface Actividad {
   entrega_kit_rash_id?: string | null
   notas?: string | null
   created_at: string
-  institucion_id: string
+  institucion_id?: string | null
   fecha_actividad: string
   hora_actividad?: string | null
   pal_id: string
@@ -47,7 +47,7 @@ export interface ActividadInsert {
   entrega_sobres_id?: string
   entrega_kit_rash_id?: string
   notas?: string
-  institucion_id: string
+  institucion_id?: string | null
   fecha_actividad: string
   hora_actividad?: string
   pal_id: string
@@ -56,6 +56,7 @@ export interface ActividadInsert {
 
 export interface ActividadUpdate {
   contacto_id?: string
+  institucion_id?: string | null
   descripcion_actividad?: string
   temas_impartidos?: string
   entrega_sobres_id?: string

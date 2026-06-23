@@ -10,7 +10,7 @@ export type UserRole = 'admin' | 'pal'
 
 export type TipoContacto = 'medico' | 'paciente' | 'familiar' | 'cuidador' | 'enfermera' | 'enfermero' | 'kam' | 'otro'
 
-export type TipoVisita = 'presencial' | 'telefono'
+export type TipoActividad = 'presencial' | 'telefono'
 
 export type EstadoVisita = 'programada' | 'asistio' | 'falto' | 'reagendada'
 
@@ -95,6 +95,10 @@ export interface Database {
           longitud: number
           sector_id: string | null
           google_place_id: string | null
+          photo_reference: string | null
+          estado: string | null
+          ciudad: string | null
+          municipio: string | null
           created_at: string
         }
         Insert: {
@@ -105,6 +109,10 @@ export interface Database {
           longitud: number
           sector_id?: string | null
           google_place_id?: string | null
+          photo_reference?: string | null
+          estado?: string | null
+          ciudad?: string | null
+          municipio?: string | null
           created_at?: string
         }
         Update: {
@@ -115,6 +123,10 @@ export interface Database {
           longitud?: number
           sector_id?: string | null
           google_place_id?: string | null
+          photo_reference?: string | null
+          estado?: string | null
+          ciudad?: string | null
+          municipio?: string | null
           created_at?: string
         }
       }
@@ -128,6 +140,8 @@ export interface Database {
           apellido_mat: string | null
           telefono: string | null
           fecha_nacimiento: string | null
+          institucion_id: string | null
+          pal_id: string | null
           created_at: string
         }
         Insert: {
@@ -139,6 +153,8 @@ export interface Database {
           apellido_mat?: string | null
           telefono?: string | null
           fecha_nacimiento?: string | null
+          institucion_id?: string | null
+          pal_id?: string | null
           created_at?: string
         }
         Update: {
@@ -150,6 +166,8 @@ export interface Database {
           apellido_mat?: string | null
           telefono?: string | null
           fecha_nacimiento?: string | null
+          institucion_id?: string | null
+          pal_id?: string | null
           created_at?: string
         }
       }
@@ -157,44 +175,53 @@ export interface Database {
         Row: {
           id: string
           pal_id: string
-          institucion_id: string
+          institucion_id: string | null
           fecha_visita: string
           validacion_gps: boolean
           latitud_registro: number | null
           longitud_registro: number | null
           distancia_metros: number | null
           estado: EstadoVisita
-          tipo_visita: TipoVisita
           created_at: string
           updated_at: string
+          notas_reagendado: string | null
+          reagendado_de: string | null
+          gps_dispositivo: boolean
+          fecha_hora_registro: string | null
         }
         Insert: {
           id?: string
           pal_id: string
-          institucion_id: string
+          institucion_id?: string | null
           fecha_visita: string
           validacion_gps?: boolean
           latitud_registro?: number | null
           longitud_registro?: number | null
           distancia_metros?: number | null
           estado?: EstadoVisita
-          tipo_visita: TipoVisita
           created_at?: string
           updated_at?: string
+          notas_reagendado?: string | null
+          reagendado_de?: string | null
+          gps_dispositivo?: boolean
+          fecha_hora_registro?: string | null
         }
         Update: {
           id?: string
           pal_id?: string
-          institucion_id?: string
+          institucion_id?: string | null
           fecha_visita?: string
           validacion_gps?: boolean
           latitud_registro?: number | null
           longitud_registro?: number | null
           distancia_metros?: number | null
           estado?: EstadoVisita
-          tipo_visita?: TipoVisita
           created_at?: string
           updated_at?: string
+          notas_reagendado?: string | null
+          reagendado_de?: string | null
+          gps_dispositivo?: boolean
+          fecha_hora_registro?: string | null
         }
       }
       ficha_paciente: {
@@ -276,6 +303,7 @@ export interface Database {
           ficha_id: string
           fecha_programada: string
           asistencia: boolean
+          estado: 'pendiente' | 'asistio' | 'falto'
           notas: string | null
           created_at: string
         }
@@ -284,6 +312,7 @@ export interface Database {
           ficha_id: string
           fecha_programada: string
           asistencia?: boolean
+          estado?: 'pendiente' | 'asistio' | 'falto'
           notas?: string | null
           created_at?: string
         }
@@ -292,6 +321,7 @@ export interface Database {
           ficha_id?: string
           fecha_programada?: string
           asistencia?: boolean
+          estado?: 'pendiente' | 'asistio' | 'falto'
           notas?: string | null
           created_at?: string
         }
@@ -299,8 +329,12 @@ export interface Database {
       actividades: {
         Row: {
           id: string
-          visita_id: string
-          contacto_id: string
+          contacto_id: string | null
+          institucion_id: string | null
+          pal_id: string
+          fecha_actividad: string
+          hora_actividad: string | null
+          tipo_actividad: TipoActividad
           descripcion_actividad: string | null
           temas_impartidos: string | null
           entrega_sobres_id: string | null
@@ -310,8 +344,12 @@ export interface Database {
         }
         Insert: {
           id?: string
-          visita_id: string
-          contacto_id: string
+          contacto_id?: string | null
+          institucion_id?: string | null
+          pal_id: string
+          fecha_actividad?: string
+          hora_actividad?: string | null
+          tipo_actividad?: TipoActividad
           descripcion_actividad?: string | null
           temas_impartidos?: string | null
           entrega_sobres_id?: string | null
@@ -321,8 +359,12 @@ export interface Database {
         }
         Update: {
           id?: string
-          visita_id?: string
-          contacto_id?: string
+          contacto_id?: string | null
+          institucion_id?: string | null
+          pal_id?: string
+          fecha_actividad?: string
+          hora_actividad?: string | null
+          tipo_actividad?: TipoActividad
           descripcion_actividad?: string | null
           temas_impartidos?: string | null
           entrega_sobres_id?: string | null

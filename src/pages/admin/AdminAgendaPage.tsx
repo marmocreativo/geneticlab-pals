@@ -278,7 +278,7 @@ export default function AdminAgendaPage() {
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1 font-semibold truncate">
                                 <MapPin className="h-3 w-3 shrink-0" />
-                                <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
+                                <span className="truncate">{v.institucion?.nombre || 'Home office'}</span>
                               </div>
                               <div className="flex items-center gap-1 text-[10px] opacity-75 shrink-0">
                                 <Clock className="h-2.5 w-2.5" />
@@ -290,7 +290,7 @@ export default function AdminAgendaPage() {
                                 {pal?.nombre_completo ?? '—'}
                               </p>
                             )}
-                            {v.estado === 'asistio' && (
+                            {v.estado === 'asistio' && v.institucion && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 <span className={cn(
                                   'text-[10px] px-1 py-0.5 rounded border font-medium',
@@ -565,33 +565,35 @@ export default function AdminAgendaPage() {
                                           <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex items-center gap-1 font-medium truncate text-xs">
                                               <MapPin className="h-3 w-3 flex-shrink-0" />
-                                              <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
+                                              <span className="truncate">{v.institucion?.nombre || 'Home office'}</span>
                                             </div>
                                             <div className="flex items-center gap-1 text-[10px] opacity-75">
                                               <Clock className="h-2.5 w-2.5" />
                                               {format(new Date(v.fecha_visita), 'HH:mm')}
                                             </div>
-                                            <div className="flex flex-wrap gap-1 mt-1">
-                                              <span className={cn(
-                                                'text-[10px] px-1 py-0.5 rounded border font-medium',
-                                                v.validacion_gps
-                                                  ? 'bg-green-50 text-green-700 border-green-200'
-                                                  : 'bg-red-50 text-red-700 border-red-200'
-                                              )}>
-                                                {v.validacion_gps ? 'En rango' : 'Muy lejos'}
-                                              </span>
-                                              <span className={cn(
-                                                'text-[10px] px-1 py-0.5 rounded border font-medium',
-                                                v.latitud_registro != null
-                                                  ? 'bg-green-50 text-green-700 border-green-200'
-                                                  : 'bg-red-50 text-red-700 border-red-200'
-                                              )}>
-                                                GPS. {v.latitud_registro != null ? 'registrado' : 'sin registro'}
-                                              </span>
-                                              <span className="text-[10px] px-1 py-0.5 rounded border font-medium bg-muted text-muted-foreground border-muted-foreground/20">
-                                                {v.distancia_metros != null ? `${v.distancia_metros}m` : 'Sin dist.'}
-                                              </span>
-                                            </div>
+                                            {v.institucion && (
+                                              <div className="flex flex-wrap gap-1 mt-1">
+                                                <span className={cn(
+                                                  'text-[10px] px-1 py-0.5 rounded border font-medium',
+                                                  v.validacion_gps
+                                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                                    : 'bg-red-50 text-red-700 border-red-200'
+                                                )}>
+                                                  {v.validacion_gps ? 'En rango' : 'Muy lejos'}
+                                                </span>
+                                                <span className={cn(
+                                                  'text-[10px] px-1 py-0.5 rounded border font-medium',
+                                                  v.latitud_registro != null
+                                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                                    : 'bg-red-50 text-red-700 border-red-200'
+                                                )}>
+                                                  GPS. {v.latitud_registro != null ? 'registrado' : 'sin registro'}
+                                                </span>
+                                                <span className="text-[10px] px-1 py-0.5 rounded border font-medium bg-muted text-muted-foreground border-muted-foreground/20">
+                                                  {v.distancia_metros != null ? `${v.distancia_metros}m` : 'Sin dist.'}
+                                                </span>
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       ) : (
@@ -599,7 +601,7 @@ export default function AdminAgendaPage() {
                                         <>
                                           <div className="flex items-center gap-1 font-medium truncate">
                                             <MapPin className="h-3 w-3 flex-shrink-0" />
-                                            <span className="truncate">{v.institucion?.nombre || 'N/A'}</span>
+                                            <span className="truncate">{v.institucion?.nombre || 'Home office'}</span>
                                           </div>
                                           <div className="flex items-center gap-1 mt-0.5 text-[10px] opacity-75">
                                             <Clock className="h-2.5 w-2.5" />
