@@ -1,7 +1,14 @@
 // services/fotosEvidenciaService.ts
 import { supabase } from '@/lib/supabase'
 
-async function comprimirImagen(file: File, maxWidth = 800, quality = 0.8): Promise<File> {
+function memoriaInsuficiente(): boolean {
+  const mem = (navigator as any).deviceMemory
+  // deviceMemory solo existe en Chrome/Android; si no existe, asumimos que está bien
+  if (mem === undefined) return false
+  return mem <= 2 // dispositivos con 2GB de RAM o menos
+}
+
+async function comprimirImagen(file: File, maxWidth = 600, quality = 0.7): Promise<File> {
   return new Promise((resolve) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -50,11 +57,12 @@ async function comprimirImagen(file: File, maxWidth = 800, quality = 0.8): Promi
 export const fotosEvidenciaService = {
   async subirFoto(visitaId: string, file: File) {
     try {
-      const fileToUpload = file.type.startsWith('image/')
+      const fileToUpload = file.type.startsWith('image/') && !memoriaInsuficiente()
         ? await comprimirImagen(file)
         : file
 
-      const fileName = `${visitaId}-${Date.now()}.jpg`
+      const extension = fileToUpload.type.split('/')[1] || 'jpg'
+      const fileName = `${visitaId}-${Date.now()}.${extension}`
       const filePath = `evidencias/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -62,7 +70,7 @@ export const fotosEvidenciaService = {
         .upload(filePath, fileToUpload, {
           cacheControl: '3600',
           upsert: false,
-          contentType: 'image/jpeg'
+          contentType: fileToUpload.type || 'image/jpeg'
         })
 
       if (uploadError) throw uploadError
