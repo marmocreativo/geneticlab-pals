@@ -497,13 +497,16 @@ export default function ActividadesPage() {
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex-1 text-left space-y-1">
 
-                          {/* Institución y fecha — primera línea */}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {/* Institución */}
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
                             <Building2 className="h-3 w-3 shrink-0" />
                             <span className="truncate">{actividad.institucion?.nombre || 'Home office'}</span>
-                            <span className="shrink-0">·</span>
+                          </div>
+
+                          {/* Fecha */}
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Calendar className="h-3 w-3 shrink-0" />
-                            <span className="shrink-0">
+                            <span>
                               {format(new Date(actividad.fecha_actividad + 'T00:00:00'), 'd MMM yyyy', { locale: es })}
                             </span>
                           </div>

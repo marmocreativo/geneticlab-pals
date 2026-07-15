@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { User } from 'lucide-react'
+import { User, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-
+import { useVerificarContactoDuplicado } from '@/hooks/useVerificarContactoDuplicado'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,6 +53,10 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
   const [loading, setLoading] = useState(false)
   const { user } = useAuth()
 
+  const { verificar, verificando } = useVerificarContactoDuplicado()
+  const [coincidencias, setCoincidencias] = useState<Contacto[]>([])
+  const [forzarCreacion, setForzarCreacion] = useState(false)
+
   const form = useForm<ContactoFormData>({
     resolver: zodResolver(contactoSchema),
     defaultValues: {
@@ -68,24 +72,9 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
 
   const tipoContacto = form.watch('tipo_contacto')
 
-  const onSubmit = async (data: ContactoFormData) => {
-    if (!user?.id) return
-
+  const crearContacto = async (contactoData: ContactoInsert) => {
     try {
       setLoading(true)
-      
-      const contactoData: ContactoInsert = {
-        ...data,
-        pal_id: user.id,
-        institucion_id: institucionId ?? null,
-        // Limpiar campos opcionales vacíos
-        apellido_pat: data.apellido_pat || undefined,
-        apellido_mat: data.apellido_mat || undefined,
-        telefono: data.telefono || undefined,
-        fecha_nacimiento: data.fecha_nacimiento || undefined,
-        relacion_con_paciente: data.relacion_con_paciente || undefined
-      }
-
       const newContacto = await contactosService.createContacto(contactoData)
       toast.success('Contacto creado exitosamente')
       onSuccess(newContacto)
@@ -95,6 +84,54 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
     } finally {
       setLoading(false)
     }
+  }
+
+  const onSubmit = async (data: ContactoFormData) => {
+    if (!user?.id) return
+
+    const contactoData: ContactoInsert = {
+      ...data,
+      pal_id: user.id,
+      institucion_id: institucionId ?? null,
+      apellido_pat: data.apellido_pat || undefined,
+      apellido_mat: data.apellido_mat || undefined,
+      telefono: data.telefono || undefined,
+      fecha_nacimiento: data.fecha_nacimiento || undefined,
+      relacion_con_paciente: data.relacion_con_paciente || undefined
+    }
+
+    // Si ya se decidió forzar creación (el usuario ya vio las coincidencias y eligió seguir), crear directo
+    if (forzarCreacion) {
+      await crearContacto(contactoData)
+      return
+    }
+
+    // Verificar duplicados antes de crear
+    const encontrados = await verificar({
+      nombre: contactoData.nombre,
+      apellido_pat: contactoData.apellido_pat,
+      apellido_mat: contactoData.apellido_mat,
+      institucion_id: contactoData.institucion_id,
+    })
+
+    if (encontrados.length > 0) {
+      setCoincidencias(encontrados)
+      return
+    }
+
+    await crearContacto(contactoData)
+  }
+
+  const handleUsarExistente = (contacto: Contacto) => {
+    toast.success('Usando el contacto existente')
+    onSuccess(contacto)
+  }
+
+  const handleCrearDeTodasFormas = () => {
+    setCoincidencias([])
+    setForzarCreacion(true)
+    // Reenvía el formulario ya con forzarCreacion activo
+    form.handleSubmit(onSubmit)()
   }
 
   const getTipoContactoLabel = (tipo: string) => {
@@ -120,6 +157,67 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Coincidencias encontradas */}
+        {coincidencias.length > 0 && (
+          <div className="mb-4 border rounded-lg p-3 bg-amber-50 border-amber-200 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+              <p className="text-sm font-medium text-amber-800">
+                Ya existe{coincidencias.length > 1 ? 'n' : ''} un contacto con ese nombre
+              </p>
+            </div>
+            <p className="text-xs text-amber-700">
+              Puedes usar el contacto existente para no duplicar información, o crear uno nuevo si estás seguro de que es una persona distinta.
+            </p>
+            <div className="space-y-1.5">
+              {coincidencias.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-2 rounded border bg-white text-sm space-y-2"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">
+                      {[c.nombre, c.apellido_pat, c.apellido_mat].filter(Boolean).join(' ')}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {getTipoContactoLabel(c.tipo_contacto)}
+                      {c.institucion?.nombre ? ` • ${c.institucion.nombre}` : ' • Sin institución'}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => handleUsarExistente(c)}
+                  >
+                    Usar este contacto
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => setCoincidencias([])}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={handleCrearDeTodasFormas}
+              >
+                Crear de todas formas
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Tipo de contacto */}
@@ -159,7 +257,15 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
                 <FormItem>
                   <FormLabel>Nombre *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nombre del contacto" {...field} />
+                    <Input
+                      placeholder="Nombre del contacto"
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e)
+                        setForzarCreacion(false)
+                        setCoincidencias([])
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -175,7 +281,15 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
                   <FormItem>
                     <FormLabel>Apellido Paterno</FormLabel>
                     <FormControl>
-                      <Input placeholder="Apellido paterno" {...field} />
+                      <Input
+                        placeholder="Apellido paterno"
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e)
+                          setForzarCreacion(false)
+                          setCoincidencias([])
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -189,7 +303,15 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
                   <FormItem>
                     <FormLabel>Apellido Materno</FormLabel>
                     <FormControl>
-                      <Input placeholder="Apellido materno" {...field} />
+                      <Input
+                        placeholder="Apellido materno"
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e)
+                          setForzarCreacion(false)
+                          setCoincidencias([])
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -276,8 +398,8 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Guardando...' : 'Crear Contacto'}
+              <Button type="submit" disabled={loading || verificando}>
+                {loading ? 'Guardando...' : verificando ? 'Verificando...' : 'Crear Contacto'}
               </Button>
             </div>
           </form>

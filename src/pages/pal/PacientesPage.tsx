@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef  } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,12 +6,22 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import FichaForm from '@/components/pacientes/FichaForm'
 import {
   ChevronLeft, ChevronRight, Check, X, Calendar,
-  Pencil, Plus, Stethoscope, Building, Star, UserX
+  Pencil, Plus, Stethoscope, Building, Star, UserX, Trash2
 } from 'lucide-react'
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
@@ -50,6 +60,14 @@ interface EditFormState {
   periodicidad: PeriodicidadFicha | ''
 }
 
+interface ContactoEditForm {
+  nombre: string
+  apellido_pat: string
+  apellido_mat: string
+  telefono: string
+  fecha_nacimiento: string
+}
+
 interface PacientePreseleccionado {
   id: string
   nombre: string
@@ -60,27 +78,42 @@ interface PacientePreseleccionado {
   institucion_id?: string | null
 }
 
+const CONTACTO_EDIT_EMPTY: ContactoEditForm = {
+  nombre: '', apellido_pat: '', apellido_mat: '', telefono: '', fecha_nacimiento: '',
+}
+
 function IconoFecha({ estado }: { estado?: string }) {
   if (estado === 'asistio') return <Check className="h-4 w-4 text-green-600" />
   if (estado === 'falto') return <X className="h-4 w-4 text-red-500" />
   return <Calendar className="h-4 w-4 text-muted-foreground" />
 }
 
-function TablaDates({ ficha }: { ficha: FichaPaciente }) {
+function TablaDates({ ficha, onClick }: { ficha: FichaPaciente; onClick: () => void }) {
   const celdas: ({ fecha: string; estado?: string; esInicio?: boolean })[] = []
 
+  const registradas = [...(ficha.fechas_tratamiento ?? [])]
+    .sort((a, b) => new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime())
+
+  const primeraRegistrada = registradas[0]
+  const coincideConInicio = ficha.fecha_inicio_tratamiento &&
+    primeraRegistrada?.fecha_programada === ficha.fecha_inicio_tratamiento
+
   if (ficha.fecha_inicio_tratamiento) {
-    celdas.push({ fecha: ficha.fecha_inicio_tratamiento, estado: 'asistio', esInicio: true })
+    celdas.push({
+      fecha: ficha.fecha_inicio_tratamiento,
+      estado: coincideConInicio ? primeraRegistrada.estado : 'asistio',
+      esInicio: true,
+    })
   } else {
     celdas.push({ fecha: '' })
   }
 
-  const registradas = [...(ficha.fechas_tratamiento ?? [])]
-    .sort((a, b) => new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime())
-    .slice(0, 4)
+  // Si la primera registrada coincide con el inicio, la saltamos para no duplicarla
+  const restantes = coincideConInicio ? registradas.slice(1) : registradas
+  const siguientes = restantes.slice(0, 4)
 
   for (let i = 0; i < 4; i++) {
-    const f = registradas[i]
+    const f = siguientes[i]
     if (f) {
       celdas.push({ fecha: f.fecha_programada, estado: f.estado })
     } else {
@@ -89,11 +122,15 @@ function TablaDates({ ficha }: { ficha: FichaPaciente }) {
   }
 
   return (
-    <div className="grid grid-cols-5 gap-1 mt-3">
+    <button
+      type="button"
+      onClick={onClick}
+      className="grid grid-cols-5 gap-1 mt-3 w-full text-left"
+    >
       {celdas.map((c, i) => (
         <div
           key={i}
-          className="flex flex-col items-center justify-center border rounded p-1 min-h-[48px] bg-muted/30"
+          className="flex flex-col items-center justify-center border rounded p-1 min-h-[48px] bg-muted/30 hover:bg-muted transition-colors"
         >
           {c.fecha ? (
             <>
@@ -110,16 +147,16 @@ function TablaDates({ ficha }: { ficha: FichaPaciente }) {
           )}
         </div>
       ))}
-    </div>
+    </button>
   )
 }
 
 export default function PacientesPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { fichas, loading, fetchFichas, updateFicha } = useFichas()
+  const { fichas, loading, fetchFichas, updateFicha, deleteFicha } = useFichas()
   const { instituciones } = useInstituciones()
-  const { formatearNombreCompleto, createContacto } = useContactos()
+  const { formatearNombreCompleto, createContacto, updateContacto } = useContactos()
 
   const [selectedInstitucion, setSelectedInstitucion] = useState<string>('all')
   const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
@@ -161,6 +198,14 @@ export default function PacientesPage() {
     telefono: '',
     pal_id: user?.id || ''
   })
+
+  // Edición de datos del contacto paciente / doctor
+  const [pacienteEditForm, setPacienteEditForm] = useState<ContactoEditForm>(CONTACTO_EDIT_EMPTY)
+  const [doctorEditForm, setDoctorEditForm] = useState<ContactoEditForm>(CONTACTO_EDIT_EMPTY)
+
+  // Eliminar ficha
+  const [fichaAEliminar, setFichaAEliminar] = useState<FichaPaciente | null>(null)
+  const [eliminando, setEliminando] = useState(false)
 
   // Cargar pacientes sin ficha cuando las fichas estén listas
   useEffect(() => {
@@ -256,7 +301,6 @@ export default function PacientesPage() {
     if (!contacto) return 'Sin datos'
     return [contacto.nombre, contacto.apellido_pat, contacto.apellido_mat].filter(Boolean).join(' ')
   }
-
   const handleOpenEdit = async (ficha: FichaPaciente) => {
     setEditingFicha(ficha)
     setEditForm({
@@ -280,6 +324,20 @@ export default function PacientesPage() {
       telefono: '',
       pal_id: user?.id || ''
     })
+    setPacienteEditForm({
+      nombre: ficha.paciente?.nombre || '',
+      apellido_pat: ficha.paciente?.apellido_pat || '',
+      apellido_mat: ficha.paciente?.apellido_mat || '',
+      telefono: ficha.paciente?.telefono || '',
+      fecha_nacimiento: ficha.paciente?.fecha_nacimiento || '',
+    })
+    setDoctorEditForm({
+      nombre: ficha.doctor?.nombre || '',
+      apellido_pat: ficha.doctor?.apellido_pat || '',
+      apellido_mat: ficha.doctor?.apellido_mat || '',
+      telefono: '',
+      fecha_nacimiento: '',
+    })
     setLoadingMedicos(true)
     try {
       const data = await contactosService.getContactosByInstitucion(ficha.institucion_id)
@@ -301,6 +359,8 @@ export default function PacientesPage() {
     setEditErrors({})
     setMedicosEdit([])
     setCreateNewMedico(false)
+    setPacienteEditForm(CONTACTO_EDIT_EMPTY)
+    setDoctorEditForm(CONTACTO_EDIT_EMPTY)
   }
 
   const validateEdit = (): boolean => {
@@ -315,6 +375,17 @@ export default function PacientesPage() {
     if (!editingFicha || !validateEdit()) return
     setSaving(true)
     try {
+      // Actualizar datos del contacto paciente
+      if (editingFicha.paciente_id) {
+        await updateContacto(editingFicha.paciente_id, {
+          nombre: pacienteEditForm.nombre,
+          apellido_pat: pacienteEditForm.apellido_pat || undefined,
+          apellido_mat: pacienteEditForm.apellido_mat || undefined,
+          telefono: pacienteEditForm.telefono || undefined,
+          fecha_nacimiento: pacienteEditForm.fecha_nacimiento || undefined,
+        })
+      }
+
       let doctorId = editForm.doctor_id || undefined
       if (createNewMedico && nuevoMedicoData.nombre.trim()) {
         const nuevo = await createContacto({
@@ -322,7 +393,16 @@ export default function PacientesPage() {
           institucion_id: editingFicha.institucion_id
         })
         doctorId = nuevo.id
+      } else if (doctorId) {
+        // Actualizar datos del doctor existente (si no se está creando uno nuevo)
+        await updateContacto(doctorId, {
+          nombre: doctorEditForm.nombre,
+          apellido_pat: doctorEditForm.apellido_pat || undefined,
+          apellido_mat: doctorEditForm.apellido_mat || undefined,
+          telefono: doctorEditForm.telefono || undefined,
+        })
       }
+
       const updates: FichaPacienteUpdate = {
         doctor_id: doctorId,
         diagnostico: editForm.diagnostico || undefined,
@@ -363,6 +443,18 @@ export default function PacientesPage() {
     setOpenFichaForm(true)
   }
 
+  const handleConfirmDelete = async () => {
+    if (!fichaAEliminar) return
+    try {
+      setEliminando(true)
+      await deleteFicha(fichaAEliminar.id)
+      setFichaAEliminar(null)
+    } catch {
+      // el hook ya muestra el toast
+    } finally {
+      setEliminando(false)
+    }
+  }
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
 
@@ -570,7 +662,7 @@ export default function PacientesPage() {
                     </div>
                   )}
 
-                  <TablaDates ficha={ficha} />
+                  <TablaDates ficha={ficha} onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)} />
 
                   <div className="flex gap-2 pt-1">
                     <Button
@@ -590,6 +682,14 @@ export default function PacientesPage() {
                     >
                       <Calendar className="h-3 w-3 mr-1" />
                       Ver fechas
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs text-destructive hover:text-destructive"
+                      onClick={() => setFichaAEliminar(ficha)}
+                    >
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 </CardContent>
@@ -687,6 +787,50 @@ export default function PacientesPage() {
           </DialogHeader>
 
           <div className="space-y-4">
+
+            {/* Datos del paciente */}
+            <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+              <Label className="text-sm font-semibold">Datos del paciente</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs">Nombre</Label>
+                  <Input
+                    value={pacienteEditForm.nombre}
+                    onChange={(e) => setPacienteEditForm(prev => ({ ...prev, nombre: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Apellido Paterno</Label>
+                  <Input
+                    value={pacienteEditForm.apellido_pat}
+                    onChange={(e) => setPacienteEditForm(prev => ({ ...prev, apellido_pat: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Apellido Materno</Label>
+                  <Input
+                    value={pacienteEditForm.apellido_mat}
+                    onChange={(e) => setPacienteEditForm(prev => ({ ...prev, apellido_mat: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Teléfono</Label>
+                  <Input
+                    value={pacienteEditForm.telefono}
+                    onChange={(e) => setPacienteEditForm(prev => ({ ...prev, telefono: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Fecha de nacimiento</Label>
+                  <Input
+                    type="date"
+                    value={pacienteEditForm.fecha_nacimiento}
+                    onChange={(e) => setPacienteEditForm(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Doctor</Label>
               {!createNewMedico && (
@@ -753,6 +897,41 @@ export default function PacientesPage() {
                       onChange={(e) => setNuevoMedicoData(prev => ({ ...prev, telefono: e.target.value }))}
                       placeholder="Teléfono"
                     />
+                  </div>
+                </div>
+              )}
+              {!createNewMedico && editForm.doctor_id && (
+                <div className="space-y-2 border rounded-lg p-3 bg-muted/30 mt-2">
+                  <Label className="text-sm font-semibold">Datos del doctor</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs">Nombre</Label>
+                      <Input
+                        value={doctorEditForm.nombre}
+                        onChange={(e) => setDoctorEditForm(prev => ({ ...prev, nombre: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Apellido Paterno</Label>
+                      <Input
+                        value={doctorEditForm.apellido_pat}
+                        onChange={(e) => setDoctorEditForm(prev => ({ ...prev, apellido_pat: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Apellido Materno</Label>
+                      <Input
+                        value={doctorEditForm.apellido_mat}
+                        onChange={(e) => setDoctorEditForm(prev => ({ ...prev, apellido_mat: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs">Teléfono</Label>
+                      <Input
+                        value={doctorEditForm.telefono}
+                        onChange={(e) => setDoctorEditForm(prev => ({ ...prev, telefono: e.target.value }))}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -865,6 +1044,30 @@ export default function PacientesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog de confirmación de borrado */}
+      <AlertDialog open={!!fichaAEliminar} onOpenChange={(open) => { if (!open) setFichaAEliminar(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta ficha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará la ficha de <strong>{formatearNombre(fichaAEliminar?.paciente)}</strong>
+              {' '}(folio {fichaAEliminar?.numero_pm}) junto con todas sus fechas de tratamiento registradas.
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={eliminando}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

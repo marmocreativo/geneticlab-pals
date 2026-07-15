@@ -3,6 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { ConnectionIndicators } from '@/components/ConnectionIndicators'
+import { ContactosOffcanvas } from '@/components/contactos/ContactosOffcanvas'
+import { useContactosDuplicados } from '@/hooks/useContactosDuplicados'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,7 +33,8 @@ import {
   RefreshCw,
   ScrollText,
   Wrench,
-  Download 
+  Download,
+  Contact 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/version'
@@ -65,6 +68,7 @@ const navItems: NavItem[] = [
   { title: 'Pacientes', href: '/pal/pacientes', icon: Stethoscope, roles: ['pal'] },
 ]
 
+
 async function forceUpdate() {
   if ('serviceWorker' in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations()
@@ -81,6 +85,7 @@ async function forceUpdate() {
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [contactosOpen, setContactosOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const { user, role, signOut, nombreCompleto } = useAuth()
   const navigate = useNavigate()
@@ -137,7 +142,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const VersionInfo = () => (
     <div className="px-3 py-2 space-y-0.5">
       <p className="text-[10px] text-muted-foreground">v{APP_VERSION}</p>
-      <p className="text-[10px] text-muted-foreground">BD: {formatLastFetch(getLastFetch())}</p>
     </div>
   )
 
@@ -155,6 +159,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   )
 
   const { puedeInstalar, instalar } = usePWAInstall()
+  const { cantidadDuplicados, refetch: refetchDuplicados } = useContactosDuplicados()
 
   return (
     <div className="h-screen flex bg-gradient-to-b from-background to-white">
@@ -178,6 +183,20 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <div className="p-4 border-t space-y-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2 text-xs relative"
+            onClick={() => setContactosOpen(true)}
+          >
+            <Contact className="h-3 w-3" />
+            Contactos
+            {cantidadDuplicados > 0 && (
+              <Badge variant="destructive" className="ml-auto text-[10px] h-4 px-1.5">
+                {cantidadDuplicados}
+              </Badge>
+            )}
+          </Button>
           <VersionInfo />
           {role === 'admin' && <BtnNotificaciones />}
           {puedeInstalar && (
@@ -280,10 +299,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           {/* Título mobile */}
           <div className="flex-1 min-w-0 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold leading-tight">Aliado Presente v.{APP_VERSION}</p>
-              <p className="text-[10px] text-muted-foreground leading-tight">
-                Act: {formatLastFetch(getLastFetch())}
-              </p>
+              <p className="text-[10px] font-semibold leading-tight">Aliado Presente v.{APP_VERSION}</p>
             </div>
             <ConnectionIndicators />
           </div>
@@ -321,7 +337,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
       {/* Bottom Navigation - Mobile */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-border/40">
-        <div className="flex justify-around py-2">
+        <div className="flex justify-between px-1 py-1.5">
           {filteredNavItems.slice(0, 4).map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.href
@@ -330,21 +346,38 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  'flex flex-col items-center px-3 py-2 rounded-lg transition-colors min-w-0',
+                  'flex flex-col items-center px-1.5 py-1.5 rounded-lg transition-colors min-w-0 flex-1',
                   isActive
                     ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Icon className="h-5 w-5 mb-1" />
-                <span className="text-xs font-medium truncate">{item.title}</span>
+                <Icon className="h-4.5 w-4.5 mb-0.5" />
+                <span className="text-[10px] font-medium truncate max-w-full leading-tight">{item.title}</span>
               </Link>
             )
           })}
+          <button
+            type="button"
+            onClick={() => setContactosOpen(true)}
+            className="relative flex flex-col items-center px-1.5 py-1.5 rounded-lg text-muted-foreground hover:text-foreground min-w-0 flex-1"
+          >
+            <div className="relative">
+              <Contact className="h-4.5 w-4.5 mb-0.5" />
+              {cantidadDuplicados > 0 && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
+              )}
+            </div>
+            <span className="text-[10px] font-medium truncate max-w-full leading-tight">Contactos</span>
+          </button>
           {role === 'pal' && <BtnAyuda />}
         </div>
       </nav>
-
+      <ContactosOffcanvas
+        open={contactosOpen}
+        onOpenChange={setContactosOpen}
+        onFusionCompletada={refetchDuplicados}
+      />
       <PWAInstallPrompt />
     </div>
   )

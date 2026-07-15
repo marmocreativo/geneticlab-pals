@@ -15,6 +15,7 @@ import { useFichas } from '@/hooks/useFichas'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCatalogos } from '@/hooks/useCatalogos'
 import { contactosService } from '@/services/contactosService'
+import { fechasTratamientoService } from '@/services/fechasTratamientoService'
 import type { ContactoInsert, Contacto } from '@/types/contacto'
 import type { PeriodicidadFicha } from '@/types/database.types'
 import { cn } from '@/lib/utils'
@@ -268,7 +269,7 @@ export default function FichaForm({
         medicoId = nuevo.id
       }
 
-      await createFicha({
+      const nuevaFicha = await createFicha({
         institucion_id: selectedInstitucion,
         paciente_id: pacienteId,
         doctor_id: medicoId,
@@ -281,6 +282,19 @@ export default function FichaForm({
         status: fichaData.status,
         periodicidad: fichaData.periodicidad || undefined,
       })
+
+      if (nuevaFicha.fecha_inicio_tratamiento) {
+        try {
+          await fechasTratamientoService.createFecha({
+            ficha_id: nuevaFicha.id,
+            fecha_programada: nuevaFicha.fecha_inicio_tratamiento,
+            estado: 'asistio',
+          })
+        } catch (err) {
+          console.error('Error creando fecha de tratamiento inicial:', err)
+          // No interrumpe el flujo: la ficha ya se creó exitosamente
+        }
+      }
 
       handleOpenChange(false)
       onSuccess?.()

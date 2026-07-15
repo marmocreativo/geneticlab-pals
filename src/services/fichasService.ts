@@ -85,6 +85,20 @@ export const fichasService = {
   },
 
   async deleteFicha(id: string) {
+    const { error: errorFechas } = await supabase
+      .from('fechas_tratamiento')
+      .delete()
+      .eq('ficha_id', id)
+
+    if (errorFechas) throw new Error(`Error eliminando fechas de tratamiento: ${errorFechas.message}`)
+
+    const { error: errorFichaContactos } = await supabase
+      .from('ficha_contactos')
+      .delete()
+      .eq('ficha_id', id)
+
+    if (errorFichaContactos) throw new Error(`Error eliminando contactos de la ficha: ${errorFichaContactos.message}`)
+
     const { error } = await supabase
       .from('ficha_paciente')
       .delete()
