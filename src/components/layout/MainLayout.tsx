@@ -5,6 +5,7 @@ import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { ConnectionIndicators } from '@/components/ConnectionIndicators'
 import { ContactosOffcanvas } from '@/components/contactos/ContactosOffcanvas'
 import { useContactosDuplicados } from '@/hooks/useContactosDuplicados'
+import { VideoPopupModal } from '@/components/VideoPopupModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -371,6 +372,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         onFusionCompletada={refetchDuplicados}
       />
       <PWAInstallPrompt />
+      {role === 'pal' && <VideoPopupModal />}
     </div>
   )
 }
