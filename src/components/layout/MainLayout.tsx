@@ -38,7 +38,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/version'
-import { getLastFetch } from '@/lib/lastFetch'
 import { BtnNotificaciones } from '@/components/admin/BtnNotificaciones'
 import { BtnAyuda } from '@/components/BtnAyuda'
 
@@ -90,13 +89,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const { user, role, signOut, nombreCompleto } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-
-  const formatLastFetch = (iso: string | null): string => {
-    if (!iso) return 'Sin datos'
-    const d = new Date(iso)
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-  }
 
   const handleSignOut = async () => {
     await signOut()
