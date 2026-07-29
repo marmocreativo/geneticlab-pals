@@ -123,6 +123,7 @@ export default function ReportesPage() {
 
       const datos = data.map((a: any) => ({
         'ID': a.id,
+        'Tipo de Actividad': a.tipo_actividad === 'presencial' ? 'Presencial' : 'Telefónica',
         'PAL': a.pal?.nombre_completo || 'N/A',
         'Institución': a.institucion?.nombre || 'N/A',
         'Contacto': a.contacto

@@ -3,6 +3,7 @@ import { Activity, User, MapPin, Calendar, Filter, Eye } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,7 +15,10 @@ import type { Actividad } from '@/types/actividad'
 
 export default function AdminActividadesPage() {
   const currentDate = new Date()
+  const [busquedaId, setBusquedaId] = useState('')
   const [filtroInstitucion, setFiltroInstitucion] = useState<string>('todos')
+  const [busquedaInstitucionTexto, setBusquedaInstitucionTexto] = useState('')
+  const [openInstitucionDropdown, setOpenInstitucionDropdown] = useState(false)
   const [filtroPal, setFiltroPal] = useState<string>('todos')
   const [filtroActividad, setFiltroActividad] = useState<string>('todos')
   const [filtroFechaInicio, setFiltroFechaInicio] = useState<string>(
@@ -34,7 +38,13 @@ export default function AdminActividadesPage() {
   const pals = users.filter(user => user.role === 'pal')
   const tiposActividad = catalogos.filter(cat => cat.tipo === 'descripcion_actividad')
 
+  const institucionesFiltradas = instituciones.filter(i =>
+    busquedaInstitucionTexto === '' ||
+    i.nombre.toLowerCase().includes(busquedaInstitucionTexto.toLowerCase())
+  )
+
   const actividadesFiltradas = actividades?.filter(actividad => {
+    if (busquedaId && !actividad.id.toLowerCase().includes(busquedaId.toLowerCase())) return false
     if (filtroInstitucion !== 'todos' && actividad.institucion?.id !== filtroInstitucion) return false
     if (filtroPal !== 'todos' && actividad.pal?.id !== filtroPal) return false
     if (filtroActividad !== 'todos' && actividad.entrega_sobres_id !== filtroActividad) return false
@@ -69,19 +79,74 @@ export default function AdminActividadesPage() {
               <span className="text-sm font-medium">Filtros:</span>
             </div>
 
-            <Select value={filtroInstitucion} onValueChange={setFiltroInstitucion}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Institución" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas las instituciones</SelectItem>
-                {instituciones.map((institucion) => (
-                  <SelectItem key={institucion.id} value={institucion.id}>
-                    {institucion.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              placeholder="Buscar por ID..."
+              value={busquedaId}
+              onChange={(e) => setBusquedaId(e.target.value)}
+              className="w-[180px] h-9 text-sm"
+            />
+
+            <div className="relative w-[200px]">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start font-normal h-9"
+                onClick={() => setOpenInstitucionDropdown(prev => !prev)}
+              >
+                <MapPin className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+                <span className="truncate">
+                  {filtroInstitucion === 'todos'
+                    ? 'Todas las instituciones'
+                    : instituciones.find(i => i.id === filtroInstitucion)?.nombre ?? 'Todas las instituciones'}
+                </span>
+              </Button>
+
+              {openInstitucionDropdown && (
+                <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-72 overflow-y-auto">
+                  <div className="p-2 border-b sticky top-0 bg-popover">
+                    <Input
+                      placeholder="Buscar institución..."
+                      defaultValue=""
+                      onChange={e => setBusquedaInstitucionTexto(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div
+                    className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                    onClick={() => {
+                      setFiltroInstitucion('todos')
+                      setOpenInstitucionDropdown(false)
+                      setBusquedaInstitucionTexto('')
+                    }}
+                  >
+                    Todas las instituciones
+                  </div>
+
+                  {institucionesFiltradas.map((inst) => (
+                    <div
+                      key={inst.id}
+                      className="px-3 py-2 text-sm cursor-pointer hover:bg-accent truncate"
+                      onClick={() => {
+                        setFiltroInstitucion(inst.id)
+                        setOpenInstitucionDropdown(false)
+                        setBusquedaInstitucionTexto('')
+                      }}
+                    >
+                      {inst.nombre}
+                    </div>
+                  ))}
+
+                  {institucionesFiltradas.length === 0 && (
+                    <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                      Sin resultados
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <Select value={filtroPal} onValueChange={setFiltroPal}>
               <SelectTrigger className="w-[180px]">
@@ -232,7 +297,11 @@ export default function AdminActividadesPage() {
                   </TableHeader>
                   <TableBody>
                     {actividadesFiltradas.map((actividad) => (
-                      <TableRow key={actividad.id}>
+                      <TableRow
+                        key={actividad.id}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleViewActivity(actividad)}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -282,7 +351,11 @@ export default function AdminActividadesPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => handleViewActivity(actividad)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleViewActivity(actividad) }}
+                          >
                             <Eye className="w-4 h-4" />
                           </Button>
                         </TableCell>

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Plus, Search, Calendar, Building2, ChevronDown, ChevronUp, Filter } from 'lucide-react'
+import { Plus, Search, Calendar, Building2, ChevronDown, ChevronUp, Filter, User } from 'lucide-react'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { ActividadInsert } from '@/types/actividad'
@@ -488,20 +488,27 @@ export default function ActividadesPage() {
           ) : (
             paginatedActividades.map(actividad => (
               <Collapsible key={actividad.id}>
-                <Card className="hover:shadow-md transition-shadow">
+                <Card className="hover:shadow-md transition-shadow py-0">
                   <CollapsibleTrigger 
                     className="w-full"
                     onClick={() => toggleExpand(actividad.id)}
                   >
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1 text-left space-y-1">
+                        <div className="flex-1 text-left space-y-1 min-w-0">
 
                           {/* Institución */}
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
                             <Building2 className="h-3 w-3 shrink-0" />
                             <span className="truncate">{actividad.institucion?.nombre || 'Home office'}</span>
                           </div>
+
+                          {actividad.contacto && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                              <User className="h-3 w-3 shrink-0" />
+                              <span className="truncate font-bold">{formatearNombreContacto(actividad.contacto)}</span>
+                            </div>
+                          )}
 
                           {/* Fecha */}
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -537,6 +544,16 @@ export default function ActividadesPage() {
                   <CollapsibleContent>
                     <CardContent className="pt-0 px-4 pb-4">
                       <div className="border-t pt-4 space-y-3">
+
+                        {actividad.contacto && (
+                          <div>
+                            <span className="text-sm font-medium">Contacto:</span>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {formatearNombreContacto(actividad.contacto)} — {getTipoContactoLabel(actividad.contacto.tipo_contacto)}
+                            </p>
+                          </div>
+                        )}
+
                         {/* Temas impartidos */}
                         {actividad.temas_impartidos && (
                           <div>

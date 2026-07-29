@@ -1,3 +1,3 @@
 // src/lib/version.ts
-export const APP_VERSION = '1.0.10.0'
-export const APP_UPDATED = '14-07-26'
+export const APP_VERSION = '1.0.11.0'
+export const APP_UPDATED = '29-07-26'

@@ -258,6 +258,11 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
     )
   }
 
+  console.log('step1Data institucion_id:', step1Data?.institucion_id)
+console.log('total contactos cargados:', contactos.length)
+console.log('contactos kam/cuidador en el state:', contactos.filter(c => c.tipo_contacto === 'kam' || c.tipo_contacto === 'cuidador'))
+console.log('filteredContactos:', JSON.stringify(filteredContactos.map(c => ({ nombre: c.nombre, tipo: c.tipo_contacto }))))
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -585,6 +590,7 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                               {filteredContactos.map(contacto => (
                                 <CommandItem
                                   key={contacto.id}
+                                  value={`${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim()}
                                   onSelect={() => { field.onChange(contacto.id); setContactSearchOpen(false) }}
                                 >
                                   <div>

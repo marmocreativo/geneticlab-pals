@@ -2,8 +2,8 @@ import { supabase } from '@/lib/supabase'
 import type { Contacto, ContactoInsert, ContactoUpdate } from '@/types/contacto'
 
 export const contactosService = {
-  async getContactos() {
-    const { data, error } = await supabase
+  async getContactos(palId?: string) {
+    let query = supabase
       .from('contactos')
       .select(`
         *,
@@ -14,6 +14,11 @@ export const contactosService = {
       `)
       .order('nombre', { ascending: true })
 
+    if (palId) {
+      query = query.eq('pal_id', palId)
+    }
+
+    const { data, error } = await query
     if (error) throw error
     return data as Contacto[]
   },

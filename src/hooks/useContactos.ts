@@ -3,8 +3,10 @@ import { contactosService } from '@/services/contactosService'
 import { logError, parseError } from '@/lib/errorHandler'
 import type { Contacto, ContactoInsert, ContactoUpdate } from '@/types/contacto'
 import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
 
 export function useContactos() {
+  const { user, role } = useAuth()
   const [contactos, setContactos] = useState<Contacto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -13,7 +15,8 @@ export function useContactos() {
     try {
       setLoading(true)
       setError(null)
-      const data = await contactosService.getContactos()
+      const palId = role === 'pal' ? user?.id : undefined
+      const data = await contactosService.getContactos(palId)
       setContactos(data)
     } catch (err) {
       console.error('Error fetching contactos:', err)
@@ -121,7 +124,7 @@ export function useContactos() {
 
   useEffect(() => {
     fetchContactos()
-  }, [])
+  }, [user?.id, role])
 
   return {
     contactos,

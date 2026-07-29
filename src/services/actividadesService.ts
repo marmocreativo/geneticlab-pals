@@ -375,7 +375,7 @@ export const actividadesService = {
       return 'Fecha no disponible'
     }
     
-    const fecha = new Date(actividad.fecha_actividad)
+    const fecha = new Date(actividad.fecha_actividad + 'T00:00:00')
     let result = fecha.toLocaleDateString('es-MX', {
       year: 'numeric',
       month: 'short',

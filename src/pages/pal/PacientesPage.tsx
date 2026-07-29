@@ -21,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import FichaForm from '@/components/pacientes/FichaForm'
 import {
   ChevronLeft, ChevronRight, Check, X, Calendar,
-  Pencil, Plus, Stethoscope, Building, Star, UserX, Trash2
+  Pencil, Plus, Stethoscope, Building, Star, Trash2, Search, Users
 } from 'lucide-react'
 import { useFichas } from '@/hooks/useFichas'
 import { useInstituciones } from '@/hooks/useInstituciones'
@@ -47,6 +47,8 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const PAGE_SIZE = 12
+
+type QuickFilter = 'todas' | 'en_tx' | 'sin_ficha'
 
 interface EditFormState {
   doctor_id: string
@@ -108,7 +110,6 @@ function TablaDates({ ficha, onClick }: { ficha: FichaPaciente; onClick: () => v
     celdas.push({ fecha: '' })
   }
 
-  // Si la primera registrada coincide con el inicio, la saltamos para no duplicarla
   const restantes = coincideConInicio ? registradas.slice(1) : registradas
   const siguientes = restantes.slice(0, 4)
 
@@ -154,21 +155,48 @@ function TablaDates({ ficha, onClick }: { ficha: FichaPaciente; onClick: () => v
 export default function PacientesPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { fichas, loading, fetchFichas, updateFicha, deleteFicha } = useFichas()
+  const { fichas, loading: loadingFichas, fetchFichas, updateFicha, deleteFicha } = useFichas()
   const { instituciones } = useInstituciones()
   const { formatearNombreCompleto, createContacto, updateContacto } = useContactos()
 
-  const [selectedInstitucion, setSelectedInstitucion] = useState<string>('all')
-  const [busquedaInstitucion, setBusquedaInstitucion] = useState('')
+  const listTopRef = useRef<HTMLDivElement>(null)
+
+  // Pacientes (fuente principal ahora)
+  const [pacientes, setPacientes] = useState<Contacto[]>([])
+  const [loadingPacientes, setLoadingPacientes] = useState(true)
+
+  useEffect(() => {
+    if (!user?.id) return
+    setLoadingPacientes(true)
+    contactosService.getPacientesByUser(user.id)
+      .then(setPacientes)
+      .catch(() => setPacientes([]))
+      .finally(() => setLoadingPacientes(false))
+  }, [user?.id])
+
+  const loading = loadingFichas || loadingPacientes
+
+  const refetchPacientes = () => {
+    if (!user?.id) return
+    contactosService.getPacientesByUser(user.id).then(setPacientes).catch(() => {})
+  }
+
+  // Filtros de búsqueda (draft refs -> se comprometen solo al presionar "Buscar")
+  const nombreRef = useRef<HTMLInputElement>(null)
+  const [busquedaInstitucionDraft, setBusquedaInstitucionDraft] = useState<string>('all')
+  const [busquedaInstitucionTexto, setBusquedaInstitucionTexto] = useState('')
   const [openInstitucionDropdown, setOpenInstitucionDropdown] = useState(false)
-  const busquedaInstitucionRef = useRef<HTMLInputElement>(null)
-  const [filtroEstadoRep, setFiltroEstadoRep] = useState<string>('all')
-  const [filtroStatus, setFiltroStatus] = useState<string>('all')
-  const [busquedaPaciente, setBusquedaPaciente] = useState('')
+  const estadoRepRef = useRef<string>('all')
+
+  const [busquedaActiva, setBusquedaActiva] = useState<{
+    nombre: string
+    institucion: string
+    estado: string
+  }>({ nombre: '', institucion: 'all', estado: 'all' })
+
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('todas')
   const [pagina, setPagina] = useState(1)
 
-  // Pacientes sin ficha
-  const [pacientesSinFicha, setPacientesSinFicha] = useState<Contacto[]>([])
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<PacientePreseleccionado | null>(null)
   const [openFichaForm, setOpenFichaForm] = useState(false)
 
@@ -199,22 +227,11 @@ export default function PacientesPage() {
     pal_id: user?.id || ''
   })
 
-  // Edición de datos del contacto paciente / doctor
   const [pacienteEditForm, setPacienteEditForm] = useState<ContactoEditForm>(CONTACTO_EDIT_EMPTY)
   const [doctorEditForm, setDoctorEditForm] = useState<ContactoEditForm>(CONTACTO_EDIT_EMPTY)
 
-  // Eliminar ficha
   const [fichaAEliminar, setFichaAEliminar] = useState<FichaPaciente | null>(null)
   const [eliminando, setEliminando] = useState(false)
-
-  // Cargar pacientes sin ficha cuando las fichas estén listas
-  useEffect(() => {
-    if (!user?.id || loading) return
-    contactosService.getPacientesByUser(user.id).then(pacientes => {
-      const idsConFicha = new Set(fichas.map(f => f.paciente_id))
-      setPacientesSinFicha(pacientes.filter(p => !idsConFicha.has(p.id)))
-    }).catch(() => setPacientesSinFicha([]))
-  }, [fichas, user?.id, loading])
 
   const estadosRepublica = useMemo(() => {
     const estados = instituciones
@@ -223,68 +240,6 @@ export default function PacientesPage() {
     return [...new Set(estados)].sort()
   }, [instituciones])
 
-  // Fichas filtradas y ordenadas
-  const fichasFiltradas = useMemo(() => {
-    let result = [...fichas]
-
-    if (selectedInstitucion !== 'all') {
-      result = result.filter(f => f.institucion_id === selectedInstitucion)
-    }
-
-    if (filtroEstadoRep !== 'all') {
-      const idsInstitucion = new Set(
-        instituciones.filter(i => i.estado === filtroEstadoRep).map(i => i.id)
-      )
-      result = result.filter(f => idsInstitucion.has(f.institucion_id))
-    }
-
-    if (filtroStatus !== 'all') {
-      result = result.filter(f => f.status === filtroStatus)
-    }
-
-    if (busquedaPaciente.trim()) {
-      const texto = busquedaPaciente.trim().toLowerCase()
-      result = result.filter(f => {
-        const p = f.paciente
-        if (!p) return false
-        const nombre = [p.nombre, p.apellido_pat, p.apellido_mat]
-          .filter(Boolean).join(' ').toLowerCase()
-        return nombre.includes(texto)
-      })
-    }
-
-    result.sort((a, b) => {
-      const fechaA = a.fecha_inicio_tratamiento ?? ''
-      const fechaB = b.fecha_inicio_tratamiento ?? ''
-      return fechaB.localeCompare(fechaA)
-    })
-
-    return result
-  }, [fichas, selectedInstitucion, filtroEstadoRep, filtroStatus, busquedaPaciente, instituciones])
-
-  const totalPaginas = Math.ceil(fichasFiltradas.length / PAGE_SIZE)
-  const fichasPagina = fichasFiltradas.slice((pagina - 1) * PAGE_SIZE, pagina * PAGE_SIZE)
-
-  const handleInstitucionChange = (val: string) => {
-    setSelectedInstitucion(val)
-    setPagina(1)
-  }
-
-  const handleEstadoRepChange = (val: string) => {
-    setFiltroEstadoRep(val)
-    setPagina(1)
-  }
-
-  const handleStatusChange = (val: string) => {
-    setFiltroStatus(val)
-    setPagina(1)
-  }
-
-  const stats = useMemo(() => ({
-    total: fichasFiltradas.length,
-    enTratamiento: fichasFiltradas.filter(f => f.status === 'en_tx').length,
-  }), [fichasFiltradas])
-
   const promedioVisitas = instituciones.length > 0
     ? instituciones.reduce((acc, i) => acc + (i.visitas_count ?? 0), 0) / instituciones.length
     : 0
@@ -292,15 +247,107 @@ export default function PacientesPage() {
   const institucionesFiltradas = [...instituciones]
     .sort((a, b) => (b.visitas_count ?? 0) - (a.visitas_count ?? 0))
     .filter(i =>
-      busquedaInstitucion === '' ||
-      i.nombre.toLowerCase().includes(busquedaInstitucion.toLowerCase()) ||
-      i.direccion.toLowerCase().includes(busquedaInstitucion.toLowerCase())
+      busquedaInstitucionTexto === '' ||
+      i.nombre.toLowerCase().includes(busquedaInstitucionTexto.toLowerCase()) ||
+      i.direccion.toLowerCase().includes(busquedaInstitucionTexto.toLowerCase())
     )
 
   const formatearNombre = (contacto: any) => {
     if (!contacto) return 'Sin datos'
     return [contacto.nombre, contacto.apellido_pat, contacto.apellido_mat].filter(Boolean).join(' ')
   }
+
+  const fichaPorPacienteId = useMemo(() => {
+    const map = new Map<string, FichaPaciente>()
+    fichas.forEach(f => map.set(f.paciente_id, f))
+    return map
+  }, [fichas])
+
+  // Lista combinada: cada paciente con su ficha (si tiene)
+  const listaCombinada = useMemo(() => {
+    return pacientes.map(paciente => ({
+      paciente,
+      ficha: fichaPorPacienteId.get(paciente.id) ?? null,
+    }))
+  }, [pacientes, fichaPorPacienteId])
+
+  // Stats globales — SIEMPRE sobre el total, sin filtros de búsqueda
+  const stats = useMemo(() => ({
+    total: listaCombinada.length,
+    enTratamiento: listaCombinada.filter(item => item.ficha?.status === 'en_tx').length,
+    sinFicha: listaCombinada.filter(item => !item.ficha).length,
+  }), [listaCombinada])
+
+  // Lista filtrada: búsqueda comprometida + filtro rápido
+  const listaFiltrada = useMemo(() => {
+    let result = listaCombinada
+
+    if (busquedaActiva.nombre.trim()) {
+      const texto = busquedaActiva.nombre.trim().toLowerCase()
+      result = result.filter(({ paciente }) =>
+        formatearNombre(paciente).toLowerCase().includes(texto)
+      )
+    }
+
+    if (busquedaActiva.institucion !== 'all') {
+      result = result.filter(({ paciente }) => paciente.institucion_id === busquedaActiva.institucion)
+    }
+
+    if (busquedaActiva.estado !== 'all') {
+      const idsInstitucion = new Set(
+        instituciones.filter(i => i.estado === busquedaActiva.estado).map(i => i.id)
+      )
+      result = result.filter(({ paciente }) =>
+        paciente.institucion_id ? idsInstitucion.has(paciente.institucion_id) : false
+      )
+    }
+
+    if (quickFilter === 'en_tx') {
+      result = result.filter(({ ficha }) => ficha?.status === 'en_tx')
+    } else if (quickFilter === 'sin_ficha') {
+      result = result.filter(({ ficha }) => !ficha)
+    }
+
+    result = [...result].sort((a, b) => {
+      const fechaA = a.ficha?.fecha_inicio_tratamiento ?? ''
+      const fechaB = b.ficha?.fecha_inicio_tratamiento ?? ''
+      if (fechaA || fechaB) return fechaB.localeCompare(fechaA)
+      return formatearNombre(a.paciente).localeCompare(formatearNombre(b.paciente))
+    })
+
+    return result
+  }, [listaCombinada, busquedaActiva, quickFilter, instituciones])
+
+  const totalPaginas = Math.ceil(listaFiltrada.length / PAGE_SIZE)
+  const paginaActual = listaFiltrada.slice((pagina - 1) * PAGE_SIZE, pagina * PAGE_SIZE)
+
+  const scrollToList = () => {
+    listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const handleBuscar = () => {
+    setBusquedaActiva({
+      nombre: nombreRef.current?.value ?? '',
+      institucion: busquedaInstitucionDraft,
+      estado: estadoRepRef.current,
+    })
+    setPagina(1)
+    scrollToList()
+  }
+
+  const resetBusqueda = () => {
+    if (nombreRef.current) nombreRef.current.value = ''
+    setBusquedaInstitucionDraft('all')
+    estadoRepRef.current = 'all'
+    setBusquedaActiva({ nombre: '', institucion: 'all', estado: 'all' })
+  }
+
+  const handleQuickFilter = (filtro: QuickFilter) => {
+    resetBusqueda()
+    setQuickFilter(filtro)
+    setPagina(1)
+  }
+
   const handleOpenEdit = async (ficha: FichaPaciente) => {
     setEditingFicha(ficha)
     setEditForm({
@@ -375,7 +422,6 @@ export default function PacientesPage() {
     if (!editingFicha || !validateEdit()) return
     setSaving(true)
     try {
-      // Actualizar datos del contacto paciente
       if (editingFicha.paciente_id) {
         await updateContacto(editingFicha.paciente_id, {
           nombre: pacienteEditForm.nombre,
@@ -394,7 +440,6 @@ export default function PacientesPage() {
         })
         doctorId = nuevo.id
       } else if (doctorId) {
-        // Actualizar datos del doctor existente (si no se está creando uno nuevo)
         await updateContacto(doctorId, {
           nombre: doctorEditForm.nombre,
           apellido_pat: doctorEditForm.apellido_pat || undefined,
@@ -415,6 +460,7 @@ export default function PacientesPage() {
         periodicidad: editForm.periodicidad || undefined,
       }
       await updateFicha(editingFicha.id, updates)
+      refetchPacientes()
       handleCloseEdit()
     } catch {
       // el hook ya muestra el toast
@@ -455,33 +501,32 @@ export default function PacientesPage() {
       setEliminando(false)
     }
   }
+
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
 
-      {/* Header */}
+      {/* Fila 1: Título */}
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Censo de Pacientes</h1>
           <p className="text-muted-foreground text-sm mt-1">Gestión de fichas y seguimiento</p>
         </div>
         <div className="hidden md:block">
-          <FichaForm onSuccess={fetchFichas} />
+          <FichaForm onSuccess={() => { fetchFichas(); refetchPacientes() }} />
         </div>
       </div>
 
-      <div className="md:hidden w-full">
-        <FichaForm onSuccess={fetchFichas} />
-      </div>
-
-      {/* Filtro institución */}
+      {/* Fila 2: Buscadores */}
       <div className="flex flex-col gap-3">
-        <Input
-          placeholder="Buscar paciente por nombre..."
-          value={busquedaPaciente}
-          onChange={e => { setBusquedaPaciente(e.target.value); setPagina(1) }}
-          className="w-full md:w-80"
-        />
         <div className="flex flex-col md:flex-row gap-3">
+          <Input
+            ref={nombreRef}
+            placeholder="Buscar paciente por nombre..."
+            defaultValue=""
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBuscar() } }}
+            className="w-full md:w-64"
+          />
+
           <div className="relative w-full md:w-64">
             <Button
               type="button"
@@ -491,9 +536,9 @@ export default function PacientesPage() {
             >
               <Building className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
               <span className="truncate">
-                {selectedInstitucion === 'all'
+                {busquedaInstitucionDraft === 'all'
                   ? 'Todas las instituciones'
-                  : instituciones.find(i => i.id === selectedInstitucion)?.nombre ?? 'Todas las instituciones'}
+                  : instituciones.find(i => i.id === busquedaInstitucionDraft)?.nombre ?? 'Todas las instituciones'}
               </span>
             </Button>
 
@@ -501,10 +546,9 @@ export default function PacientesPage() {
               <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-72 overflow-y-auto">
                 <div className="p-2 border-b sticky top-0 bg-popover">
                   <Input
-                    ref={busquedaInstitucionRef}
                     placeholder="Buscar institución..."
                     defaultValue=""
-                    onChange={e => setBusquedaInstitucion(e.target.value)}
+                    onChange={e => setBusquedaInstitucionTexto(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
                     className="h-8 text-sm"
                     autoFocus
@@ -514,9 +558,9 @@ export default function PacientesPage() {
                 <div
                   className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
                   onClick={() => {
-                    handleInstitucionChange('all')
+                    setBusquedaInstitucionDraft('all')
                     setOpenInstitucionDropdown(false)
-                    setBusquedaInstitucion('')
+                    setBusquedaInstitucionTexto('')
                   }}
                 >
                   Todas las instituciones
@@ -527,9 +571,9 @@ export default function PacientesPage() {
                     key={inst.id}
                     className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-accent"
                     onClick={() => {
-                      handleInstitucionChange(inst.id)
+                      setBusquedaInstitucionDraft(inst.id)
                       setOpenInstitucionDropdown(false)
-                      setBusquedaInstitucion('')
+                      setBusquedaInstitucionTexto('')
                     }}
                   >
                     <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -556,7 +600,10 @@ export default function PacientesPage() {
             )}
           </div>
 
-          <Select value={filtroEstadoRep} onValueChange={handleEstadoRepChange}>
+          <Select
+            defaultValue="all"
+            onValueChange={(v) => { estadoRepRef.current = v }}
+          >
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder="Estado de la república" />
             </SelectTrigger>
@@ -568,42 +615,48 @@ export default function PacientesPage() {
             </SelectContent>
           </Select>
 
-          <Select value={filtroStatus} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-full md:w-40">
-              <SelectValue placeholder="Status tratamiento" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="en_tx">En Tx</SelectItem>
-              <SelectItem value="fuera_tx">Fuera Tx</SelectItem>
-            </SelectContent>
-          </Select>
+          <Button onClick={handleBuscar} className="md:w-32">
+            <Search className="h-4 w-4 mr-2" />
+            Buscar
+          </Button>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Fila 3: Stats como filtros rápidos */}
       <div className="grid grid-cols-3 gap-4">
-        <Card>
+        <Card
+          className={`py-0 cursor-pointer transition-colors ${quickFilter === 'todas' ? 'border-primary' : ''}`}
+          onClick={() => handleQuickFilter('todas')}
+        >
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Total fichas</p>
+            <p className="text-xs text-muted-foreground">Total de fichas</p>
             <p className="text-3xl font-bold">{stats.total}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={`py-0 cursor-pointer transition-colors ${quickFilter === 'en_tx' ? 'border-primary' : ''}`}
+          onClick={() => handleQuickFilter('en_tx')}
+        >
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">En Tratamiento</p>
             <p className="text-3xl font-bold">{stats.enTratamiento}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={`py-0 cursor-pointer transition-colors ${quickFilter === 'sin_ficha' ? 'border-primary' : ''}`}
+          onClick={() => handleQuickFilter('sin_ficha')}
+        >
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Sin ficha</p>
-            <p className="text-3xl font-bold">{pacientesSinFicha.length}</p>
+            <p className="text-3xl font-bold">{stats.sinFicha}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Lista de fichas */}
+      {/* Ancla de scroll */}
+      <div ref={listTopRef} />
+
+      {/* Lista de pacientes */}
       {loading ? (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
@@ -611,87 +664,126 @@ export default function PacientesPage() {
             Cargando pacientes...
           </CardContent>
         </Card>
-      ) : fichasFiltradas.length === 0 ? (
+      ) : listaFiltrada.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
-            <p className="font-medium">No hay fichas registradas</p>
-            <p className="text-sm mt-1">Crea la primera ficha con el botón de arriba</p>
+            <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
+            <p className="font-medium">No hay pacientes para mostrar</p>
+            <p className="text-sm mt-1">Ajusta los filtros o crea un nuevo paciente</p>
           </CardContent>
         </Card>
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {fichasPagina.map(ficha => (
-              <Card key={ficha.id} className="hover:shadow-md transition-shadow">
+            {paginaActual.map(({ paciente, ficha }) => (
+              <Card key={paciente.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4 space-y-3">
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      Folio: {ficha.numero_pm}
-                    </span>
-                    <Badge
-                      variant={ficha.status === 'en_tx' ? 'default' : 'outline'}
-                      className="text-[10px] px-1.5 py-0"
-                    >
-                      {STATUS_LABELS[ficha.status] ?? ficha.status}
-                    </Badge>
-                  </div>
+                  {ficha ? (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          Folio: {ficha.numero_pm}
+                        </span>
+                        <Badge
+                          variant={ficha.status === 'en_tx' ? 'default' : 'outline'}
+                          className="text-[10px] px-1.5 py-0"
+                        >
+                          {STATUS_LABELS[ficha.status] ?? ficha.status}
+                        </Badge>
+                      </div>
 
-                  <p className="font-semibold text-base leading-tight">
-                    {formatearNombre(ficha.paciente)}
-                  </p>
+                      <p className="font-semibold text-base leading-tight">
+                        {formatearNombre(paciente)}
+                      </p>
 
-                  {ficha.doctor && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Stethoscope className="h-3 w-3 flex-shrink-0" />
-                      <span>{formatearNombre(ficha.doctor)}</span>
-                    </div>
+                      {ficha.doctor && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Stethoscope className="h-3 w-3 flex-shrink-0" />
+                          <span>{formatearNombre(ficha.doctor)}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Building className="h-3 w-3 flex-shrink-0" />
+                        <span className="max-w-[180px] truncate">{ficha.institucion?.nombre}</span>
+                      </div>
+
+                      {ficha.fecha_inicio_tratamiento && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3 flex-shrink-0" />
+                          <span>
+                            Inicio: {format(new Date(ficha.fecha_inicio_tratamiento + 'T12:00:00'), "d 'de' MMMM yyyy", { locale: es })}
+                          </span>
+                        </div>
+                      )}
+
+                      <TablaDates ficha={ficha} onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)} />
+
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => handleOpenEdit(ficha)}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Editar ficha
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)}
+                        >
+                          <Calendar className="h-3 w-3 mr-1" />
+                          Ver fechas
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs text-destructive hover:text-destructive"
+                          onClick={() => setFichaAEliminar(ficha)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 w-fit">
+                        Sin ficha
+                      </Badge>
+
+                      <p className="font-semibold text-base leading-tight">
+                        {formatearNombre(paciente)}
+                      </p>
+
+                      {paciente.telefono && (
+                        <p className="text-xs text-muted-foreground">{paciente.telefono}</p>
+                      )}
+
+                      {paciente.institucion && (
+                        <div className="flex items-start gap-1 text-xs text-muted-foreground">
+                          <Building className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                          <span>
+                            {paciente.institucion.nombre.length > 30
+                              ? `${paciente.institucion.nombre.slice(0, 30)}...`
+                              : paciente.institucion.nombre}
+                          </span>
+                        </div>
+                      )}
+
+                      <Button
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => handleAbrirFichaParaPaciente(paciente)}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Crear ficha
+                      </Button>
+                    </>
                   )}
-
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Building className="h-3 w-3 flex-shrink-0" />
-                    <span className="max-w-[180px] truncate">{ficha.institucion?.nombre}</span>
-                  </div>
-
-                  {ficha.fecha_inicio_tratamiento && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="h-3 w-3 flex-shrink-0" />
-                      <span>
-                        Inicio: {format(new Date(ficha.fecha_inicio_tratamiento + 'T12:00:00'), "d 'de' MMMM yyyy", { locale: es })}
-                      </span>
-                    </div>
-                  )}
-
-                  <TablaDates ficha={ficha} onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)} />
-
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 text-xs"
-                      onClick={() => handleOpenEdit(ficha)}
-                    >
-                      <Pencil className="h-3 w-3 mr-1" />
-                      Editar ficha
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 text-xs"
-                      onClick={() => navigate(`/pal/pacientes/${ficha.id}/fechas`)}
-                    >
-                      <Calendar className="h-3 w-3 mr-1" />
-                      Ver fechas
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs text-destructive hover:text-destructive"
-                      onClick={() => setFichaAEliminar(ficha)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -700,74 +792,36 @@ export default function PacientesPage() {
           {totalPaginas > 1 && (
             <div className="flex items-center justify-between pt-2">
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPagina(p => Math.max(1, p - 1))}
-                disabled={pagina === 1}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Anterior
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Página {pagina} de {totalPaginas} · {fichasFiltradas.length} fichas
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
-                disabled={pagina === totalPaginas}
-              >
-                Siguiente
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+  variant="outline"
+  size="sm"
+  onClick={() => { setPagina(p => Math.max(1, p - 1)); scrollToList() }}
+  disabled={pagina === 1}
+>
+  <ChevronLeft className="h-4 w-4 mr-1" />
+  Anterior
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                   {pagina} de {totalPaginas} · {listaFiltrada.length} total
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setPagina(p => Math.min(totalPaginas, p + 1)); scrollToList() }}
+                  disabled={pagina === totalPaginas}
+                >
+                  Siguiente
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
             </div>
           )}
         </>
-      )}
-
-      {/* Pacientes sin ficha */}
-      {pacientesSinFicha.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <UserX className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold">Sin ficha de tratamiento</h2>
-            <Badge variant="outline">{pacientesSinFicha.length}</Badge>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {pacientesSinFicha.map(paciente => (
-              <Card key={paciente.id} className="border-dashed">
-                <CardContent className="p-4 space-y-2">
-                  <p className="font-semibold text-base leading-tight">
-                    {formatearNombre(paciente)}
-                  </p>
-                  {paciente.telefono && (
-                    <p className="text-xs text-muted-foreground">{paciente.telefono}</p>
-                  )}
-                  {paciente.institucion && (
-                    <div className="flex items-start gap-1 text-xs text-muted-foreground">
-                      <Building className="h-3 w-3 flex-shrink-0 mt-0.5" />
-                      <span>{paciente.institucion.nombre}</span>
-                    </div>
-                  )}
-                  <Button
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => handleAbrirFichaParaPaciente(paciente)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Crear ficha
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
       )}
 
       {/* FichaForm controlado externamente para pacientes sin ficha */}
       <FichaForm
         onSuccess={() => {
           fetchFichas()
+          refetchPacientes()
           setOpenFichaForm(false)
           setPacienteSeleccionado(null)
         }}
@@ -788,7 +842,6 @@ export default function PacientesPage() {
 
           <div className="space-y-4">
 
-            {/* Datos del paciente */}
             <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
               <Label className="text-sm font-semibold">Datos del paciente</Label>
               <div className="grid grid-cols-2 gap-3">
