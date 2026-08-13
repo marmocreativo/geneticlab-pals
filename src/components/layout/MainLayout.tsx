@@ -5,7 +5,6 @@ import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { ConnectionIndicators } from '@/components/ConnectionIndicators'
 import { ContactosOffcanvas } from '@/components/contactos/ContactosOffcanvas'
 import { useContactosDuplicados } from '@/hooks/useContactosDuplicados'
-import { VideoPopupModal } from '@/components/VideoPopupModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,12 +34,16 @@ import {
   ScrollText,
   Wrench,
   Download,
-  Contact 
+  Contact,
+  LifeBuoy,
+  ArrowLeft,
+  MessageSquareWarning 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/version'
 import { BtnNotificaciones } from '@/components/admin/BtnNotificaciones'
 import { BtnAyuda } from '@/components/BtnAyuda'
+import { BtnTickets } from '@/components/BtnTickets'
 
 interface NavItem {
   title: string
@@ -61,6 +64,7 @@ const navItems: NavItem[] = [
   
   { title: 'Configuraciones', href: '/admin/configuraciones', icon: Settings, roles: ['admin'] },
   { title: 'Reportes', href: '/admin/reportes', icon: FileText, roles: ['admin'] },
+  { title: 'Soporte', href: '/admin/tickets', icon: MessageSquareWarning, roles: ['admin'] },
   { title: 'Logs', href: '/admin/logs', icon: ScrollText, roles: ['admin'] },
   { title: 'Dashboard', href: '/pal', icon: LayoutDashboard, roles: ['pal'] },
   { title: 'Agenda', href: '/pal/calendario', icon: Calendar, roles: ['pal'] },
@@ -87,6 +91,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [contactosOpen, setContactosOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [bottomMenuMode, setBottomMenuMode] = useState<'principal' | 'soporte'>('principal')
   const { user, role, signOut, nombreCompleto } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -190,6 +195,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               </Badge>
             )}
           </Button>
+          {role === 'pal' && <BtnAyuda variant="sidebar" />}
+          {role === 'pal' && <BtnTickets variant="sidebar" />}
           <VersionInfo />
           {role === 'admin' && <BtnNotificaciones />}
           {puedeInstalar && (
@@ -329,41 +336,70 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       </main>
 
       {/* Bottom Navigation - Mobile */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-border/40">
-        <div className="flex justify-between px-1 py-1.5">
-          {filteredNavItems.slice(0, 4).map((item) => {
-            const Icon = item.icon
-            const isActive = location.pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  'flex flex-col items-center px-1.5 py-1.5 rounded-lg transition-colors min-w-0 flex-1',
-                  isActive
-                    ? 'text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-border/40 overflow-hidden">
+        <div
+          className="flex transition-transform duration-300 ease-in-out w-[200%]"
+          style={{ transform: bottomMenuMode === 'soporte' ? 'translateX(-50%)' : 'translateX(0)' }}
+        >
+          {/* Panel principal */}
+          <div className="flex justify-between px-1 py-1.5 w-1/2 shrink-0">
+            {filteredNavItems.slice(0, 4).map((item) => {
+              const Icon = item.icon
+              const isActive = location.pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    'flex flex-col items-center px-1.5 py-1.5 rounded-lg transition-colors min-w-0 flex-1',
+                    isActive
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <Icon className="h-4.5 w-4.5 mb-0.5" />
+                  <span className="text-[10px] font-medium truncate max-w-full leading-tight">{item.title}</span>
+                </Link>
+              )
+            })}
+            <button
+              type="button"
+              onClick={() => setContactosOpen(true)}
+              className="relative flex flex-col items-center px-1.5 py-1.5 rounded-lg text-muted-foreground hover:text-foreground min-w-0 flex-1"
+            >
+              <div className="relative">
+                <Contact className="h-4.5 w-4.5 mb-0.5" />
+                {cantidadDuplicados > 0 && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
                 )}
+              </div>
+              <span className="text-[10px] font-medium truncate max-w-full leading-tight">Contactos</span>
+            </button>
+            {role === 'pal' && (
+              <button
+                type="button"
+                onClick={() => setBottomMenuMode('soporte')}
+                className="flex flex-col items-center px-1.5 py-1.5 rounded-lg text-muted-foreground hover:text-foreground min-w-0 flex-1"
               >
-                <Icon className="h-4.5 w-4.5 mb-0.5" />
-                <span className="text-[10px] font-medium truncate max-w-full leading-tight">{item.title}</span>
-              </Link>
-            )
-          })}
-          <button
-            type="button"
-            onClick={() => setContactosOpen(true)}
-            className="relative flex flex-col items-center px-1.5 py-1.5 rounded-lg text-muted-foreground hover:text-foreground min-w-0 flex-1"
-          >
-            <div className="relative">
-              <Contact className="h-4.5 w-4.5 mb-0.5" />
-              {cantidadDuplicados > 0 && (
-                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
-              )}
-            </div>
-            <span className="text-[10px] font-medium truncate max-w-full leading-tight">Contactos</span>
-          </button>
-          {role === 'pal' && <BtnAyuda />}
+                <LifeBuoy className="h-4.5 w-4.5 mb-0.5 animate-pulse text-primary" />
+                <span className="text-[10px] font-medium truncate max-w-full leading-tight">Soporte</span>
+              </button>
+            )}
+          </div>
+
+          {/* Panel soporte */}
+          <div className="flex items-center justify-center gap-8 px-1 py-1.5 w-1/2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setBottomMenuMode('principal')}
+              className="flex flex-col items-center px-1.5 py-1.5 rounded-lg text-muted-foreground hover:text-foreground min-w-0"
+            >
+              <ArrowLeft className="h-4.5 w-4.5 mb-0.5" />
+              <span className="text-[10px] font-medium leading-tight">Volver</span>
+            </button>
+            <BtnAyuda />
+            <BtnTickets />
+          </div>
         </div>
       </nav>
       <ContactosOffcanvas
@@ -372,7 +408,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         onFusionCompletada={refetchDuplicados}
       />
       <PWAInstallPrompt />
-      {role === 'pal' && <VideoPopupModal />}
+      {/* {role === 'pal' && <VideoPopupModal />} */}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 // pages/pal/VisitaDetailsPage.tsx
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { logError } from '@/lib/errorHandler'
 import { toast } from 'sonner'
 import { 
   ArrowLeft, 
@@ -287,38 +288,71 @@ const VisitaDetailsPage: React.FC = () => {
   const capturePhoto = () => {
     if (!videoRef.current || !stream) return
     const video = videoRef.current
+
+    const MAX_DIM = 1280
+    const origWidth = video.videoWidth || 640
+    const origHeight = video.videoHeight || 480
+    const scale = Math.min(1, MAX_DIM / Math.max(origWidth, origHeight))
+
     const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth || 640
-    canvas.height = video.videoHeight || 480
+    canvas.width = Math.round(origWidth * scale)
+    canvas.height = Math.round(origHeight * scale)
+
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
     canvas.toBlob((blob) => {
+      canvas.width = 0
+      canvas.height = 0
       if (blob) {
         const file = new File([blob], `evidencia-${Date.now()}.jpg`, { type: 'image/jpeg' })
         handleFotoCapturada(file)
+      } else {
+        handleFotoFallida()
       }
-    }, 'image/jpeg', 0.8)
+    }, 'image/jpeg', 0.75)
   }
 
   const handleFotoCapturada = async (file: File) => {
-    if (!visita) return
-    stopCamera()
-    setShowCamaraDialog(false)
+  if (!visita) return
+  stopCamera()
+  setShowCamaraDialog(false)
 
-    try {
-      const result = await subirFoto(visita.id, file)
-      if (result) {
-        const visitaActualizada = await confirmarAsistencia(visita.id)
-        setVisita(visitaActualizada)
-        toast.success('Visita confirmada con evidencia fotográfica')
-        // Recargar fotos
-        fetchFotosByVisita(visita.id)
-      }
-    } catch (error) {
-      console.error('Error subiendo evidencia:', error)
+  try {
+    const result = await subirFoto(visita.id, file)
+    if (!result) {
+      await handleFotoFallida()
+      return
     }
+    const visitaActualizada = await confirmarAsistencia(visita.id)
+    setVisita(visitaActualizada)
+    toast.success('Visita confirmada con evidencia fotográfica')
+    fetchFotosByVisita(visita.id)
+  } catch (error) {
+    console.error('Error subiendo evidencia:', error)
+    await handleFotoFallida(error)
   }
+}
+
+const handleFotoFallida = async (error?: unknown) => {
+  if (!visita) return
+  try {
+    await logError('VisitaDetailsPage.handleFotoCapturada', error ?? new Error('Fallo al subir/capturar foto'), visita.pal_id)
+  } catch {
+    // si falla el log, no bloquea el flujo
+  }
+  try {
+    const visitaActualizada = await confirmarAsistencia(visita.id)
+    setVisita(visitaActualizada)
+    toast.error('No se pudo subir la foto, se ha registrado tu visita y soporte técnico ya fue notificado', {
+      duration: 6000
+    })
+  } catch (err) {
+    console.error('Error confirmando asistencia sin foto:', err)
+    toast.error('No se pudo registrar la visita. Intenta de nuevo.')
+  }
+}
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

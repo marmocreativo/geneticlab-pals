@@ -2,9 +2,14 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { HelpCircle, ChevronDown, ChevronUp, Maximize2 } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
 import { videosAyuda } from '@/config/videosAyuda'
 
-export function BtnAyuda() {
+interface BtnAyudaProps {
+  variant?: 'bottom-nav' | 'sidebar'
+}
+
+export function BtnAyuda({ variant = 'bottom-nav' }: BtnAyudaProps) {
   const location = useLocation()
   const videos = videosAyuda[location.pathname] ?? []
   const [expandido, setExpandido] = useState<number | null>(0)
@@ -32,10 +37,17 @@ export function BtnAyuda() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <button className="flex flex-col items-center px-3 py-2 rounded-lg transition-colors text-muted-foreground hover:text-foreground">
-          <HelpCircle className="h-5 w-5 mb-1" />
-          <span className="text-xs font-medium">Ayuda</span>
-        </button>
+        {variant === 'sidebar' ? (
+          <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs">
+            <HelpCircle className="h-3 w-3" />
+            Videos de Ayuda
+          </Button>
+        ) : (
+          <button className="flex flex-col items-center px-3 py-2 rounded-lg transition-colors text-muted-foreground hover:text-foreground">
+            <HelpCircle className="h-5 w-5 mb-1" />
+            <span className="text-xs font-medium">Videos de Ayuda</span>
+          </button>
+        )}
       </SheetTrigger>
 
       <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-xl px-4">

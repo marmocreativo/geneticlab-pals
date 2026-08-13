@@ -13,10 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check, Plus, Star, ChevronDown, ChevronUp, Home } from 'lucide-react'
+import { Calendar, Clock, Building2, User, Package, FileText, ArrowLeft, ArrowRight, Check, Star, ChevronDown, ChevronUp, Home } from 'lucide-react'
 import { format } from 'date-fns'
 import { ContactoQuickForm } from '@/components/contactos/ContactoQuickForm'
 import type { ActividadInsert } from '@/types/actividad'
@@ -64,8 +62,6 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
 
   const [currentStep, setCurrentStep] = useState(1)
   const [step1Data, setStep1Data] = useState<Step1Data | null>(null)
-  const [contactSearchOpen, setContactSearchOpen] = useState(false)
-  const [contactSearch, setContactSearch] = useState('')
   const [showAddAnother, setShowAddAnother] = useState(false)
   const [contactosLoaded, setContactosLoaded] = useState(false)
   const [showNewContactoForm, setShowNewContactoForm] = useState(false)
@@ -136,7 +132,6 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       setInstitucionOpen(false)
       step1Form.reset()
       step2Form.reset()
-      setContactSearch('')
       busquedaInstitucionRef.current = ''
       estadoFiltroRef.current = ''
       ciudadFiltroRef.current = ''
@@ -217,27 +212,8 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
   const handleNewContactoSuccess = (contacto: Contacto) => {
     step2Form.setValue('contacto_id', contacto.id)
     setShowNewContactoForm(false)
-    setContactSearchOpen(false)
     fetchContactos()
   }
-
-  const filteredContactos = contactos
-    .filter(contacto => {
-      if (step1Data?.institucion_id && contacto.institucion_id !== step1Data.institucion_id) {
-        return false
-      }
-      const fullName = `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.toLowerCase()
-      return fullName.includes(contactSearch.toLowerCase())
-    })
-    .reduce((unique, contacto) => {
-      const fullName = `${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim()
-      const isDuplicate = unique.some(item => {
-        const itemFullName = `${item.nombre} ${item.apellido_pat || ''} ${item.apellido_mat || ''}`.trim()
-        return itemFullName === fullName
-      })
-      if (!isDuplicate) unique.push(contacto)
-      return unique
-    }, [] as typeof contactos)
 
   const entregaSobres = catalogos.filter(c => c.tipo === 'entrega_sobres' && c.activo)
   const kitRash = catalogos.filter(c => c.tipo === 'kit_rash' && c.activo)
@@ -257,11 +233,6 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
       </Dialog>
     )
   }
-
-  console.log('step1Data institucion_id:', step1Data?.institucion_id)
-console.log('total contactos cargados:', contactos.length)
-console.log('contactos kam/cuidador en el state:', contactos.filter(c => c.tipo_contacto === 'kam' || c.tipo_contacto === 'cuidador'))
-console.log('filteredContactos:', JSON.stringify(filteredContactos.map(c => ({ nombre: c.nombre, tipo: c.tipo_contacto }))))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -553,72 +524,43 @@ console.log('filteredContactos:', JSON.stringify(filteredContactos.map(c => ({ n
                 <FormField
                   control={step2Form.control}
                   name="contacto_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-1">
-                        <User className="h-4 w-4" />
-                        Contacto (Opcional)
-                      </FormLabel>
-                      <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
-                              {field.value
-                                ? (() => {
-                                    const selected = contactos.find(c => c.id === field.value)
-                                    return selected
-                                      ? `${selected.nombre} ${selected.apellido_pat || ''} ${selected.apellido_mat || ''}`.trim()
-                                      : 'Sin contacto'
-                                  })()
-                                : 'Sin contacto'
-                              }
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[calc(100vw-2rem)] max-w-lg p-0" align="start">
-                          <Command>
-                            <CommandInput
-                              placeholder="Buscar contacto..."
-                              value={contactSearch}
-                              onValueChange={setContactSearch}
-                            />
-                            <CommandEmpty>No se encontraron contactos.</CommandEmpty>
-                            <CommandGroup>
-                              <CommandItem onSelect={() => { field.onChange(''); setContactSearchOpen(false) }}>
-                                Sin contacto
-                              </CommandItem>
-                              {filteredContactos.map(contacto => (
-                                <CommandItem
-                                  key={contacto.id}
-                                  value={`${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim()}
-                                  onSelect={() => { field.onChange(contacto.id); setContactSearchOpen(false) }}
-                                >
-                                  <div>
-                                    <div className="font-medium">
-                                      {`${contacto.nombre} ${contacto.apellido_pat || ''} ${contacto.apellido_mat || ''}`.trim()}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">{contacto.tipo_contacto}</div>
-                                  </div>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowNewContactoForm(true)}
-                        className="w-full h-8 text-xs mt-2"
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Agregar Nuevo Contacto
-                      </Button>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const contactoAsignado = contactos.find(c => c.id === field.value)
+                    return (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <User className="h-4 w-4" />
+                          Contacto (Opcional)
+                        </FormLabel>
+                        <div className="flex items-center gap-3 border rounded-md px-3 py-2">
+                          <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                            <User className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {contactoAsignado ? (
+                              <>
+                                <p className="text-sm font-medium truncate">
+                                  {`${contactoAsignado.nombre} ${contactoAsignado.apellido_pat || ''} ${contactoAsignado.apellido_mat || ''}`.trim()}
+                                </p>
+                                <p className="text-xs text-muted-foreground">{contactoAsignado.tipo_contacto}</p>
+                              </>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">Sin contacto asignado</p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant={contactoAsignado ? 'outline' : 'default'}
+                            size="sm"
+                            onClick={() => setShowNewContactoForm(true)}
+                          >
+                            {contactoAsignado ? 'Cambiar' : 'Asignar contacto'}
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
                 />
               </div>
 
