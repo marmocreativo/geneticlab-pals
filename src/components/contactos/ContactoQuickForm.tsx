@@ -29,7 +29,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import type { Contacto, ContactoInsert } from '@/types/contacto'
 
 const contactoSchema = z.object({
-  tipo_contacto: z.enum(['medico', 'paciente', 'familiar', 'cuidador', 'enfermera', 'enfermero', 'kam', 'otro'], {
+  tipo_contacto: z.enum(['medico', 'paciente', 'familiar', 'cuidador', 'enfermera', 'kam', 'otro'], {
     message: 'Selecciona el tipo de contacto'
   }),
   nombre: z.string().min(1, 'El nombre es requerido'),
@@ -69,8 +69,7 @@ function getTipoContactoLabel(tipo: string) {
     'paciente': 'Paciente',
     'familiar': 'Familiar',
     'cuidador': 'Cuidador',
-    'enfermera': 'Enfermera',
-    'enfermero': 'Enfermero',
+    'enfermera': 'Enfermero (a)',
     'kam': 'KAM',
     'otro': 'Otro'
   }
@@ -282,8 +281,7 @@ export function ContactoQuickForm({ institucionId, onSuccess, onCancel }: Contac
                     <SelectItem value="paciente">Paciente</SelectItem>
                     <SelectItem value="familiar">Familiar</SelectItem>
                     <SelectItem value="cuidador">Cuidador</SelectItem>
-                    <SelectItem value="enfermera">Enfermera</SelectItem>
-                    <SelectItem value="enfermero">Enfermero</SelectItem>
+                    <SelectItem value="enfermera">Enfermero (a)</SelectItem>
                     <SelectItem value="kam">KAM</SelectItem>
                     <SelectItem value="otro">Otro</SelectItem>
                   </SelectContent>

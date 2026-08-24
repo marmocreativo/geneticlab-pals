@@ -328,8 +328,7 @@ export const actividadesService = {
       'paciente': 'Paciente',
       'familiar': 'Familiar',
       'cuidador': 'Cuidador',
-      'enfermera': 'Enfermera',
-      'enfermero': 'Enfermero',
+      'enfermera': 'Enfermero (a)',
       'kam': 'KAM',
       'otro': 'Otro'
     }

@@ -32,8 +32,7 @@ const TIPOS_CONTACTO = [
   { value: 'paciente', label: 'Paciente' },
   { value: 'familiar', label: 'Familiar' },
   { value: 'cuidador', label: 'Cuidador' },
-  { value: 'enfermera', label: 'Enfermera' },
-  { value: 'enfermero', label: 'Enfermero' },
+  { value: 'enfermera', label: 'Enfermero (a)' },
   { value: 'kam', label: 'KAM' },
   { value: 'otro', label: 'Otro' },
 ]
