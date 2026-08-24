@@ -13,6 +13,21 @@ import { supabase } from '@/lib/supabase'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { toast } from 'sonner'
 
+const TIPO_CONTACTO_LABELS: Record<string, string> = {
+  medico: 'Médico',
+  paciente: 'Paciente',
+  familiar: 'Familiar',
+  cuidador: 'Cuidador',
+  enfermera: 'Enfermero (a)',
+  kam: 'KAM',
+  otro: 'Otro',
+}
+
+function getTipoContactoLabel(tipo?: string) {
+  if (!tipo) return ''
+  return TIPO_CONTACTO_LABELS[tipo] || tipo
+}
+
 export default function ReportesPage() {
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
@@ -130,7 +145,7 @@ export default function ReportesPage() {
         'Contacto': a.contacto
           ? [a.contacto.nombre, a.contacto.apellido_pat, a.contacto.apellido_mat].filter(Boolean).join(' ')
           : 'N/A',
-        'Tipo Contacto': a.contacto?.tipo_contacto || 'N/A',
+        'Tipo Contacto': getTipoContactoLabel(a.contacto?.tipo_contacto) || 'N/A',
         'Descripción Actividad': a.descripcion_actividad || '',
         'Temas Impartidos': a.temas_impartidos || '',
         'Entrega Sobres': a.entrega_sobres?.nombre || '',
@@ -165,7 +180,7 @@ export default function ReportesPage() {
         'Apellido Paterno': c.apellido_pat || '',
         'Apellido Materno': c.apellido_mat || '',
         'Institución': c.institucion?.nombre || 'N/A',
-        'Tipo Contacto': c.tipo_contacto,
+        'Tipo Contacto': getTipoContactoLabel(c.tipo_contacto),
       }))
 
       descargarExcel([{ nombre: 'Contactos', datos }], 'reporte_contactos')
