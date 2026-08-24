@@ -188,6 +188,7 @@ export interface Database {
           reagendado_de: string | null
           gps_dispositivo: boolean
           fecha_hora_registro: string | null
+          tipo_dia: string | null
         }
         Insert: {
           id?: string
@@ -205,6 +206,7 @@ export interface Database {
           reagendado_de?: string | null
           gps_dispositivo?: boolean
           fecha_hora_registro?: string | null
+          tipo_dia?: string | null
         }
         Update: {
           id?: string
@@ -222,6 +224,7 @@ export interface Database {
           reagendado_de?: string | null
           gps_dispositivo?: boolean
           fecha_hora_registro?: string | null
+          tipo_dia?: string | null
         }
       }
       ficha_paciente: {

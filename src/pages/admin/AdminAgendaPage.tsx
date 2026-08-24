@@ -278,7 +278,9 @@ export default function AdminAgendaPage() {
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1 font-semibold truncate">
                                 <MapPin className="h-3 w-3 shrink-0" />
-                                <span className="truncate">{v.institucion?.nombre || 'Home office'}</span>
+                                <span className="truncate">
+                                  {v.institucion?.nombre || (v.tipo_dia === 'vacaciones' ? 'Vacaciones' : 'Home office')}
+                                </span>
                               </div>
                               <div className="flex items-center gap-1 text-[10px] opacity-75 shrink-0">
                                 <Clock className="h-2.5 w-2.5" />
@@ -565,7 +567,9 @@ export default function AdminAgendaPage() {
                                           <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex items-center gap-1 font-medium truncate text-xs">
                                               <MapPin className="h-3 w-3 flex-shrink-0" />
-                                              <span className="truncate">{v.institucion?.nombre || 'Home office'}</span>
+                                              <span className="truncate">
+                                                {v.institucion?.nombre || (v.tipo_dia === 'vacaciones' ? 'Vacaciones' : 'Home office')}
+                                              </span>
                                             </div>
                                             <div className="flex items-center gap-1 text-[10px] opacity-75">
                                               <Clock className="h-2.5 w-2.5" />
@@ -601,7 +605,9 @@ export default function AdminAgendaPage() {
                                         <>
                                           <div className="flex items-center gap-1 font-medium truncate">
                                             <MapPin className="h-3 w-3 flex-shrink-0" />
-                                            <span className="truncate">{v.institucion?.nombre || 'Home office'}</span>
+                                            <span className="truncate">
+                                              {v.institucion?.nombre || (v.tipo_dia === 'vacaciones' ? 'Vacaciones' : 'Home office')}
+                                            </span>
                                           </div>
                                           <div className="flex items-center gap-1 mt-0.5 text-[10px] opacity-75">
                                             <Clock className="h-2.5 w-2.5" />

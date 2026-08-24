@@ -154,7 +154,8 @@ export default function VisitasDia() {
                       <div className="flex-1">
                         {/* Nombre de la institución */}
                         <h3 className="font-semibold text-lg mb-1">
-                          {visita.institucion?.nombre ?? 'Home office'}
+                          {visita.institucion?.nombre
+                            ?? (visita.tipo_dia === 'vacaciones' ? 'Vacaciones' : 'Home office')}
                         </h3>
 
                         {/* Estado */}

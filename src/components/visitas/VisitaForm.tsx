@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Building, Star, ChevronDown, ChevronUp, Home } from 'lucide-react'
+import { Plus, Building, Star, ChevronDown, ChevronUp, Home, Palmtree } from 'lucide-react'
 import { format } from 'date-fns'
 import { useCatalogos } from '@/hooks/useCatalogos'
 
@@ -22,16 +22,17 @@ import { useVisitas } from '@/hooks/useVisitas'
 import { useInstituciones } from '@/hooks/useInstituciones'
 import { useAuth } from '@/contexts/AuthContext'
 import { InstitucionQuickForm } from '@/components/instituciones/InstitucionQuickForm'
-import type { VisitaInsert } from '@/types/visita'
+import type { VisitaInsert, TipoDia } from '@/types/visita'
 import type { Institucion } from '@/types/institucion'
+import { cn } from '@/lib/utils'
 
 const visitaSchema = z.object({
   institucion_id: z.string().optional(),
   fecha_visita: z.string().min(1, 'La fecha es requerida'),
   hora_visita: z.string().min(1, 'La hora es requerida'),
-  es_home_office: z.boolean(),
+  tipo_dia: z.enum(['presencial', 'home_office', 'vacaciones']),
 }).refine(
-  (data) => data.es_home_office || (data.institucion_id && data.institucion_id.length > 0),
+  (data) => data.tipo_dia !== 'presencial' || (data.institucion_id && data.institucion_id.length > 0),
   { message: 'Selecciona una institución', path: ['institucion_id'] }
 )
 
@@ -72,7 +73,7 @@ export default function VisitaForm({ defaultDate, onSuccess, onCancel }: VisitaF
     defaultValues: {
       fecha_visita: defaultDate ? format(defaultDate, 'yyyy-MM-dd') : '',
       hora_visita: '09:00',
-      es_home_office: false,
+      tipo_dia: 'presencial',
     }
   })
 
@@ -120,12 +121,15 @@ const institucionesFiltradas = [...instituciones]
       const absOffset = Math.abs(offsetMinutes)
       const tzOffset = `${offsetSign}${String(Math.floor(absOffset / 60)).padStart(2, '0')}:${String(absOffset % 60).padStart(2, '0')}`
 
+      const esPresencial = data.tipo_dia === 'presencial'
+
       const visitaData: VisitaInsert = {
         pal_id: user.id,
-        institucion_id: data.es_home_office ? null : data.institucion_id,
+        institucion_id: esPresencial ? data.institucion_id : null,
         fecha_visita: `${data.fecha_visita}T${data.hora_visita}:00${tzOffset}`,
-        estado: data.es_home_office ? 'asistio' : 'programada',
-        ...(data.es_home_office ? { validacion_gps: false, gps_dispositivo: false } : {})
+        estado: esPresencial ? 'programada' : 'asistio',
+        tipo_dia: esPresencial ? null : (data.tipo_dia as TipoDia),
+        ...(esPresencial ? {} : { validacion_gps: false, gps_dispositivo: false })
       }
 
       await createVisita(visitaData)
@@ -187,36 +191,47 @@ const institucionesFiltradas = [...instituciones]
             </FormItem>
           )}
         />
-        {/* Home Office */}
+        {/* Tipo de día */}
         <FormField
           control={form.control}
-          name="es_home_office"
+          name="tipo_dia"
           render={({ field }) => (
-            <FormItem className="flex items-center justify-between rounded-md border px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Home className="h-4 w-4 text-muted-foreground" />
-                <FormLabel className="text-sm font-normal cursor-pointer">Home office</FormLabel>
+            <FormItem>
+              <FormLabel className="text-sm">Tipo de visita</FormLabel>
+              <div className="grid grid-cols-3 gap-1 border rounded-md p-1">
+                {([
+                  { value: 'presencial', label: 'Presencial', icon: Building },
+                  { value: 'home_office', label: 'Home office', icon: Home },
+                  { value: 'vacaciones', label: 'Vacaciones', icon: Palmtree },
+                ] as const).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      field.onChange(value)
+                      if (value !== 'presencial') {
+                        form.setValue('institucion_id', '')
+                        setInstitucionOpen(false)
+                      }
+                    }}
+                    className={cn(
+                      'flex flex-col items-center gap-1 rounded px-2 py-2 text-xs transition-colors',
+                      field.value === value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ))}
               </div>
-              <FormControl>
-                <input
-                  type="checkbox"
-                  checked={field.value}
-                  onChange={(e) => {
-                    field.onChange(e.target.checked)
-                    if (e.target.checked) {
-                      form.setValue('institucion_id', '')
-                      setInstitucionOpen(false)
-                    }
-                  }}
-                  className="h-4 w-4"
-                />
-              </FormControl>
             </FormItem>
           )}
         />
 
         {/* Institución */}
-        {!form.watch('es_home_office') && (
+        {form.watch('tipo_dia') === 'presencial' && (
           <FormField
             control={form.control}
             name="institucion_id"

@@ -54,6 +54,7 @@ export default function ReportesPage() {
           validacion_gps,
           distancia_metros,
           updated_at,
+          tipo_dia,
           pal:users(nombre_completo),
           institucion:instituciones(nombre),
           fotos_evidencia(id, url_storage)
@@ -71,7 +72,7 @@ export default function ReportesPage() {
       const datos = data.map((v: any) => ({
         'ID': v.id,
         'PAL': v.pal?.nombre_completo || 'N/A',
-        'Institución': v.institucion?.nombre || 'N/A',
+        'Institución': v.institucion?.nombre || (v.tipo_dia === 'vacaciones' ? 'Vacaciones' : (v.tipo_dia === 'home_office' ? 'Home office' : 'N/A')),
         'Fecha': format(new Date(v.fecha_visita), 'dd/MM/yyyy HH:mm'),
         'Estado': v.estado,
         'Validación GPS': v.validacion_gps ? 'Sí' : 'No',

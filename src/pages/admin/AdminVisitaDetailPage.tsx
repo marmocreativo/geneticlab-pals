@@ -159,7 +159,9 @@ useEffect(() => {
           <CardContent className="space-y-4">
             <div>
               <div>
-                <p className="font-semibold">{visita.institucion?.nombre || 'Home office'}</p>
+                <p className="font-semibold">
+                  {visita.institucion?.nombre || (visita.tipo_dia === 'vacaciones' ? 'Vacaciones' : 'Home office')}
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5">{visita.institucion?.direccion}</p>
               </div>
             </div>
@@ -317,7 +319,7 @@ useEffect(() => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="h-4 w-4" />
-            Actividades del día en {visita.institucion?.nombre ?? 'Home office'}
+            Actividades del día en {visita.institucion?.nombre ?? (visita.tipo_dia === 'vacaciones' ? 'Vacaciones' : 'Home office')}
           </CardTitle>
         </CardHeader>
         <CardContent>

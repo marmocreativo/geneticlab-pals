@@ -1,3 +1,5 @@
+export type TipoDia = 'home_office' | 'vacaciones'
+
 export interface Visita {
   id: string
   pal_id: string
@@ -27,6 +29,7 @@ export interface Visita {
   fotos_evidencia?: { id: string; url_storage: string }[]
   notas_reagendado?: string
   reagendado_de?: string
+  tipo_dia?: TipoDia | null
 }
 
 export interface VisitaInsert {
@@ -42,6 +45,7 @@ export interface VisitaInsert {
   fecha_hora_registro?: string
   notas_reagendado?: string
   reagendado_de?: string
+  tipo_dia?: TipoDia | null
 }
 
 export interface VisitaUpdate {
@@ -56,4 +60,5 @@ export interface VisitaUpdate {
   fecha_hora_registro?: string
   notas_reagendado?: string
   reagendado_de?: string
+  tipo_dia?: TipoDia | null
 }
