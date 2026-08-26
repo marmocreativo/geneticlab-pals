@@ -587,45 +587,67 @@ export function ActividadWizard({ open, onOpenChange, onSubmit, loading = false 
                   control={step2Form.control}
                   name="temas_impartidos"
                   render={({ field }) => {
-                    const seleccionados: string[] = field.value
-                      ? field.value.split(',').map(t => t.trim()).filter(Boolean)
-                      : []
+                    // ===== VERSIÓN ANTERIOR (multi-selección) - COMENTADA PARA ROLLBACK =====
+                    // const seleccionados: string[] = field.value
+                    //   ? field.value.split(',').map(t => t.trim()).filter(Boolean)
+                    //   : []
+                    //
+                    // const toggleTema = (nombre: string) => {
+                    //   const nuevos = seleccionados.includes(nombre)
+                    //     ? seleccionados.filter(t => t !== nombre)
+                    //     : [...seleccionados, nombre]
+                    //   field.onChange(nuevos.join(', '))
+                    // }
+                    //
+                    // return (
+                    //   <FormItem>
+                    //     <FormLabel>Temas Impartidos</FormLabel>
+                    //     <div className="border rounded-md overflow-y-auto" style={{ maxHeight: '180px' }}>
+                    //       {temasDisponibles.length === 0 ? (
+                    //         <p className="p-3 text-sm text-muted-foreground text-center">
+                    //           No hay temas disponibles
+                    //         </p>
+                    //       ) : (
+                    //         temasDisponibles.map(tema => (
+                    //           <label
+                    //             key={tema.id}
+                    //             className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-0"
+                    //           >
+                    //             <Checkbox
+                    //               checked={seleccionados.includes(tema.nombre)}
+                    //               onCheckedChange={() => toggleTema(tema.nombre)}
+                    //             />
+                    //             <span className="text-sm">{tema.nombre}</span>
+                    //           </label>
+                    //         ))
+                    //       )}
+                    //     </div>
+                    //     {seleccionados.length > 0 && (
+                    //       <p className="text-xs text-muted-foreground">
+                    //         Seleccionados: {field.value}
+                    //       </p>
+                    //     )}
+                    //     <FormMessage />
+                    //   </FormItem>
+                    // )
+                    // ===== FIN VERSIÓN ANTERIOR =====
 
-                    const toggleTema = (nombre: string) => {
-                      const nuevos = seleccionados.includes(nombre)
-                        ? seleccionados.filter(t => t !== nombre)
-                        : [...seleccionados, nombre]
-                      field.onChange(nuevos.join(', '))
-                    }
-
+                    // ===== VERSIÓN ACTUAL (selección única) =====
                     return (
                       <FormItem>
-                        <FormLabel>Temas Impartidos</FormLabel>
-                        <div className="border rounded-md overflow-y-auto" style={{ maxHeight: '180px' }}>
-                          {temasDisponibles.length === 0 ? (
-                            <p className="p-3 text-sm text-muted-foreground text-center">
-                              No hay temas disponibles
-                            </p>
-                          ) : (
-                            temasDisponibles.map(tema => (
-                              <label
-                                key={tema.id}
-                                className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-0"
-                              >
-                                <Checkbox
-                                  checked={seleccionados.includes(tema.nombre)}
-                                  onCheckedChange={() => toggleTema(tema.nombre)}
-                                />
-                                <span className="text-sm">{tema.nombre}</span>
-                              </label>
-                            ))
-                          )}
-                        </div>
-                        {seleccionados.length > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            Seleccionados: {field.value}
-                          </p>
-                        )}
+                        <FormLabel>Tema Impartido</FormLabel>
+                        <Select value={field.value || ''} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un tema" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {temasDisponibles.map(tema => (
+                              <SelectItem key={tema.id} value={tema.nombre}>{tema.nombre}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )
