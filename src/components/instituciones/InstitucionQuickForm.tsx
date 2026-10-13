@@ -8,6 +8,8 @@ import { MapPin, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PlaceSearchInput } from './PlaceSearchInput';
 import { institucionesService } from '@/services/institucionesService';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ESTADOS_MX, matchEstado } from '@/constants/estados';
 import type { Institucion } from '@/types/institucion';
 
 interface InstitucionQuickFormProps {
@@ -41,8 +43,6 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
     const lat = place.geometry.location.lat();
     const lng = place.geometry.location.lng();
 
-    console.log('address_components:', JSON.stringify(place.address_components, null, 2))
-
     let ciudad = ''
     let estado = ''
     if (place.address_components) {
@@ -55,7 +55,7 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
           if (!ciudad) ciudad = component.long_name
         }
         if (component.types.includes('administrative_area_level_1')) {
-          estado = component.long_name
+          estado = matchEstado(component.long_name)
         }
       }
     }
@@ -74,6 +74,11 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
   };
 
   const onSubmit = async (data: FormData) => {
+    if (!data.estado) {
+      toast.error('Selecciona el estado');
+      return;
+    }
+    
     try {
       setLoading(true);
       const newInstitucion = await institucionesService.create({
@@ -147,13 +152,20 @@ export function InstitucionQuickForm({ onSuccess, onCancel }: InstitucionQuickFo
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Estado</Label>
-              <Input
-                {...register('estado')}
-                readOnly
-                className="bg-muted text-muted-foreground cursor-not-allowed"
-                placeholder="Se carga automáticamente"
-              />
+              <Label>Estado *</Label>
+              <Select
+                value={watch('estado') || ''}
+                onValueChange={(v) => setValue('estado', v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona el estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTADOS_MX.map((e) => (
+                    <SelectItem key={e} value={e}>{e}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Ciudad</Label>

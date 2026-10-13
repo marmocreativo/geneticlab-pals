@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AlertCircle, Search, ArrowRight, Loader2, MapPin, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ESTADOS_MX } from '@/constants/estados'
 
 const MOTIVO_LABEL: Record<ParDuplicado['motivo'], string> = {
   nombre_exacto: 'Nombre exacto',
@@ -20,14 +21,6 @@ const MOTIVO_VARIANT: Record<ParDuplicado['motivo'], 'destructive' | 'secondary'
   coordenadas: 'outline',
 }
 
-const ESTADOS_MX = [
-  'Aguascalientes','Baja California','Baja California Sur','Campeche',
-  'Chiapas','Chihuahua','Ciudad de México','Coahuila','Colima','Durango',
-  'Estado de México','Guanajuato','Guerrero','Hidalgo','Jalisco','Michoacán',
-  'Morelos','Nayarit','Nuevo León','Oaxaca','Puebla','Querétaro','Quintana Roo',
-  'San Luis Potosí','Sinaloa','Sonora','Tabasco','Tamaulipas','Tlaxcala',
-  'Veracruz','Yucatán','Zacatecas',
-]
 
 // ─── Tab 1: Duplicados ───────────────────────────────────────────────
 
